@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface NavItem {
   label: string;
@@ -35,7 +36,7 @@ const NAV: NavGroup[] = [
   {
     label: "Desk",
     items: [
-      { label: "Priority queue", href: "/desk/priority-queue" },
+      { label: "Deals", href: "/desk/priority-queue" },
       { label: "Appointments", href: "/desk/appointments" },
       { label: "Analytics", href: "/desk/analytics" },
     ],
@@ -124,6 +125,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Menu size={20} />
           </button>
           <span className="text-[13.5px] font-semibold tracking-tight">Deal Desk</span>
+          <Link href="/desk/deals/new" className="ml-auto">
+            <Button type="button">New deal</Button>
+          </Link>
         </header>
         <main className="flex-1 bg-[var(--color-fill-subtle)] px-6 py-6">{children}</main>
       </div>
