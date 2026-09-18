@@ -1,0 +1,99 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
+
+/*
+  Design tokens copied verbatim from the Deal Desk v2 prototype spec
+  (README_deal_desk_handoff.md, "Design tokens" section). Do not introduce
+  ad-hoc hex values elsewhere — extend this palette instead.
+*/
+:root {
+  --color-text: #1d1d1f;
+  --color-text-muted: #6e6e73;
+  --color-text-placeholder: #8e8e93;
+
+  --color-surface: #ffffff;
+  --color-fill-subtle: #f5f5f7;
+  --color-row-hover: #fafafc;
+  --color-hairline: #f2f2f5;
+  --color-header-rule: #ececef;
+
+  --color-primary: #0071e3;
+  --color-primary-hover: #0058b0;
+
+  --color-secondary: #ececed;
+  --color-secondary-hover: #e2e2e4;
+
+  --color-info-bg: #e7f1ff;
+  --color-info-text: #0058b0;
+  --color-info-hover: #d8e8fc;
+
+  --color-positive: #1a8a52;
+  --color-positive-text: #12704a;
+  --color-positive-bg: #e4f4ea;
+
+  --color-negative: #a8302a;
+  --color-negative-text: #c7362f;
+  --color-negative-bg: #fdeceb;
+
+  --color-caution-text: #8a5100;
+  --color-caution-bg: #fff3dc;
+
+  --color-delete: #c7c7cc;
+  --color-delete-hover: #c7362f;
+
+  --radius-card: 18px;
+  --radius-panel: 11px;
+  --radius-pill: 999px;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.05), 0 6px 20px rgba(0, 0, 0, 0.04);
+
+  --background: var(--color-fill-subtle);
+  --foreground: var(--color-text);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-text: var(--color-text);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-placeholder: var(--color-text-placeholder);
+  --color-surface: var(--color-surface);
+  --color-fill-subtle: var(--color-fill-subtle);
+  --color-row-hover: var(--color-row-hover);
+  --color-hairline: var(--color-hairline);
+  --color-header-rule: var(--color-header-rule);
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-secondary: var(--color-secondary);
+  --color-secondary-hover: var(--color-secondary-hover);
+  --color-info-bg: var(--color-info-bg);
+  --color-info-text: var(--color-info-text);
+  --color-info-hover: var(--color-info-hover);
+  --color-positive: var(--color-positive);
+  --color-positive-text: var(--color-positive-text);
+  --color-positive-bg: var(--color-positive-bg);
+  --color-negative: var(--color-negative);
+  --color-negative-text: var(--color-negative-text);
+  --color-negative-bg: var(--color-negative-bg);
+  --color-caution-text: var(--color-caution-text);
+  --color-caution-bg: var(--color-caution-bg);
+  --color-delete: var(--color-delete);
+  --color-delete-hover: var(--color-delete-hover);
+
+  --radius-card: var(--radius-card);
+  --radius-panel: var(--radius-panel);
+  --radius-pill: var(--radius-pill);
+
+  --font-sans: "Inter Tight", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
