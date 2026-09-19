@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx schema-sketch/seed.ts",
     "smoke-test": "tsx schema-sketch/smoke-test.ts"

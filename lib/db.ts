@@ -8,10 +8,14 @@ declare global {
 }
 
 // Reused across hot reloads in dev so we don't open a new pool per edit.
+const isLocal = /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL ?? "");
+
 const pool =
   global.__dealDeskPool ??
   new Pool({
     connectionString: process.env.DATABASE_URL,
+    // Supabase's pooler requires SSL; local Postgres doesn't offer it.
+    ssl: isLocal ? undefined : { rejectUnauthorized: false },
   });
 
 if (process.env.NODE_ENV !== "production") {

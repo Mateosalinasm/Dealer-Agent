@@ -18,9 +18,11 @@ import {
   outbidBy,
 } from "./bid-math";
 
+const connectionString =
+  process.env.DATABASE_URL ?? "postgresql://dealdesk:dealdesk@localhost:5432/dealdesk_sourcing";
 const pool = new Pool({
-  connectionString:
-    process.env.DATABASE_URL ?? "postgresql://dealdesk:dealdesk@localhost:5432/dealdesk_sourcing",
+  connectionString,
+  ssl: /localhost|127\.0\.0\.1/.test(connectionString) ? undefined : { rejectUnauthorized: false },
 });
 const db = drizzle(pool, { schema });
 

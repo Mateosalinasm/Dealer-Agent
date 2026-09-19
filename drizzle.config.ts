@@ -5,6 +5,11 @@ export default defineConfig({
   out: "./schema-sketch/migrations",
   dialect: "postgresql",
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? "postgresql://dealdesk:dealdesk@localhost:5432/dealdesk_sourcing",
+    // Migrations need a session-mode connection (prepared statements), not
+    // the transaction-mode pooler the running app uses — see DIRECT_URL.
+    url:
+      process.env.DIRECT_URL ??
+      process.env.DATABASE_URL ??
+      "postgresql://dealdesk:dealdesk@localhost:5432/dealdesk_sourcing",
   },
 });
