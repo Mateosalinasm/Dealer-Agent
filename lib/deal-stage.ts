@@ -89,6 +89,10 @@ export function monthOf(dateLike: string | Date): string {
   return d.toISOString().slice(0, 7);
 }
 
+export function daysSince(date: Date): number {
+  return Math.floor((Date.now() - date.getTime()) / 86_400_000);
+}
+
 export function pipelineTab(done: Record<string, boolean>, archived: boolean): PipelineTab {
   if (archived) return "archived";
   const { stageIdx } = dealStageInfo(done);

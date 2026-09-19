@@ -23,14 +23,52 @@ export const newDealSchema = z.object({
 });
 
 export const dealInfoSchema = z.object({
-  lenderId: z.string().uuid().optional().or(z.literal("")),
   programId: z.string().uuid().optional().or(z.literal("")),
-  salePriceDollars: z.coerce.number().min(0).optional(),
-  cashDownDollars: z.coerce.number().min(0).optional(),
   termMonths: z.coerce.number().int().min(0).optional(),
   aprPct: z.coerce.number().min(0).max(60).optional(),
-  backEndGrossDollars: z.coerce.number().optional(),
   notes: z.string().optional(),
+});
+
+export const moneyTradeSchema = z.object({
+  salePriceDollars: z.coerce.number().min(0).optional(),
+  docFeeDollars: z.coerce.number().min(0).optional(),
+  salesTaxDollars: z.coerce.number().min(0).optional(),
+  warrantyDollars: z.coerce.number().min(0).optional(),
+  gapInsDollars: z.coerce.number().min(0).optional(),
+  backEndCostDollars: z.coerce.number().min(0).optional(),
+  tradeVehicle: z.string().optional(),
+  tradeAcvDollars: z.coerce.number().optional(),
+  tradePayoffDollars: z.coerce.number().min(0).optional(),
+});
+
+export const customerFactsSchema = z.object({
+  lenderId: z.string().uuid().optional().or(z.literal("")),
+  lot: z.string().optional(),
+  cashDownDollars: z.coerce.number().min(0).optional(),
+  statedIncomeDollars: z.coerce.number().min(0).optional(),
+  verifiedIncomeDollars: z.coerce.number().min(0).optional(),
+  paymentDollars: z.coerce.number().min(0).optional(),
+  openAutoPaymentDollars: z.coerce.number().min(0).optional(),
+  statedAddress: z.string().optional(),
+  idType: z.string().optional(),
+  fico: z.coerce.number().int().min(300).max(900).optional(),
+});
+
+export const submissionSchema = z.object({
+  status: z.enum(["sent", "approved", "counter", "declined", "pulled"]),
+  aprPct: z.coerce.number().min(0).max(60).optional(),
+  term: z.coerce.number().int().min(0).optional(),
+  advanceDollars: z.coerce.number().min(0).optional(),
+  maxPaymentDollars: z.coerce.number().min(0).optional(),
+  tier: z.string().optional(),
+  downReqDollars: z.coerce.number().min(0).optional(),
+  stips: z.string().optional(),
+  reason: z.string().optional(),
+});
+
+export const ptiSchema = z.object({
+  ptiPriceDollars: z.coerce.number().min(0).optional(),
+  ptiPct: z.coerce.number().int().min(0).max(100).optional(),
 });
 
 export const appointmentSchema = z.object({

@@ -118,13 +118,74 @@ export const deals = pgTable('deals', {
   dealDate: date('deal_date'),
   lenderId: uuid('lender_id').references(() => lenders.id, { onDelete: 'set null' }),
   programId: uuid('program_id').references(() => lenderPrograms.id, { onDelete: 'set null' }),
-  salePrice: integer('sale_price'),
+  salePrice: integer('sale_price'),                   // the design's "sellPrice"
   cashDown: integer('cash_down'),
-  tradeAllowance: integer('trade_allowance'),
+  tradeAllowance: integer('trade_allowance'),         // superseded by tradeAcv below; kept, unused by new code
   tradePayoff: integer('trade_payoff'),
   termMonths: integer('term_months'),
   apr: integer('apr'),                               // basis points: 1899 = 18.99%
+
+  // Money & trade — see lib/deal-facts.ts for the computed rows (amount
+  // financed, front/back/total gross, trade equity) these feed.
+  docFee: integer('doc_fee'),
+  salesTax: integer('sales_tax'),
+  warranty: integer('warranty'),                      // service contract
+  gapIns: integer('gap_ins'),
+  backEndCost: integer('back_end_cost'),              // what the warranty/GAP actually cost us
+  tradeVehicle: text('trade_vehicle'),
+  tradeAcv: integer('trade_acv'),
+
+  // backEndGross is kept in sync (warranty + gapIns - backEndCost) by
+  // updateMoneyTrade so app/desk/analytics, which predates this section,
+  // doesn't need to change.
   backEndGross: integer('back_end_gross').notNull().default(0),
+
+  // Application facts used by dealHealth/nextAction/ptiCalc (lib/deal-facts.ts).
+  statedAddress: text('stated_address'),
+  idType: text('id_type'),
+  statedIncome: integer('stated_income'),
+  verifiedIncome: integer('verified_income'),
+  fico: integer('fico'),
+  lot: text('lot'),
+  payment: integer('payment'),                        // the payment being called out to the customer
+  ptiPrice: integer('pti_price'),
+  ptiPct: integer('pti_pct'),
+  openAutoTradeIn: boolean('open_auto_trade_in').notNull().default(false),
+  openAutoPayment: integer('open_auto_payment'),
+
+  // Health-issue acknowledgements: issue key -> acked-at (ms). An acked
+  // issue stays visible but stops counting toward the health status —
+  // see lib/deal-health.ts.
+  ackIssues: jsonb('ack_issues').$type<Record<string, number>>().notNull().default({}),
+
+  // Per-lender submissions (deal.subs[] in the design). lenderId is a
+  // real FK here rather than the prototype's string-matched lender name,
+  // since we already have a normalized lenders table.
+  subs: jsonb('subs')
+    .$type<
+      Array<{
+        id: string;
+        lenderId: string;
+        at: number;
+        status: "sent" | "approved" | "counter" | "declined" | "pulled";
+        apr: number | null;
+        term: number | null;
+        advance: number | null;
+        maxPayment: number | null;
+        tier: string;
+        downReq: number | null;
+        stips: string;
+        reason: string;
+      }>
+    >()
+    .notNull()
+    .default([]),
+  primarySubId: text('primary_sub_id'),
+
+  // Activity log (deal.log[] in the design) — free-text entries written
+  // by every write path below, capped to the most recent 120.
+  log: jsonb('log').$type<Array<{ at: number; text: string }>>().notNull().default([]),
+
   stips: jsonb('stips').$type<Array<{ label: string; done: boolean }>>().notNull().default([]),
 
   // The 13-step Application/Approval/Funding checklist from the design

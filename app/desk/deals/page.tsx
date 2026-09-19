@@ -3,7 +3,7 @@ import { db, schema } from "@/lib/db";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCents } from "@/lib/utils";
-import { dealStageInfo, monthOf, pipelineTab, STAGES, type PipelineTab } from "@/lib/deal-stage";
+import { daysSince, dealStageInfo, monthOf, pipelineTab, STAGES, type PipelineTab } from "@/lib/deal-stage";
 import { setDealArchived } from "@/app/desk/deals/actions";
 
 const TAB_LABEL: Record<PipelineTab | "all", string> = {
@@ -55,8 +55,6 @@ export default async function DealsPage({
         : a.deal.createdAt.getTime() - b.deal.createdAt.getTime(),
     );
 
-  const now = Date.now();
-
   return (
     <div>
       <div className="mb-5 flex items-center justify-between">
@@ -92,7 +90,7 @@ export default async function DealsPage({
           {rows.map(({ deal, bucket, info }) => {
             const vehicle = deal.vehicleId ? vehicleById.get(deal.vehicleId) : null;
             const stageName = info.stageIdx === 3 ? "Complete" : STAGES[info.stageIdx].name;
-            const daysInFunding = deal.fundingSince ? Math.floor((now - deal.fundingSince.getTime()) / (24 * 60 * 60 * 1000)) : 0;
+            const daysInFunding = deal.fundingSince ? daysSince(deal.fundingSince) : 0;
             const alarm = bucket === "funding" ? "!".repeat(Math.max(0, Math.min(3, daysInFunding - 1))) : "";
 
             return (
