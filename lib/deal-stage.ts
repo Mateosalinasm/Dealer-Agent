@@ -93,6 +93,10 @@ export function daysSince(date: Date): number {
   return Math.floor((Date.now() - date.getTime()) / 86_400_000);
 }
 
+export function msSince(date: Date): number {
+  return Date.now() - date.getTime();
+}
+
 export function pipelineTab(done: Record<string, boolean>, archived: boolean): PipelineTab {
   if (archived) return "archived";
   const { stageIdx } = dealStageInfo(done);

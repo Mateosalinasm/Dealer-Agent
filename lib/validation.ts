@@ -26,6 +26,7 @@ export const dealInfoSchema = z.object({
   programId: z.string().uuid().optional().or(z.literal("")),
   termMonths: z.coerce.number().int().min(0).optional(),
   aprPct: z.coerce.number().min(0).max(60).optional(),
+  commissionDollars: z.coerce.number().min(0).optional(),
   notes: z.string().optional(),
 });
 

@@ -212,8 +212,18 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
                   className="w-full rounded-[var(--radius-panel)] border border-[var(--color-hairline)] bg-[var(--color-surface)] px-3 py-2 text-[13.5px] outline-none focus:border-[var(--color-primary)]"
                 />
               </div>
+              <div>
+                <div className="mb-1 text-[11px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">Commission</div>
+                <input
+                  name="commissionDollars"
+                  type="number"
+                  step="0.01"
+                  defaultValue={deal.commission != null ? deal.commission / 100 : ""}
+                  className="w-full rounded-[var(--radius-panel)] border border-[var(--color-hairline)] bg-[var(--color-surface)] px-3 py-2 text-[13.5px] outline-none focus:border-[var(--color-primary)]"
+                />
+              </div>
             </div>
-            <p className="text-[11px] text-[var(--color-text-muted)]">Used for PTI/payment estimates only when no submission has its own rate/term yet.</p>
+            <p className="text-[11px] text-[var(--color-text-muted)]">Term/APR are used for PTI/payment estimates only when no submission has its own rate/term yet. Commission drives the pipeline board&rsquo;s monthly total.</p>
             <input type="hidden" name="notes" value={deal.notes ?? ""} />
             <Button type="submit" variant="secondary" className="self-end">
               Save
@@ -226,6 +236,7 @@ export default async function DealDetailPage({ params }: { params: Promise<{ id:
             <input type="hidden" name="programId" value={deal.programId ?? ""} />
             <input type="hidden" name="termMonths" value={deal.termMonths ?? ""} />
             <input type="hidden" name="aprPct" value={deal.apr != null ? deal.apr / 100 : ""} />
+            <input type="hidden" name="commissionDollars" value={deal.commission != null ? deal.commission / 100 : ""} />
             <Textarea name="notes" rows={4} defaultValue={deal.notes ?? ""} />
             <Button type="submit" variant="secondary" className="self-end">
               Save

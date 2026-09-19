@@ -58,6 +58,7 @@ export async function updateDealInfo(dealId: string, formData: FormData) {
     programId: formData.get("programId") ?? "",
     termMonths: formData.get("termMonths") || undefined,
     aprPct: formData.get("aprPct") || undefined,
+    commissionDollars: formData.get("commissionDollars") || undefined,
     notes: formData.get("notes") ?? "",
   });
 
@@ -67,12 +68,14 @@ export async function updateDealInfo(dealId: string, formData: FormData) {
       programId: parsed.programId || null,
       termMonths: parsed.termMonths ?? null,
       apr: parsed.aprPct != null ? Math.round(parsed.aprPct * 100) : null,
+      commission: parsed.commissionDollars != null ? Math.round(parsed.commissionDollars * 100) : null,
       notes: parsed.notes || null,
     })
     .where(eq(schema.deals.id, dealId));
 
   revalidatePath(`/desk/deals/${dealId}`);
   revalidatePath("/desk/analytics");
+  revalidatePath("/desk/deals");
 }
 
 // Lender ("Bank"), down payment, and the rest of the application facts

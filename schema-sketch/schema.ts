@@ -148,6 +148,11 @@ export const deals = pgTable('deals', {
   fico: integer('fico'),
   lot: text('lot'),
   payment: integer('payment'),                        // the payment being called out to the customer
+  // Manual entry — what the deal actually pays the operator, distinct
+  // from totalGross (lib/deal-facts.ts), which is the deal's own
+  // front+back gross. Drives the commission/profit toggle on the
+  // pipeline board.
+  commission: integer('commission'),
   ptiPrice: integer('pti_price'),
   ptiPct: integer('pti_pct'),
   openAutoTradeIn: boolean('open_auto_trade_in').notNull().default(false),
