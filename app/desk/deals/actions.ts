@@ -8,6 +8,7 @@ import { saveFile, readStoredFile } from "@/lib/storage";
 import { extractDocument } from "@/lib/extraction";
 import { isExtractable } from "@/lib/extraction-schemas";
 import { getDealershipTimezone, todayInTimezone } from "@/lib/dealership-time";
+import { dealStageInfo } from "@/lib/deal-stage";
 import {
   appointmentSchema,
   dealInfoSchema,
@@ -107,6 +108,56 @@ export async function setDealFunded(dealId: string, funded: boolean) {
 
   revalidatePath(`/desk/deals/${dealId}`);
   revalidatePath("/desk/priority-queue");
+  revalidatePath("/desk/deals");
+}
+
+// Toggles one step of the Application/Approval/Funding checklist (see
+// lib/deal-stage.ts). This is what actually drives a deal's position on
+// the pipeline board — `funded`/`fundedOn` below are kept in sync purely
+// so the pre-existing inventory-sold-sync and buy-scorecard turn-time
+// code (which read those columns, not `done`) keep working unchanged.
+export async function toggleDealStep(dealId: string, stepId: string) {
+  const today = todayInTimezone(await getDealershipTimezone());
+  const [deal] = await db.select().from(schema.deals).where(eq(schema.deals.id, dealId)).limit(1);
+  if (!deal) return;
+
+  const done = { ...deal.done, [stepId]: !deal.done[stepId] };
+  const { stageIdx } = dealStageInfo(done);
+  const funded = !!done.funded;
+
+  let fundingSince = deal.fundingSince;
+  if (stageIdx >= 2 && !fundingSince) fundingSince = new Date();
+  if (stageIdx < 2 && fundingSince) fundingSince = null;
+
+  await db
+    .update(schema.deals)
+    .set({ done, fundingSince, funded, fundedOn: funded ? today : null })
+    .where(eq(schema.deals.id, dealId));
+
+  if (deal.vehicleId && funded !== deal.funded) {
+    await db
+      .update(schema.vehicles)
+      .set({ sold: funded, soldOn: funded ? today : null })
+      .where(eq(schema.vehicles.id, deal.vehicleId));
+    revalidatePath("/inventory");
+    revalidatePath("/sourcing/what-to-buy");
+    revalidatePath("/sourcing/buy-scorecard");
+  }
+
+  revalidatePath(`/desk/deals/${dealId}`);
+  revalidatePath("/desk/priority-queue");
+  revalidatePath("/desk/deals");
+}
+
+export async function setDealArchived(dealId: string, archived: boolean) {
+  await db
+    .update(schema.deals)
+    .set({ archived, archivedAt: archived ? new Date() : null })
+    .where(eq(schema.deals.id, dealId));
+
+  revalidatePath(`/desk/deals/${dealId}`);
+  revalidatePath("/desk/priority-queue");
+  revalidatePath("/desk/deals");
 }
 
 export async function uploadDocument(dealId: string, formData: FormData) {

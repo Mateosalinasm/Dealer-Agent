@@ -126,6 +126,20 @@ export const deals = pgTable('deals', {
   apr: integer('apr'),                               // basis points: 1899 = 18.99%
   backEndGross: integer('back_end_gross').notNull().default(0),
   stips: jsonb('stips').$type<Array<{ label: string; done: boolean }>>().notNull().default([]),
+
+  // The 13-step Application/Approval/Funding checklist from the design
+  // (see lib/deal-stage.ts) — step id -> done. This is the source of
+  // truth for pipeline position; `funded`/`fundedOn` below are kept in
+  // sync automatically (via toggleDealStep) so the existing
+  // inventory-sold-sync and buy-scorecard turn-time code, which predate
+  // this checklist, don't need to change.
+  done: jsonb('done').$type<Record<string, boolean>>().notNull().default({}),
+  archived: boolean('archived').notNull().default(false),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
+  // Set when the deal first reaches the Funding stage; drives the
+  // days-in-funding urgency indicator on the pipeline board.
+  fundingSince: timestamp('funding_since', { withTimezone: true }),
+
   funded: boolean('funded').notNull().default(false),
   fundedOn: date('funded_on'),
   notes: text('notes'),
