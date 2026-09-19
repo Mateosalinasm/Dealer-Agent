@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,17 @@ interface NavGroup {
 }
 
 const NAV: NavGroup[] = [
+  {
+    label: "Deals",
+    items: [
+      { label: "Dashboard", href: "/desk/deals?tab=working" },
+      { label: "In funding", href: "/desk/deals?tab=funding" },
+      { label: "Booked", href: "/desk/deals?tab=booked" },
+      { label: "Funded", href: "/desk/deals?tab=funded" },
+      { label: "All this month", href: "/desk/deals?tab=all" },
+      { label: "Archived", href: "/desk/deals?tab=archived" },
+    ],
+  },
   {
     label: "Inventory",
     items: [{ label: "Inventory", href: "/inventory" }],
@@ -36,8 +47,7 @@ const NAV: NavGroup[] = [
   {
     label: "Desk",
     items: [
-      { label: "Deals", href: "/desk/priority-queue" },
-      { label: "Appointments", href: "/desk/appointments" },
+      { label: "Priority queue", href: "/desk/priority-queue" },
       { label: "Analytics", href: "/desk/analytics" },
     ],
   },
@@ -50,13 +60,68 @@ const NAV: NavGroup[] = [
   },
   {
     label: "Lenders",
-    items: [{ label: "Lenders", href: "/lenders" }],
+    items: [{ label: "All lenders", href: "/lenders" }],
   },
 ];
 
+function navLinkClasses(active: boolean) {
+  return cn(
+    "rounded-[var(--radius-panel)] px-2.5 py-1.5 text-[13.5px] font-medium text-[var(--color-text)] hover:bg-[var(--color-fill-subtle)]",
+    active && "bg-[var(--color-info-bg)] text-[var(--color-info-text)]",
+  );
+}
+
+// Reads the query string to highlight the active Deals tab, so it needs a
+// Suspense boundary — this renders inside the root layout on every route,
+// and without one Next.js can't statically prerender any page (e.g. 404).
+function NavLinks({ onNavigate }: { onNavigate: () => void }) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentPath = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
+
+  return (
+    <>
+      {NAV.map((group) => (
+        <div key={group.label}>
+          <div className="px-2 pb-1.5 text-[10.5px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">
+            {group.label}
+          </div>
+          <div className="flex flex-col gap-0.5">
+            {group.items.map((item) => (
+              <Link key={item.href} href={item.href} onClick={onNavigate} className={navLinkClasses(currentPath === item.href)}>
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
+function NavLinksFallback() {
+  return (
+    <>
+      {NAV.map((group) => (
+        <div key={group.label}>
+          <div className="px-2 pb-1.5 text-[10.5px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">
+            {group.label}
+          </div>
+          <div className="flex flex-col gap-0.5">
+            {group.items.map((item) => (
+              <Link key={item.href} href={item.href} className={navLinkClasses(false)}>
+                {item.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
+  );
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
-  const pathname = usePathname();
 
   return (
     <div className="flex min-h-screen">
@@ -87,31 +152,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </button>
         </div>
         <nav className="flex flex-col gap-5 overflow-y-auto px-3 pb-6">
-          {NAV.map((group) => (
-            <div key={group.label}>
-              <div className="px-2 pb-1.5 text-[10.5px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">
-                {group.label}
-              </div>
-              <div className="flex flex-col gap-0.5">
-                {group.items.map((item) => {
-                  const active = pathname === item.href;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      onClick={() => setOpen(false)}
-                      className={cn(
-                        "rounded-[var(--radius-panel)] px-2.5 py-1.5 text-[13.5px] font-medium text-[var(--color-text)] hover:bg-[var(--color-fill-subtle)]",
-                        active && "bg-[var(--color-info-bg)] text-[var(--color-info-text)]",
-                      )}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+          <Suspense fallback={<NavLinksFallback />}>
+            <NavLinks onNavigate={() => setOpen(false)} />
+          </Suspense>
         </nav>
       </aside>
 
