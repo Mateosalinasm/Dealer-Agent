@@ -17,7 +17,8 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-1.5 rounded-[var(--radius-pill)] px-4 py-2 text-[12.5px] font-semibold transition-colors disabled:opacity-50",
+        "inline-flex items-center justify-center gap-1.5 rounded-[var(--radius-pill)] px-4 py-2 text-[12.5px] font-semibold transition-colors disabled:pointer-events-none disabled:opacity-50",
+        "outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-2",
         VARIANT_CLASSES[variant],
         className,
       )}

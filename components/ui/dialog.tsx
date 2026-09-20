@@ -24,10 +24,13 @@ export function DialogContent({
 }) {
   return (
     <RadixDialog.Portal>
-      <RadixDialog.Overlay className="fixed inset-0 z-40 bg-black/30" />
+      <RadixDialog.Overlay
+        className="fixed inset-0 z-40 bg-black/30 data-[state=open]:animate-[dialog-overlay-in_180ms_ease-out] data-[state=closed]:animate-[dialog-overlay-out_150ms_ease-in]"
+      />
       <RadixDialog.Content
         className={cn(
           "fixed left-1/2 top-1/2 z-50 max-h-[85vh] w-[92vw] max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[var(--radius-card)] bg-[var(--color-surface)] p-6 shadow-[var(--shadow-card)] outline-none",
+          "data-[state=open]:animate-[dialog-content-in_200ms_cubic-bezier(0.16,1,0.3,1)] data-[state=closed]:animate-[dialog-content-out_150ms_ease-in]",
           className,
         )}
       >

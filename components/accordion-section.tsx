@@ -22,13 +22,21 @@ export function AccordionSection({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2.5 px-4 py-3.5 text-left hover:bg-[var(--color-fill-subtle)]"
+        className="flex w-full items-center gap-2.5 px-4 py-3.5 text-left transition-colors hover:bg-[var(--color-fill-subtle)]"
+        aria-expanded={open}
       >
         <span className="flex-none text-[15px] font-semibold tracking-[-.01em] text-[var(--color-text)]">{title}</span>
         {summary && <span className="min-w-0 flex-1 truncate text-[12.5px] text-[var(--color-text-muted)]">{summary}</span>}
-        <ChevronDown size={16} className={cn("flex-none text-[var(--color-text-placeholder)] transition-transform", open && "rotate-180")} />
+        <ChevronDown size={16} className={cn("flex-none text-[var(--color-text-placeholder)] transition-transform duration-200", open && "rotate-180")} />
       </button>
-      {open && <div className="px-4 pb-4">{children}</div>}
+      {/* grid-template-rows 0fr→1fr is a dependency-free way to animate to
+          "auto" height — the inner overflow-hidden wrapper clips the
+          content while the track is animating. */}
+      <div className="grid transition-[grid-template-rows] duration-200 ease-out" style={{ gridTemplateRows: open ? "1fr" : "0fr" }}>
+        <div className="overflow-hidden">
+          <div className="px-4 pb-4">{children}</div>
+        </div>
+      </div>
     </div>
   );
 }

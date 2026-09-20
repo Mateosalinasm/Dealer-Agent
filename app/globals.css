@@ -97,3 +97,38 @@ body {
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+/* Dialog/modal motion — subtle, fast, matches the rest of the app's
+   transition-colors timing rather than a showy overshoot. Radix's
+   Presence component (underlying Dialog.Content/Overlay) automatically
+   waits for these to finish before unmounting on close, so the
+   data-[state=closed] variants below are real exit animations, not just
+   dead classes. */
+@keyframes dialog-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes dialog-overlay-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes dialog-content-in {
+  from { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes dialog-content-out {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
+}
+
+/* Same treatment for the deal-detail route-modal (components/route-modal.tsx),
+   which isn't a Radix Dialog — plain CSS classes toggled by presence in
+   the DOM instead of a data-state attribute. */
+@keyframes route-modal-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes route-modal-content-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}

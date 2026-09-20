@@ -51,6 +51,16 @@ on `main`, so you can review the diffs before deciding what to push.
   DB), inbound messages auto-link to a matching lead by phone number. Sending
   fails with a clear on-screen message until Twilio creds are added (see
   below) — verified this actually happens via Playwright, not just assumed.
+- **UI polish pass #1** — three concrete, verified gaps, not a redesign:
+  (1) modals had zero open/close animation (instant snap in/out); added a
+  subtle fade+scale on both the Radix Dialog and the deal-detail route
+  modal. (2) Buttons had no visible keyboard-focus state at all — added a
+  focus ring. (3) Text fields' focus state was a bare border-color flip;
+  added a soft glow ring (same treatment, smoother) and a real disabled
+  style (was unstyled before). Also gave every accordion section on the
+  deal page a smooth expand/collapse instead of an instant show/hide.
+  Checked that none of this broke existing interactions (Escape-to-close,
+  form submission from inside a just-expanded accordion) via Playwright.
 - **Google Calendar sync** — new `/settings` page (Integrations section) with
   a real OAuth connect flow (`/api/integrations/google/connect` →
   Google's consent screen → `/api/integrations/google/callback` stores the
