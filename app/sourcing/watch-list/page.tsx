@@ -1,9 +1,10 @@
 import { getWatchListData } from "@/lib/watch-list-data";
 import { WatchItemCard } from "@/components/watch-item-card";
+import { PricingAssumptionsBar } from "@/components/pricing-assumptions-bar";
 import { formatCents } from "@/lib/utils";
 
 export default async function WatchListPage() {
-  const { rows, turnDays, holdingPerDay } = await getWatchListData();
+  const { rows, turnDays, holdingPerDay, targetGross, assumedDown } = await getWatchListData();
 
   return (
     <div>
@@ -13,9 +14,11 @@ export default async function WatchListPage() {
         </h1>
         <p className="mt-1 text-[12.5px] text-[var(--color-text-muted)]">
           The units you priced, with the full math open for each one. Holding cost assumes{" "}
-          {turnDays} days at {formatCents(holdingPerDay)}/day.
+          {turnDays} days at {formatCents(holdingPerDay)}/day, from your actual average turn time.
         </p>
       </div>
+
+      <PricingAssumptionsBar targetGrossCents={targetGross} assumedDownCents={assumedDown} holdingPerDayCents={holdingPerDay} />
 
       {rows.length === 0 ? (
         <div className="rounded-[var(--radius-card)] bg-[var(--color-surface)] p-8 text-center">

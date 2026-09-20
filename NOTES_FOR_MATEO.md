@@ -61,6 +61,23 @@ on `main`, so you can review the diffs before deciding what to push.
   deal page a smooth expand/collapse instead of an instant show/hide.
   Checked that none of this broke existing interactions (Escape-to-close,
   form submission from inside a just-expanded accordion) via Playwright.
+- **Analytics rebuild** — matches the reference screenshot's stat-tile layout:
+  6 tiles for the selected date range (deals in range, funded, funding rate,
+  commission booked, avg hours on desk, pending funding), 4 snapshot tiles
+  that intentionally ignore the range picker (deals critical, stips
+  outstanding, open leads, appointments set — these describe the desk
+  *right now*, not a historical window; said so in a code comment so it's
+  not a silent inconsistency), plus a new Inventory aging widget. Also
+  upgraded "Lender performance" to use the real submission records
+  (deal.subs[]) instead of just the deal's own lenderId/apr fields, which
+  predates the Submissions feature and only captured one lender per deal.
+  Every number here is a real Postgres query — nothing fabricated or
+  AI-derived.
+- **Auction watch-list**: added the editable "target gross / down payment /
+  holding cost" bar at the top (matches the reference screenshot), same
+  settings row the Auction day page already edited — this just gives it a
+  second, more contextual home. Auto-saves on blur; verified the value
+  actually lands in Postgres via a direct query, not just the UI updating.
 - **Google Calendar sync** — new `/settings` page (Integrations section) with
   a real OAuth connect flow (`/api/integrations/google/connect` →
   Google's consent screen → `/api/integrations/google/callback` stores the

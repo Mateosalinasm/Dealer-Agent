@@ -103,6 +103,8 @@ export async function getWatchListData() {
   return {
     turnDays: ctx.turnDays,
     holdingPerDay: ctx.holdingPerDay,
+    targetGross: ctx.targetGross,
+    assumedDown: ctx.assumedDown,
     rows: items.map((item) => {
       const { plan, cappedRetail } = planForWatchItem(item, ctx);
       const stats = compStats(comps, item.make, item.model);
