@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Car, CarFront, Truck } from "lucide-react";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { formatCents } from "@/lib/utils";
@@ -21,6 +22,9 @@ interface VehicleOption {
 }
 
 const BODY_LABEL: Record<BodyType, string> = { truck: "Truck", sedan: "Sedan", suv: "SUV" };
+// lucide-react has no dedicated SUV glyph — CarFront (a taller, boxier
+// front-on silhouette) is the closest stand-in.
+const BODY_ICON: Record<BodyType, typeof Truck> = { truck: Truck, sedan: Car, suv: CarFront };
 const BODY_TYPES: BodyType[] = ["truck", "sedan", "suv"];
 
 function vehicleLabel(v: VehicleOption) {
@@ -47,7 +51,7 @@ export function NewDealForm({ vehicles, lenders }: { vehicles: VehicleOption[]; 
   }, [vehicles, bodyFilter, vehicleQuery]);
 
   return (
-    <form action={createDeal} className="grid grid-cols-1 gap-4 md:grid-cols-[1.3fr_1fr]">
+    <form id="new-deal-form" action={createDeal} className="grid grid-cols-1 gap-4 md:grid-cols-[1.3fr_1fr]">
       <div className="flex flex-col gap-4">
         <div>
           <Label htmlFor="customerName">Customer</Label>
@@ -57,19 +61,23 @@ export function NewDealForm({ vehicles, lenders }: { vehicles: VehicleOption[]; 
         <div>
           <Label>What are they looking for?</Label>
           <div className="grid grid-cols-3 gap-2">
-            {BODY_TYPES.map((bt) => (
-              <button
-                key={bt}
-                type="button"
-                onClick={() => setBodyFilter((prev) => (prev === bt ? null : bt))}
-                className={`rounded-[var(--radius-panel)] border p-3 text-center ${
-                  bodyFilter === bt ? "border-[var(--color-primary)] bg-[var(--color-info-bg)]" : "border-[var(--color-hairline)] hover:bg-[var(--color-fill-subtle)]"
-                }`}
-              >
-                <div className="text-[13px] font-semibold text-[var(--color-text)]">{BODY_LABEL[bt]}</div>
-                <div className="text-[11px] text-[var(--color-text-muted)]">{countByBody[bt]} in stock</div>
-              </button>
-            ))}
+            {BODY_TYPES.map((bt) => {
+              const Icon = BODY_ICON[bt];
+              return (
+                <button
+                  key={bt}
+                  type="button"
+                  onClick={() => setBodyFilter((prev) => (prev === bt ? null : bt))}
+                  className={`flex flex-col items-center gap-1 rounded-[var(--radius-panel)] border p-3 text-center ${
+                    bodyFilter === bt ? "border-[var(--color-primary)] bg-[var(--color-info-bg)]" : "border-[var(--color-hairline)] hover:bg-[var(--color-fill-subtle)]"
+                  }`}
+                >
+                  <Icon size={20} className={bodyFilter === bt ? "text-[var(--color-primary)]" : "text-[var(--color-text-muted)]"} />
+                  <div className="text-[13px] font-semibold text-[var(--color-text)]">{BODY_LABEL[bt]}</div>
+                  <div className="text-[11px] text-[var(--color-text-muted)]">{countByBody[bt]} in stock</div>
+                </button>
+              );
+            })}
           </div>
         </div>
 

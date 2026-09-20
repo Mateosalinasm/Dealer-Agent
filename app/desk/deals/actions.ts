@@ -55,6 +55,23 @@ export async function createDeal(formData: FormData) {
     })
     .returning();
 
+  // Credit app upload (see components/credit-app-upload-field.tsx) — stored
+  // for the record now. Auto-filling name/address from it, and cross-
+  // referencing against the TurboPass address, needs AI extraction
+  // (ANTHROPIC_API_KEY), which isn't wired up yet.
+  const creditApp = formData.get("creditApp") as File | null;
+  if (creditApp && creditApp.size > 0) {
+    const { storagePath, fileSize } = await saveFile(creditApp);
+    await db.insert(schema.documents).values({
+      dealId: deal.id,
+      category: "credit_app",
+      fileName: creditApp.name,
+      storagePath,
+      mimeType: creditApp.type || null,
+      fileSize,
+    });
+  }
+
   revalidatePath("/desk/priority-queue");
   revalidatePath("/desk/deals");
   redirect(`/desk/deals/${deal.id}`);
