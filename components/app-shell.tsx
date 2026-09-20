@@ -122,6 +122,10 @@ function NavLinksFallback() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  // "New deal" belongs to the board you create deals from, not every
+  // screen in the app.
+  const showNewDeal = pathname === "/desk/deals";
 
   return (
     <div className="flex min-h-screen">
@@ -135,11 +139,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 w-64 -translate-x-full border-r border-[var(--color-hairline)] bg-[var(--color-surface)] transition-transform duration-200 ease-out",
+          "fixed inset-y-0 left-0 z-30 flex w-64 -translate-x-full flex-col border-r border-[var(--color-hairline)] bg-[var(--color-surface)] transition-transform duration-200 ease-out",
           open && "translate-x-0",
         )}
       >
-        <div className="flex items-center justify-between px-5 py-4">
+        <div className="flex flex-none items-center justify-between px-5 py-4">
           <span className="text-[13.5px] font-semibold tracking-tight text-[var(--color-text)]">
             Deal Desk
           </span>
@@ -151,7 +155,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <X size={18} />
           </button>
         </div>
-        <nav className="flex flex-col gap-5 overflow-y-auto px-3 pb-6">
+        {/* min-h-0 lets this shrink below its content size inside the flex
+            column above, which is what makes overflow-y-auto actually
+            scroll instead of letting content run past the aside's bottom
+            edge uncontrolled. */}
+        <nav className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-3 pb-6">
           <Suspense fallback={<NavLinksFallback />}>
             <NavLinks onNavigate={() => setOpen(false)} />
           </Suspense>
@@ -168,9 +176,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Menu size={20} />
           </button>
           <span className="text-[13.5px] font-semibold tracking-tight">Deal Desk</span>
-          <Link href="/desk/deals/new" className="ml-auto">
-            <Button type="button">New deal</Button>
-          </Link>
+          {showNewDeal && (
+            <Link href="/desk/deals/new" className="ml-auto">
+              <Button type="button">New deal</Button>
+            </Link>
+          )}
         </header>
         <main className="flex-1 bg-[var(--color-fill-subtle)] px-6 py-6">{children}</main>
       </div>

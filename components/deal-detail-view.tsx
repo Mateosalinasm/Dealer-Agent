@@ -12,10 +12,8 @@ import { StageChecklist } from "@/components/stage-checklist";
 import { DocumentRow } from "@/components/document-row";
 import { LenderMatchCard } from "@/components/lender-match-card";
 import { DealHealthCard } from "@/components/deal-health-card";
-import { MoneyTradeSection } from "@/components/money-trade-section";
 import { PtiSection } from "@/components/pti-section";
 import { CustomerSection } from "@/components/customer-section";
-import { SubmissionsSection } from "@/components/submissions-section";
 import { CreditGradeBadge } from "@/components/credit-grade-modal";
 import { IncomeReportBadge } from "@/components/income-report-badge";
 import { getUnderwritingSnapshot } from "@/lib/deal-underwriting";
@@ -98,12 +96,6 @@ export async function DealDetailView({ id }: { id: string }) {
   const openStips = deal.stips.filter((s) => !s.done).length;
   const activeSub = deal.subs.find((s) => s.id === deal.primarySubId) ?? deal.subs.find((s) => s.status === "approved") ?? null;
 
-  const approvedCount = deal.subs.filter((s) => s.status === "approved" || s.status === "counter").length;
-  const waitingCount = deal.subs.filter((s) => s.status === "sent").length;
-  const submissionsSummary = deal.subs.length
-    ? `${deal.subs.length} bank${deal.subs.length === 1 ? "" : "s"} · ${approvedCount} approved · ${waitingCount} waiting`
-    : "Not submitted anywhere yet";
-
   const creditReportDocs = documents.filter((d) => d.category === "credit_report");
   const incomeDocs = documents.filter((d) => d.category === "turbopass" || d.category === "bank_statement");
 
@@ -166,13 +158,6 @@ export async function DealDetailView({ id }: { id: string }) {
           <CustomerSection dealId={id} deal={deal} lenders={lenders} vehicles={matchVehicles} />
         </AccordionSection>
 
-        <AccordionSection
-          title="Money & trade"
-          summary={facts.totalGross != null ? `${(facts.totalGross / 100).toLocaleString(undefined, { style: "currency", currency: "USD" })} gross` : "Nothing entered yet"}
-        >
-          <MoneyTradeSection dealId={id} facts={facts} tradeVehicle={deal.tradeVehicle} />
-        </AccordionSection>
-
         <AccordionSection title="Lenders" summary={vehicle ? undefined : "Needs a unit and a down payment"}>
           <LenderMatchCard
             vehicle={
@@ -192,10 +177,6 @@ export async function DealDetailView({ id }: { id: string }) {
             snapshot={snapshot}
             availableDownCents={deal.cashDown}
           />
-        </AccordionSection>
-
-        <AccordionSection title="Submissions" summary={submissionsSummary}>
-          <SubmissionsSection dealId={id} subs={deal.subs} lenders={lenders} primarySubId={deal.primarySubId} />
         </AccordionSection>
 
         <AccordionSection title="PTI calculator" summary={activeSub?.apr != null ? `${activeSub.apr / 100}% APR on file` : undefined}>
