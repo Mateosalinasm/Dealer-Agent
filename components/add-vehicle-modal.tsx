@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { formatCents } from "@/lib/utils";
-import { analyzeAutocheckDraft, createVehicleManually, deleteAutocheckDraft, uploadAutocheckDraft } from "@/app/inventory/actions";
+import { analyzeAutocheckDraft, createVehicleManually, decodeVinForForm, deleteAutocheckDraft, uploadAutocheckDraft } from "@/app/inventory/actions";
 import type { titleStatusValues } from "@/lib/validation";
 
 type TitleStatus = (typeof titleStatusValues)[number];
@@ -50,6 +50,8 @@ export function AddVehicleModal() {
   const [autocheckStatus, setAutocheckStatus] = useState<"idle" | "uploading" | "analyzing" | "done" | "failed">("idle");
   const [autocheckError, setAutocheckError] = useState("");
   const [autocheckData, setAutocheckData] = useState<AutocheckData | null>(null);
+  const [vinStatus, setVinStatus] = useState<"idle" | "decoding" | "done" | "failed">("idle");
+  const [vinError, setVinError] = useState("");
 
   const room = useMemo(() => {
     const price = Number(form.price);
@@ -69,6 +71,29 @@ export function AddVehicleModal() {
     setAutocheckStatus("idle");
     setAutocheckError("");
     setAutocheckData(null);
+    setVinStatus("idle");
+    setVinError("");
+  }
+
+  async function handleDecodeVin() {
+    setVinStatus("decoding");
+    setVinError("");
+    const result = await decodeVinForForm(form.vin);
+    if (result.ok && result.data) {
+      const d = result.data;
+      setVinStatus("done");
+      setForm((prev) => ({
+        ...prev,
+        year: d.year != null ? String(d.year) : prev.year,
+        make: d.make || prev.make,
+        model: d.model || prev.model,
+        trim: d.trim || prev.trim,
+        bodyType: d.bodyType || prev.bodyType,
+      }));
+    } else {
+      setVinStatus("failed");
+      setVinError(result.error ?? "Couldn't decode this VIN.");
+    }
   }
 
   async function handleAutocheckFile(file: File) {
@@ -211,7 +236,14 @@ export function AddVehicleModal() {
             </div>
             <div>
               <Label htmlFor="av-vin">VIN</Label>
-              <Input id="av-vin" name="vin" placeholder="17-digit VIN" value={form.vin} onChange={(e) => set("vin", e.target.value)} />
+              <div className="flex gap-1.5">
+                <Input id="av-vin" name="vin" placeholder="17-digit VIN" value={form.vin} onChange={(e) => set("vin", e.target.value)} className="flex-1" />
+                <Button type="button" variant="secondary" className="flex-none px-2.5 py-1 text-[11px]" disabled={form.vin.trim().length !== 17 || vinStatus === "decoding"} onClick={handleDecodeVin}>
+                  {vinStatus === "decoding" ? "…" : "Decode"}
+                </Button>
+              </div>
+              {vinStatus === "failed" && <p className="mt-1 text-[11px] text-[var(--color-negative-text)]">{vinError}</p>}
+              {vinStatus === "done" && <p className="mt-1 text-[11px] text-[var(--color-positive-text)]">Filled in from NHTSA — still editable.</p>}
             </div>
           </div>
 

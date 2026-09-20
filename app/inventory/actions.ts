@@ -5,8 +5,13 @@ import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { saveFile, readStoredFile } from "@/lib/storage";
 import { extractDocument } from "@/lib/extraction";
+import { decodeVin, type VinDecodeResult } from "@/lib/vin-decoder";
 import { getDealershipTimezone, todayInTimezone } from "@/lib/dealership-time";
 import { manualVehicleSchema, vehicleImportRowSchema, type VehicleImportRowInput } from "@/lib/validation";
+
+export async function decodeVinForForm(vin: string): Promise<VinDecodeResult> {
+  return decodeVin(vin);
+}
 
 export async function importVehicles(rows: VehicleImportRowInput[]) {
   if (rows.length === 0) return { imported: 0, errors: [] as string[] };

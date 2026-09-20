@@ -61,6 +61,18 @@ on `main`, so you can review the diffs before deciding what to push.
   deal page a smooth expand/collapse instead of an instant show/hide.
   Checked that none of this broke existing interactions (Escape-to-close,
   form submission from inside a just-expanded accordion) via Playwright.
+- **VIN decoder** — "Decode" button next to VIN in Add Vehicle, uses NHTSA's
+  free vPIC API (no key, no cost) to pre-fill year/make/model/trim/body
+  from the VIN alone — an alternative to AutoCheck for the fields that
+  don't need a real vehicle history report. **Couldn't verify this
+  actually reaches NHTSA** — this sandbox's outbound proxy only allow-
+  lists a handful of domains (npm, PyPI, Anthropic's APIs) and returns 403
+  for everything else, NHTSA included; confirmed via a direct curl. The
+  error handling path itself works correctly (verified via Playwright —
+  it shows "NHTSA returned 403" cleanly, no crash), so the code is
+  reachable and honest about failures, but you should try it for real
+  once this runs somewhere with normal internet access before relying on
+  it.
 - **Analytics rebuild** — matches the reference screenshot's stat-tile layout:
   6 tiles for the selected date range (deals in range, funded, funding rate,
   commission booked, avg hours on desk, pending funding), 4 snapshot tiles
