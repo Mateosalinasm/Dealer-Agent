@@ -27,6 +27,10 @@ export interface ApplicantForMatch {
   creditScore: number | null;
   monthlyIncomeCents: number | null;
   availableDownCents: number;
+  /** Existing car payment(s) already on the credit file — rolled into the
+   * PTI check below so it reflects total auto debt, not just this deal's
+   * payment in isolation. */
+  openAutoPaymentCents?: number | null;
 }
 
 export interface ProgramForMatch {
@@ -219,12 +223,16 @@ export function matchProgram(
 
   let estimatedPtiPct: number | null = null;
   if (estimatedMonthlyPaymentCents != null && applicant.monthlyIncomeCents) {
-    estimatedPtiPct = Math.round((estimatedMonthlyPaymentCents / applicant.monthlyIncomeCents) * 1000) / 10;
+    const openAutoPaymentCents = applicant.openAutoPaymentCents ?? 0;
+    const totalAutoPaymentCents = estimatedMonthlyPaymentCents + openAutoPaymentCents;
+    estimatedPtiPct = Math.round((totalAutoPaymentCents / applicant.monthlyIncomeCents) * 1000) / 10;
     if (program.maxPtiPct != null && estimatedPtiPct > program.maxPtiPct) {
       const gap = Math.round((estimatedPtiPct - program.maxPtiPct) * 10) / 10;
       applicantFlags.push({
         dimension: "pti",
-        reason: `Estimated payment is ${estimatedPtiPct}% of income — ${gap} points over the program's ${program.maxPtiPct}% PTI cap.`,
+        reason: openAutoPaymentCents
+          ? `Estimated payment plus ${fmtCents(openAutoPaymentCents)}/mo of existing auto debt is ${estimatedPtiPct}% of income — ${gap} points over the program's ${program.maxPtiPct}% PTI cap.`
+          : `Estimated payment is ${estimatedPtiPct}% of income — ${gap} points over the program's ${program.maxPtiPct}% PTI cap.`,
         severity: ptiSeverity(gap),
       });
     }
@@ -262,13 +270,24 @@ const LIKELIHOOD_RANK: Record<ExceptionLikelihood, number> = { strong: 0, possib
 
 /**
  * Fits first, then flagged (best exception odds first), excluded last.
- * Within a tier, lowest required down first, then lowest estimated payment.
+ * Within a tier, a preferred lender (if named and still in that tier)
+ * goes first, then lowest required down, then lowest estimated payment.
+ *
+ * `priorityLenderNames` is how a dealership-specific relationship (e.g.
+ * "Westlake gives our best approvals for US-ID customers") gets applied —
+ * it's a tie-breaker within a status tier, never something that promotes
+ * a worse-fitting program over a better one, and the caller decides who's
+ * on the list and when it applies. Matched case-insensitively.
  */
 export function matchAllPrograms(
   vehicle: VehicleForMatch,
   applicant: ApplicantForMatch,
   programs: ProgramForMatch[],
+  priorityLenderNames?: string[],
 ): ProgramMatchResult[] {
+  const priority = new Set((priorityLenderNames ?? []).map((n) => n.toLowerCase()));
+  const isPriority = (r: ProgramMatchResult) => priority.has(r.lenderName.toLowerCase());
+
   return programs
     .map((p) => matchProgram(vehicle, applicant, p))
     .sort((a, b) => {
@@ -277,9 +296,84 @@ export function matchAllPrograms(
         const rankDiff = LIKELIHOOD_RANK[a.exceptionLikelihood] - LIKELIHOOD_RANK[b.exceptionLikelihood];
         if (rankDiff !== 0) return rankDiff;
       }
+      const aPriority = isPriority(a);
+      const bPriority = isPriority(b);
+      if (aPriority !== bPriority) return aPriority ? -1 : 1;
       if (a.requiredDownCents !== b.requiredDownCents) return a.requiredDownCents - b.requiredDownCents;
       const ap = a.estimatedMonthlyPaymentCents ?? Infinity;
       const bp = b.estimatedMonthlyPaymentCents ?? Infinity;
+      return ap - bp;
+    });
+}
+
+// --- Vehicle matching ---------------------------------------------------
+//
+// "Which unit in stock actually works for this applicant" is the same
+// question as "which program fits this vehicle," just asked from the
+// other direction — so it reuses matchAllPrograms per vehicle rather than
+// a separate affordability formula. No new numbers, no new rules.
+
+export interface VehicleCandidate {
+  id: string;
+  year: number | null;
+  make: string | null;
+  model: string | null;
+  trim: string | null;
+  askingPriceCents: number | null;
+  bookValueCents: number | null;
+  miles: number | null;
+  title: TitleStatus;
+  bodyType: string | null;
+}
+
+export interface VehicleMatchResult {
+  vehicle: VehicleCandidate;
+  /** matchAllPrograms(), already sorted best-first for this vehicle. Empty if there's no price to match against. */
+  programResults: ProgramMatchResult[];
+  bestStatus: MatchStatus | null;
+  fitsCount: number;
+}
+
+/**
+ * Ranks in-stock vehicles by how well the applicant's profile fits them
+ * across the lender programs on file. `wantBodyType`, when set, filters
+ * the pool first — but a null/unset want still ranks the whole lot, since
+ * "no stated preference" shouldn't mean "no suggestions."
+ */
+export function matchVehiclesForApplicant(
+  vehicles: VehicleCandidate[],
+  applicant: ApplicantForMatch,
+  programs: ProgramForMatch[],
+  wantBodyType?: string | null,
+  priorityLenderNames?: string[],
+): VehicleMatchResult[] {
+  const pool = wantBodyType ? vehicles.filter((v) => v.bodyType === wantBodyType) : vehicles;
+
+  return pool
+    .map((vehicle): VehicleMatchResult => {
+      if (vehicle.askingPriceCents == null) {
+        return { vehicle, programResults: [], bestStatus: null, fitsCount: 0 };
+      }
+      const programResults = matchAllPrograms(
+        { askingPriceCents: vehicle.askingPriceCents, bookValueCents: vehicle.bookValueCents, miles: vehicle.miles, year: vehicle.year, title: vehicle.title },
+        applicant,
+        programs,
+        priorityLenderNames,
+      );
+      return {
+        vehicle,
+        programResults,
+        bestStatus: programResults[0]?.status ?? null,
+        fitsCount: programResults.filter((r) => r.status === "fits").length,
+      };
+    })
+    .sort((a, b) => {
+      const rank = (r: VehicleMatchResult) => (r.bestStatus ? STATUS_RANK[r.bestStatus] : 3);
+      const rankDiff = rank(a) - rank(b);
+      if (rankDiff !== 0) return rankDiff;
+      if (a.fitsCount !== b.fitsCount) return b.fitsCount - a.fitsCount;
+      const ap = a.vehicle.askingPriceCents ?? Infinity;
+      const bp = b.vehicle.askingPriceCents ?? Infinity;
       return ap - bp;
     });
 }

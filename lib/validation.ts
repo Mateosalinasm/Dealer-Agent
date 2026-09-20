@@ -19,6 +19,7 @@ export const inventorySearchParamsSchema = z.object({
 export const newDealSchema = z.object({
   customerName: z.string().trim().min(1, "Customer name is required"),
   vehicleId: z.string().uuid().optional().or(z.literal("")),
+  wantBodyType: z.enum(["truck", "sedan", "suv"]).optional().or(z.literal("")),
   lenderId: z.string().uuid().optional().or(z.literal("")),
   dealDate: z.string().optional(),
   lot: z.string().optional(),
@@ -47,6 +48,7 @@ export const moneyTradeSchema = z.object({
 
 export const customerFactsSchema = z.object({
   vehicleId: z.string().uuid().optional().or(z.literal("")),
+  wantBodyType: z.enum(["truck", "sedan", "suv"]).optional().or(z.literal("")),
   lenderId: z.string().uuid().optional().or(z.literal("")),
   lot: z.string().optional(),
   cashDownDollars: z.coerce.number().min(0).optional(),

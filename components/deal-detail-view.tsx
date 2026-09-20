@@ -10,7 +10,7 @@ import { AccordionSection } from "@/components/accordion-section";
 import { StipChecklist } from "@/components/stip-checklist";
 import { StageChecklist } from "@/components/stage-checklist";
 import { DocumentRow } from "@/components/document-row";
-import { LenderMatchCard } from "@/components/lender-match-card";
+import { LenderVehicleMatchModal } from "@/components/lender-vehicle-match-modal";
 import { DealHealthCard } from "@/components/deal-health-card";
 import { PtiSection } from "@/components/pti-section";
 import { CustomerSection } from "@/components/customer-section";
@@ -22,7 +22,7 @@ import { dealHealth, nextAction, bucketOf } from "@/lib/deal-health";
 import { dealStageInfo, STAGES } from "@/lib/deal-stage";
 import { matchProgram } from "@/lib/lender-match";
 import { analyzeDocument, deleteDocument, setDealArchived, updateDealInfo, uploadDocument } from "@/app/desk/deals/actions";
-import type { ProgramForMatch, TitleStatus } from "@/lib/lender-match";
+import type { ProgramForMatch, TitleStatus, VehicleCandidate } from "@/lib/lender-match";
 
 // The full deal-detail screen. Rendered both as a real page
 // (app/desk/deals/[id]/page.tsx — direct nav, refresh, deep link) and
@@ -62,19 +62,30 @@ export async function DealDetailView({ id }: { id: string }) {
       typicalAprBps: p.typicalAprBps,
     }));
 
-  const matchVehicles = (vehicle && !stockVehicles.some((v) => v.id === vehicle.id) ? [vehicle, ...stockVehicles] : stockVehicles).map(
-    (v) => ({
-      id: v.id,
-      year: v.year,
-      make: v.make,
-      model: v.model,
-      trim: v.trim,
-      askingPrice: v.askingPrice,
-      bookValue: v.bookValue,
-      miles: v.miles,
-      title: v.title as TitleStatus,
-    }),
-  );
+  const combinedVehicles = vehicle && !stockVehicles.some((v) => v.id === vehicle.id) ? [vehicle, ...stockVehicles] : stockVehicles;
+  const matchVehicles = combinedVehicles.map((v) => ({
+    id: v.id,
+    year: v.year,
+    make: v.make,
+    model: v.model,
+    trim: v.trim,
+    askingPrice: v.askingPrice,
+    bookValue: v.bookValue,
+    miles: v.miles,
+    title: v.title as TitleStatus,
+  }));
+  const inventoryCandidates: VehicleCandidate[] = combinedVehicles.map((v) => ({
+    id: v.id,
+    year: v.year,
+    make: v.make,
+    model: v.model,
+    trim: v.trim,
+    askingPriceCents: v.askingPrice,
+    bookValueCents: v.bookValue,
+    miles: v.miles,
+    title: v.title as TitleStatus,
+    bodyType: v.bodyType,
+  }));
 
   // --- Derived facts / health / stage (lib/deal-facts.ts, lib/deal-health.ts, lib/deal-stage.ts) ---
   const facts = dealFacts(deal, vehicle);
@@ -151,32 +162,45 @@ export async function DealDetailView({ id }: { id: string }) {
         <div className="mt-1.5 text-[16px] font-semibold leading-tight text-white">{next.label}</div>
       </div>
 
+      <div className="mb-4">
+        <LenderVehicleMatchModal
+          dealId={id}
+          customerName={deal.customerName ?? ""}
+          vehicleLabel={facts.vehicleLabel}
+          creditFacts={deal}
+          idType={deal.idType}
+          wantBodyType={deal.wantBodyType}
+          monthlyIncomeCents={snapshot.monthlyIncomeCents ?? facts.income}
+          incomeSource={snapshot.incomeSource}
+          cashDownCents={deal.cashDown}
+          openAutoPaymentCents={facts.openAutoPayment}
+          amountFinancedCents={facts.amountFinanced}
+          ltvPct={facts.ltv}
+          linkedVehicle={
+            vehicle && {
+              id: vehicle.id,
+              year: vehicle.year,
+              make: vehicle.make,
+              model: vehicle.model,
+              trim: vehicle.trim,
+              askingPriceCents: vehicle.askingPrice,
+              bookValueCents: vehicle.bookValue,
+              miles: vehicle.miles,
+              title: vehicle.title as TitleStatus,
+              bodyType: vehicle.bodyType,
+            }
+          }
+          programs={matchPrograms}
+          inventory={inventoryCandidates}
+          attentionNeeded={health.status !== "green"}
+        />
+      </div>
+
       <div className="flex flex-col gap-4">
         <DealHealthCard dealId={id} health={health} />
 
         <AccordionSection title="Customer" summary={facts.vehicleLabel || "No vehicle · Pending submission"} defaultOpen>
           <CustomerSection dealId={id} deal={deal} lenders={lenders} vehicles={matchVehicles} />
-        </AccordionSection>
-
-        <AccordionSection title="Lenders" summary={vehicle ? undefined : "Needs a unit and a down payment"}>
-          <LenderMatchCard
-            vehicle={
-              vehicle && {
-                id: vehicle.id,
-                year: vehicle.year,
-                make: vehicle.make,
-                model: vehicle.model,
-                trim: vehicle.trim,
-                askingPrice: vehicle.askingPrice,
-                bookValue: vehicle.bookValue,
-                miles: vehicle.miles,
-                title: vehicle.title as TitleStatus,
-              }
-            }
-            programs={matchPrograms}
-            snapshot={snapshot}
-            availableDownCents={deal.cashDown}
-          />
         </AccordionSection>
 
         <AccordionSection title="PTI calculator" summary={activeSub?.apr != null ? `${activeSub.apr / 100}% APR on file` : undefined}>

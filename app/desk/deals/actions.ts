@@ -36,6 +36,7 @@ export async function createDeal(formData: FormData) {
   const parsed = newDealSchema.parse({
     customerName: formData.get("customerName"),
     vehicleId: formData.get("vehicleId") ?? "",
+    wantBodyType: formData.get("wantBodyType") ?? "",
     lenderId: formData.get("lenderId") ?? "",
     dealDate: formData.get("dealDate") || undefined,
     lot: formData.get("lot") ?? "",
@@ -47,6 +48,7 @@ export async function createDeal(formData: FormData) {
     .values({
       customerName: parsed.customerName,
       vehicleId: parsed.vehicleId || null,
+      wantBodyType: parsed.wantBodyType || null,
       lenderId: parsed.lenderId || null,
       lot: parsed.lot || null,
       notes: parsed.notes || null,
@@ -107,6 +109,7 @@ export async function updateDealInfo(dealId: string, formData: FormData) {
 export async function updateCustomerFacts(dealId: string, formData: FormData) {
   const parsed = customerFactsSchema.parse({
     vehicleId: formData.get("vehicleId") ?? "",
+    wantBodyType: formData.get("wantBodyType") ?? "",
     lenderId: formData.get("lenderId") ?? "",
     lot: formData.get("lot") ?? "",
     cashDownDollars: formData.get("cashDownDollars") || undefined,
@@ -122,6 +125,7 @@ export async function updateCustomerFacts(dealId: string, formData: FormData) {
     .update(schema.deals)
     .set({
       vehicleId: parsed.vehicleId || null,
+      wantBodyType: parsed.wantBodyType || null,
       lenderId: parsed.lenderId || null,
       lot: parsed.lot || null,
       cashDown: parsed.cashDownDollars != null ? Math.round(parsed.cashDownDollars * 100) : null,
@@ -134,6 +138,16 @@ export async function updateCustomerFacts(dealId: string, formData: FormData) {
     })
     .where(eq(schema.deals.id, dealId));
 
+  revalidatePath(`/desk/deals/${dealId}`);
+  revalidatePath("/desk/priority-queue");
+  revalidatePath("/desk/deals");
+}
+
+// Sets just the vehicle — the "Use this vehicle" action from the Find
+// vehicle tab of the lender/vehicle match tool, where re-deriving the
+// whole customer-facts form isn't worth it for one field.
+export async function setDealVehicle(dealId: string, vehicleId: string) {
+  await db.update(schema.deals).set({ vehicleId }).where(eq(schema.deals.id, dealId));
   revalidatePath(`/desk/deals/${dealId}`);
   revalidatePath("/desk/priority-queue");
   revalidatePath("/desk/deals");

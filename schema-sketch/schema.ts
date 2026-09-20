@@ -116,6 +116,7 @@ export const vehicles = pgTable('vehicles', {
 export const deals = pgTable('deals', {
   id: uuid('id').primaryKey().defaultRandom(),
   vehicleId: uuid('vehicle_id').references(() => vehicles.id, { onDelete: 'set null' }),
+  wantBodyType: text('want_body_type').$type<(typeof bodyType)[number]>(), // what the customer is shopping for, set at New deal
   contactId: uuid('contact_id').references(() => contacts.id, { onDelete: 'set null' }),
   customerName: text('customer_name'),
   dealDate: date('deal_date'),

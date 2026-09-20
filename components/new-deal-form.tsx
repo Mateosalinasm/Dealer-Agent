@@ -94,6 +94,7 @@ export function NewDealForm({ vehicles, lenders }: { vehicles: VehicleOption[]; 
             autoComplete="off"
           />
           <input type="hidden" name="vehicleId" value={selectedVehicleId} />
+          <input type="hidden" name="wantBodyType" value={bodyFilter ?? ""} />
         </div>
 
         <div className="grid grid-cols-2 gap-3">

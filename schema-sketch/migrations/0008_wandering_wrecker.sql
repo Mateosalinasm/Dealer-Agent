@@ -1,0 +1,1 @@
+ALTER TABLE "deals" ADD COLUMN "want_body_type" text;

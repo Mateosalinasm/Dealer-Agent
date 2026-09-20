@@ -41,6 +41,15 @@ export function CustomerSection({
         </Select>
       </div>
       <div>
+        <Label>Looking for</Label>
+        <Select name="wantBodyType" defaultValue={deal.wantBodyType ?? ""}>
+          <option value="">Not stated</option>
+          <option value="truck">Truck</option>
+          <option value="sedan">Sedan</option>
+          <option value="suv">SUV</option>
+        </Select>
+      </div>
+      <div>
         <Label>Bank</Label>
         <Select name="lenderId" defaultValue={deal.lenderId ?? ""}>
           <option value="">Not submitted</option>

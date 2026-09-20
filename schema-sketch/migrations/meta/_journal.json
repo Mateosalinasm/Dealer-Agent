@@ -57,6 +57,13 @@
       "when": 1789920770362,
       "tag": "0007_fat_thunderbolts",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789927112211,
+      "tag": "0008_wandering_wrecker",
+      "breakpoints": true
     }
   ]
 }
