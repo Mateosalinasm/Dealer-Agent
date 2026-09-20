@@ -23,17 +23,8 @@ import { dealFacts, ptiCalc } from "@/lib/deal-facts";
 import { dealHealth, nextAction, bucketOf } from "@/lib/deal-health";
 import { dealStageInfo, STAGES } from "@/lib/deal-stage";
 import { matchProgram } from "@/lib/lender-match";
-import { setDealArchived, updateDealInfo, uploadDocument } from "@/app/desk/deals/actions";
+import { analyzeDocument, deleteDocument, setDealArchived, updateDealInfo, uploadDocument } from "@/app/desk/deals/actions";
 import type { ProgramForMatch, TitleStatus } from "@/lib/lender-match";
-
-const CATEGORY_LABEL: Record<string, string> = {
-  turbopass: "TurboPass",
-  bank_statement: "Bank statement",
-  credit_report: "Credit report",
-  credit_app: "Credit app",
-  insurance: "Insurance",
-  other: "Other",
-};
 
 // The full deal-detail screen. Rendered both as a real page
 // (app/desk/deals/[id]/page.tsx — direct nav, refresh, deep link) and
@@ -113,14 +104,23 @@ export async function DealDetailView({ id }: { id: string }) {
     ? `${deal.subs.length} bank${deal.subs.length === 1 ? "" : "s"} · ${approvedCount} approved · ${waitingCount} waiting`
     : "Not submitted anywhere yet";
 
+  const creditReportDocs = documents.filter((d) => d.category === "credit_report");
+  const incomeDocs = documents.filter((d) => d.category === "turbopass" || d.category === "bank_statement");
+
   return (
     <div>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-[19px] font-semibold tracking-[-.01em] text-[var(--color-text)]">{deal.customerName}</h1>
-            <CreditGradeBadge dealId={id} customerName={deal.customerName ?? ""} vehicleLabel={facts.vehicleLabel} facts={deal} />
-            <IncomeReportBadge incomeSource={snapshot.incomeSource} />
+            <CreditGradeBadge dealId={id} customerName={deal.customerName ?? ""} vehicleLabel={facts.vehicleLabel} facts={deal} creditReportDocs={creditReportDocs} />
+            <IncomeReportBadge
+              dealId={id}
+              customerName={deal.customerName ?? ""}
+              incomeSource={snapshot.incomeSource}
+              monthlyIncomeCents={snapshot.monthlyIncomeCents}
+              documents={incomeDocs}
+            />
           </div>
           <div className="mt-1 flex items-center gap-2 text-[12.5px] text-[var(--color-text-muted)]">
             <span>{facts.vehicleLabel || "No vehicle attached"}</span>
@@ -297,16 +297,34 @@ export async function DealDetailView({ id }: { id: string }) {
         </AccordionSection>
 
         <Card id="documents">
-          <div className="mb-3 text-[13.5px] font-semibold text-[var(--color-text)]">Documents</div>
-          <form action={uploadDocument.bind(null, id)} className="mb-4 flex flex-wrap items-end gap-3">
-            <div className="w-48">
+          <div className="mb-1 text-[13.5px] font-semibold text-[var(--color-text)]">Documents</div>
+          <p className="mb-3 text-[11px] text-[var(--color-text-muted)]">
+            Credit reports, TurboPass/bank statements, and the credit app each upload from their own spot — the
+            credit grade badge, the income badge, and the New Deal form. This is everything on file for the deal,
+            plus a place for anything else.
+          </p>
+
+          {documents.length === 0 ? (
+            <p className="mb-3 text-[12.5px] text-[var(--color-text-muted)]">No documents uploaded yet.</p>
+          ) : (
+            <div className="mb-3 flex flex-col">
+              {documents.map((docRow) => (
+                <DocumentRow
+                  key={docRow.id}
+                  document={docRow}
+                  onAnalyze={analyzeDocument.bind(null, id)}
+                  onDelete={deleteDocument.bind(null, id)}
+                />
+              ))}
+            </div>
+          )}
+
+          <form action={uploadDocument.bind(null, id)} className="flex flex-wrap items-end gap-3 border-t border-[var(--color-hairline)] pt-3">
+            <div className="w-40">
               <div className="mb-1 text-[11px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">Type</div>
-              <Select name="category" defaultValue="credit_app">
-                {Object.entries(CATEGORY_LABEL).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
+              <Select name="category" defaultValue="insurance">
+                <option value="insurance">Insurance</option>
+                <option value="other">Other</option>
               </Select>
             </div>
             <div className="flex-1">
@@ -322,16 +340,6 @@ export async function DealDetailView({ id }: { id: string }) {
               Upload
             </Button>
           </form>
-
-          {documents.length === 0 ? (
-            <p className="text-[12.5px] text-[var(--color-text-muted)]">No documents uploaded yet.</p>
-          ) : (
-            <div className="flex flex-col">
-              {documents.map((docRow) => (
-                <DocumentRow key={docRow.id} document={{ ...docRow, dealId: id }} />
-              ))}
-            </div>
-          )}
         </Card>
       </div>
     </div>

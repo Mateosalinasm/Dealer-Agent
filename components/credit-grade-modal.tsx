@@ -4,9 +4,19 @@ import { useState, useTransition } from "react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { updateCredit } from "@/app/desk/deals/actions";
+import { DocumentRow } from "@/components/document-row";
+import { analyzeDocument, deleteDocument, updateCredit, uploadDocument } from "@/app/desk/deals/actions";
 import { gradeCredit, type CreditFacts } from "@/lib/credit-grade";
 import { cn } from "@/lib/utils";
+
+interface CreditReportDoc {
+  id: string;
+  category: string;
+  fileName: string;
+  extractionStatus: string;
+  extractedData: unknown;
+  extractionError: string | null;
+}
 
 const GRADE_TONE: Record<string, string> = {
   "A+": "bg-[var(--color-positive-bg)] text-[var(--color-positive-text)]",
@@ -22,11 +32,17 @@ export interface CreditGradeBadgeProps {
   customerName: string;
   vehicleLabel: string;
   facts: CreditFacts;
+  // Optional: the pipeline board's card version doesn't fetch documents
+  // per card (would be an N+1 query across the whole board), so its badge
+  // still opens the same modal and can still upload, just without a list
+  // of what's already on file until reopened from the deal detail page.
+  creditReportDocs?: CreditReportDoc[];
 }
 
-export function CreditGradeBadge({ dealId, customerName, vehicleLabel, facts }: CreditGradeBadgeProps) {
+export function CreditGradeBadge({ dealId, customerName, vehicleLabel, facts, creditReportDocs = [] }: CreditGradeBadgeProps) {
   const [fields, setFields] = useState(facts);
   const [, startTransition] = useTransition();
+  const [uploadPending, startUpload] = useTransition();
   const result = gradeCredit(fields);
   const hasScore = !!facts.fico;
 
@@ -36,6 +52,10 @@ export function CreditGradeBadge({ dealId, customerName, vehicleLabel, facts }: 
 
   function save(formData: FormData) {
     startTransition(() => updateCredit(dealId, formData));
+  }
+
+  function upload(formData: FormData) {
+    startUpload(() => uploadDocument(dealId, formData));
   }
 
   return (
@@ -169,6 +189,39 @@ export function CreditGradeBadge({ dealId, customerName, vehicleLabel, facts }: 
               ))}
             </div>
           </div>
+        </div>
+
+        <div className="mt-5 border-t border-[var(--color-hairline)] pt-4">
+          <div className="mb-1 text-[13px] font-semibold text-[var(--color-text)]">Credit report</div>
+          <p className="mb-2 text-[11px] text-[var(--color-text-muted)]">
+            Upload the pulled report here to keep it with the deal. &ldquo;Analyze with AI&rdquo; reads scores and
+            derogatory items off it automatically once it&rsquo;s uploaded — the numbers above still need to be
+            entered by hand for the grade to update until that&rsquo;s wired up with an API key.
+          </p>
+          {creditReportDocs.length > 0 && (
+            <div className="mb-2 flex flex-col">
+              {creditReportDocs.map((doc) => (
+                <DocumentRow
+                  key={doc.id}
+                  document={doc}
+                  onAnalyze={analyzeDocument.bind(null, dealId)}
+                  onDelete={deleteDocument.bind(null, dealId)}
+                />
+              ))}
+            </div>
+          )}
+          <form action={upload} className="flex items-end gap-2">
+            <input type="hidden" name="category" value="credit_report" />
+            <input
+              name="file"
+              type="file"
+              required
+              className="block flex-1 text-[12.5px] text-[var(--color-text-muted)] file:mr-3 file:rounded-[var(--radius-pill)] file:border-0 file:bg-[var(--color-fill-subtle)] file:px-3 file:py-1.5 file:text-[12px] file:font-semibold"
+            />
+            <Button type="submit" variant="secondary" disabled={uploadPending}>
+              {uploadPending ? "Uploading…" : "Upload"}
+            </Button>
+          </form>
         </div>
       </DialogContent>
     </Dialog>

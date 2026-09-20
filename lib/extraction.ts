@@ -54,6 +54,11 @@ const CATEGORY_INSTRUCTIONS: Record<ExtractableCategory, string> = {
     "applicant (and co-applicant if any), stated employer/income, time at job, residence type, " +
     "and stated monthly housing payment, exactly as written on the form — this is self-reported, " +
     "not verified.",
+  autocheck:
+    "This is an AutoCheck (or similar) vehicle history report. Extract the VIN, year, make, model, " +
+    "trim, current mileage, title brand, owner count, and reported accident count. List every " +
+    "odometer reading in the report with its date and source, in the order the report gives them, " +
+    "and set odometerConsistent to false if any later reading is lower than an earlier one.",
 };
 
 export interface ExtractionResult<C extends ExtractableCategory> {

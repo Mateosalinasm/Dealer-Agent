@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { InventoryImport } from "@/components/inventory-import";
+import { AddVehicleModal } from "@/components/add-vehicle-modal";
 import { formatCents } from "@/lib/utils";
 import { markVehicleSold } from "@/app/inventory/actions";
 
@@ -19,9 +20,12 @@ export default async function InventoryPage() {
 
   return (
     <div>
-      <h1 className="mb-5 text-[19px] font-semibold tracking-[-.01em] text-[var(--color-text)]">
-        Inventory
-      </h1>
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h1 className="text-[19px] font-semibold tracking-[-.01em] text-[var(--color-text)]">
+          Inventory
+        </h1>
+        <AddVehicleModal />
+      </div>
 
       <InventoryImport />
 

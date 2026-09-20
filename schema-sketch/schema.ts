@@ -7,7 +7,7 @@ import {
 // CLAUDE.md for the note on why these were added. ---
 
 export const documentCategory = [
-  'turbopass', 'bank_statement', 'credit_report', 'credit_app', 'insurance', 'other',
+  'turbopass', 'bank_statement', 'credit_report', 'credit_app', 'insurance', 'autocheck', 'lender_guidelines', 'other',
 ] as const;
 
 export const extractionStatus = ['none', 'pending', 'success', 'failed'] as const;
@@ -99,6 +99,7 @@ export const vehicles = pgTable('vehicles', {
   bodyType: text('body_type').$type<(typeof bodyType)[number]>(),
   house: text('house').$type<(typeof auctionHouse)[number]>(),
   runNumber: text('run_number'),
+  lot: text('lot'),                                   // which of your own lots it's parked on
   acquiredOn: date('acquired_on'),                    // also drives "days at lot"
   hammer: integer('hammer'),
   buyFee: integer('buy_fee'),
@@ -281,12 +282,17 @@ export const saleComps = pgTable('sale_comps', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => ({ modelIdx: index('comps_model_idx').on(t.make, t.model) }));
 
-// Files attached to a deal: TurboPass reports, bank statements, credit
-// reports, credit apps, insurance, etc. Stored on disk locally in dev
-// (lib/storage.ts); swap for Supabase Storage without changing this table.
+// Files attached to a deal, a vehicle, or a lender: TurboPass reports, bank
+// statements, credit reports, credit apps, AutoChecks, lender guidelines,
+// etc. Exactly one of dealId/vehicleId/lenderId is set, chosen by
+// `category` — enforced in the upload action, not the DB. Stored on disk
+// locally in dev (lib/storage.ts); swap for Supabase Storage without
+// changing this table.
 export const documents = pgTable('documents', {
   id: uuid('id').primaryKey().defaultRandom(),
-  dealId: uuid('deal_id').notNull().references(() => deals.id, { onDelete: 'cascade' }),
+  dealId: uuid('deal_id').references(() => deals.id, { onDelete: 'cascade' }),
+  vehicleId: uuid('vehicle_id').references(() => vehicles.id, { onDelete: 'cascade' }),
+  lenderId: uuid('lender_id').references(() => lenders.id, { onDelete: 'cascade' }),
   category: text('category').$type<(typeof documentCategory)[number]>().notNull(),
   fileName: text('file_name').notNull(),
   storagePath: text('storage_path').notNull(),       // opaque to the app; see lib/storage.ts
@@ -300,7 +306,11 @@ export const documents = pgTable('documents', {
   extractedData: jsonb('extracted_data'),          // shape depends on `category`, see lib/extraction-schemas.ts
   extractedAt: timestamp('extracted_at', { withTimezone: true }),
   extractionError: text('extraction_error'),
-}, t => ({ dealIdx: index('documents_deal_idx').on(t.dealId) }));
+}, t => ({
+  dealIdx: index('documents_deal_idx').on(t.dealId),
+  vehicleIdx: index('documents_vehicle_idx').on(t.vehicleId),
+  lenderIdx: index('documents_lender_idx').on(t.lenderId),
+}));
 
 export const appointments = pgTable('appointments', {
   id: uuid('id').primaryKey().defaultRandom(),

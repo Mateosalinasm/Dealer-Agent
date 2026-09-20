@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { ProgramForm } from "@/components/program-form";
+import { LenderGuidelinesUpload } from "@/components/lender-guidelines-upload";
 import {
   createProgram,
   deleteLender,
@@ -39,7 +40,7 @@ interface LenderRow {
   active: boolean;
 }
 
-export function LenderCard({ lender, programs }: { lender: LenderRow; programs: ProgramRow[] }) {
+export function LenderCard({ lender, programs, guidelinesDocs }: { lender: LenderRow; programs: ProgramRow[]; guidelinesDocs: { id: string; fileName: string }[] }) {
   const [editingLender, setEditingLender] = useState(false);
   const [addingProgram, setAddingProgram] = useState(false);
   const [editingProgramId, setEditingProgramId] = useState<string | null>(null);
@@ -174,6 +175,10 @@ export function LenderCard({ lender, programs }: { lender: LenderRow; programs: 
           Add program
         </Button>
       )}
+
+      <div className="mt-3 border-t border-[var(--color-hairline)] pt-3">
+        <LenderGuidelinesUpload lenderId={lender.id} documents={guidelinesDocs} />
+      </div>
     </Card>
   );
 }

@@ -4,7 +4,6 @@ import { useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCents } from "@/lib/utils";
-import { analyzeDocument, deleteDocument } from "@/app/desk/deals/actions";
 import { EXTRACTION_SCHEMAS, isExtractable, type ExtractableCategory } from "@/lib/extraction-schemas";
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -13,25 +12,31 @@ const CATEGORY_LABEL: Record<string, string> = {
   credit_report: "Credit report",
   credit_app: "Credit app",
   insurance: "Insurance",
+  autocheck: "AutoCheck",
+  lender_guidelines: "Guidelines",
   other: "Other",
 };
 
 interface DocumentRowProps {
   document: {
     id: string;
-    dealId: string;
     category: string;
     fileName: string;
     extractionStatus: string;
     extractedData: unknown;
     extractionError: string | null;
   };
+  onAnalyze?: (documentId: string) => Promise<void>;
+  onDelete: (documentId: string) => Promise<void>;
 }
 
-export function DocumentRow({ document: doc }: DocumentRowProps) {
+// Scope-agnostic: the deal/vehicle/lender detail views each pass their own
+// bound analyze/delete server actions, so this component doesn't need to
+// know which owner column a document belongs to.
+export function DocumentRow({ document: doc, onAnalyze, onDelete }: DocumentRowProps) {
   const [isPending, startTransition] = useTransition();
 
-  const extractable = isExtractable(doc.category);
+  const extractable = onAnalyze && isExtractable(doc.category);
   const showAnalyzing = isPending || doc.extractionStatus === "pending";
 
   return (
@@ -57,7 +62,7 @@ export function DocumentRow({ document: doc }: DocumentRowProps) {
               variant="secondary"
               disabled={showAnalyzing}
               className="px-2 py-1 text-[11px]"
-              onClick={() => startTransition(() => analyzeDocument(doc.id, doc.dealId))}
+              onClick={() => startTransition(() => onAnalyze(doc.id))}
             >
               {showAnalyzing
                 ? "Analyzing…"
@@ -66,11 +71,15 @@ export function DocumentRow({ document: doc }: DocumentRowProps) {
                   : "Analyze with AI"}
             </Button>
           )}
-          <form action={deleteDocument.bind(null, doc.id, doc.dealId)}>
-            <Button type="submit" variant="destructive" className="px-2 py-1 text-[11px]">
-              Remove
-            </Button>
-          </form>
+          <Button
+            type="button"
+            variant="destructive"
+            className="px-2 py-1 text-[11px]"
+            disabled={isPending}
+            onClick={() => startTransition(() => onDelete(doc.id))}
+          >
+            Remove
+          </Button>
         </div>
       </div>
 

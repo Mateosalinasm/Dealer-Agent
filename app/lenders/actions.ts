@@ -3,6 +3,7 @@
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
+import { saveFile } from "@/lib/storage";
 import { lenderSchema, programSchema } from "@/lib/validation";
 
 function parseProgramForm(formData: FormData) {
@@ -103,5 +104,33 @@ export async function updateProgram(programId: string, formData: FormData) {
 
 export async function deleteProgram(programId: string) {
   await db.delete(schema.lenderPrograms).where(eq(schema.lenderPrograms.id, programId));
+  revalidatePath("/lenders");
+}
+
+// --- Guidelines upload -------------------------------------------------
+// A reference document only — no AI extraction, no auto-filled program
+// rules. Read it and enter the program's rules by hand above.
+
+export async function uploadLenderGuidelines(lenderId: string, formData: FormData) {
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) {
+    throw new Error("No file selected");
+  }
+
+  const { storagePath, fileSize } = await saveFile(file);
+  await db.insert(schema.documents).values({
+    lenderId,
+    category: "lender_guidelines",
+    fileName: file.name,
+    storagePath,
+    mimeType: file.type || null,
+    fileSize,
+  });
+
+  revalidatePath("/lenders");
+}
+
+export async function deleteLenderDocument(documentId: string) {
+  await db.delete(schema.documents).where(eq(schema.documents.id, documentId));
   revalidatePath("/lenders");
 }

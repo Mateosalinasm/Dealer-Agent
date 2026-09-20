@@ -85,11 +85,33 @@ export const creditAppSchema = z.object({
   notes: z.string().nullable(),
 });
 
+export const autocheckSchema = z.object({
+  vin: z.string().nullable(),
+  year: z.number().int().nullable(),
+  make: z.string().nullable(),
+  model: z.string().nullable(),
+  trim: z.string().nullable(),
+  currentMileage: z.number().int().nullable(),
+  titleBrand: z.string().nullable().describe("clean, salvage, rebuilt, flood, lemon, or branded, as reported"),
+  ownerCount: z.number().int().nullable(),
+  accidentsReported: z.number().int().nullable(),
+  odometerReadings: z.array(
+    z.object({
+      date: z.string().nullable().describe("ISO date if present"),
+      miles: z.number().int().nullable(),
+      source: z.string().nullable().describe("title, registration, service record, etc."),
+    }),
+  ),
+  odometerConsistent: z.boolean().nullable().describe("false if any reading rolls backward against an earlier one"),
+  notes: z.string().nullable(),
+});
+
 export const EXTRACTION_SCHEMAS = {
   turbopass: turbopassSchema,
   bank_statement: bankStatementSchema,
   credit_report: creditReportSchema,
   credit_app: creditAppSchema,
+  autocheck: autocheckSchema,
 } as const;
 
 export type ExtractableCategory = keyof typeof EXTRACTION_SCHEMAS;

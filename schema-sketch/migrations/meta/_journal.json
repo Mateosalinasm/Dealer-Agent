@@ -50,6 +50,13 @@
       "when": 1789866492540,
       "tag": "0006_naive_victor_mancha",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789920770362,
+      "tag": "0007_fat_thunderbolts",
+      "breakpoints": true
     }
   ]
 }

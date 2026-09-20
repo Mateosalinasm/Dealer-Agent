@@ -474,7 +474,11 @@ export async function uploadDocument(dealId: string, formData: FormData) {
   revalidatePath(`/desk/deals/${dealId}`);
 }
 
-export async function analyzeDocument(documentId: string, dealId: string) {
+// dealId first (not documentId) so callers can pass a bound reference —
+// analyzeDocument.bind(null, dealId) — as a genuine Server Action prop.
+// An inline closure wrapping the action isn't serializable across the
+// Server/Client boundary when passed from a Server Component.
+export async function analyzeDocument(dealId: string, documentId: string) {
   const [doc] = await db.select().from(schema.documents).where(eq(schema.documents.id, documentId)).limit(1);
   if (!doc) return;
 
@@ -523,7 +527,7 @@ export async function analyzeDocument(documentId: string, dealId: string) {
   revalidatePath(`/desk/deals/${dealId}`);
 }
 
-export async function deleteDocument(documentId: string, dealId: string) {
+export async function deleteDocument(dealId: string, documentId: string) {
   await db.delete(schema.documents).where(eq(schema.documents.id, documentId));
   revalidatePath(`/desk/deals/${dealId}`);
 }

@@ -96,7 +96,7 @@ export const appointmentSchema = z.object({
 });
 
 export const documentUploadSchema = z.object({
-  category: z.enum(["turbopass", "bank_statement", "credit_report", "credit_app", "insurance", "other"]),
+  category: z.enum(["turbopass", "bank_statement", "credit_report", "credit_app", "insurance", "autocheck", "lender_guidelines", "other"]),
 });
 
 // Shared across schemas: form/CSV values arrive as strings (possibly
@@ -126,6 +126,24 @@ export const programSchema = z.object({
   typicalAprPct: z.preprocess(emptyToUndefined, z.coerce.number().min(0).max(60).optional()),
   allowedTitles: z.array(z.enum(titleStatusValues)).optional(),
   notes: z.string().optional(),
+});
+
+export const manualVehicleSchema = z.object({
+  stockNumber: z.string().optional(),
+  vin: z.string().optional(),
+  year: z.coerce.number().int().min(1900).max(2100).optional(),
+  make: z.string().optional(),
+  model: z.string().optional(),
+  trim: z.string().optional(),
+  color: z.string().optional(),
+  bodyType: z.enum(["truck", "sedan", "suv"]).optional().or(z.literal("")),
+  title: z.enum(titleStatusValues),
+  miles: z.coerce.number().int().min(0).optional(),
+  priceDollars: z.coerce.number().min(0).optional(),
+  costDollars: z.coerce.number().min(0).optional(),
+  lot: z.string().optional(),
+  daysOnLot: z.coerce.number().int().min(0).default(0),
+  autocheckDocumentId: z.string().uuid().optional().or(z.literal("")),
 });
 
 export const vehicleImportRowSchema = z.object({

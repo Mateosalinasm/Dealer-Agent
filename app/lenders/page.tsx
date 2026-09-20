@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { Card } from "@/components/ui/card";
 import { Input, Label, Textarea } from "@/components/ui/input";
@@ -6,9 +7,10 @@ import { LenderCard } from "@/components/lender-card";
 import { createLender } from "@/app/lenders/actions";
 
 export default async function LendersPage() {
-  const [lenders, programs] = await Promise.all([
+  const [lenders, programs, guidelinesDocs] = await Promise.all([
     db.select().from(schema.lenders),
     db.select().from(schema.lenderPrograms),
+    db.select().from(schema.documents).where(eq(schema.documents.category, "lender_guidelines")),
   ]);
 
   const programsByLender = new Map<string, typeof programs>();
@@ -16,6 +18,14 @@ export default async function LendersPage() {
     const list = programsByLender.get(p.lenderId) ?? [];
     list.push(p);
     programsByLender.set(p.lenderId, list);
+  }
+
+  const guidelinesByLender = new Map<string, typeof guidelinesDocs>();
+  for (const d of guidelinesDocs) {
+    if (!d.lenderId) continue;
+    const list = guidelinesByLender.get(d.lenderId) ?? [];
+    list.push(d);
+    guidelinesByLender.set(d.lenderId, list);
   }
 
   return (
@@ -53,7 +63,12 @@ export default async function LendersPage() {
       ) : (
         <div className="flex flex-col gap-4">
           {lenders.map((lender) => (
-            <LenderCard key={lender.id} lender={lender} programs={programsByLender.get(lender.id) ?? []} />
+            <LenderCard
+              key={lender.id}
+              lender={lender}
+              programs={programsByLender.get(lender.id) ?? []}
+              guidelinesDocs={guidelinesByLender.get(lender.id) ?? []}
+            />
           ))}
         </div>
       )}
