@@ -64,6 +64,13 @@
       "when": 1789927112211,
       "tag": "0008_wandering_wrecker",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789927861477,
+      "tag": "0009_modern_karen_page",
+      "breakpoints": true
     }
   ]
 }

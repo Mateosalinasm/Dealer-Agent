@@ -48,6 +48,7 @@ const NAV: NavGroup[] = [
     label: "Desk",
     items: [
       { label: "Priority queue", href: "/desk/priority-queue" },
+      { label: "Messages", href: "/messages" },
       { label: "Analytics", href: "/desk/analytics" },
     ],
   },

@@ -14,6 +14,10 @@ export const extractionStatus = ['none', 'pending', 'success', 'failed'] as cons
 
 export const appointmentStatus = ['scheduled', 'completed', 'canceled'] as const;
 
+export const integrationProvider = ['whatsapp', 'google_calendar'] as const;
+export const messageDirection = ['inbound', 'outbound'] as const;
+export const messageStatus = ['queued', 'sent', 'delivered', 'read', 'failed'] as const;
+
 // All money is integer CENTS. No floats anywhere in this file.
 
 export const settings = pgTable('settings', {
@@ -328,3 +332,49 @@ export const appointments = pgTable('appointments', {
   notes: text('notes'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => ({ scheduledIdx: index('appointments_scheduled_idx').on(t.scheduledAt) }));
+
+// One row per connected third-party service. `config` holds whatever that
+// service needs (OAuth tokens, a from-number, etc.) as opaque JSON — never
+// rendered back to the client verbatim; routes that read it pick out only
+// the fields a page actually needs (e.g. "connected: true/false"), the same
+// discipline as storagePath on documents. A single row per provider (this
+// is a one-location tool, not multi-tenant), upserted by provider name.
+export const integrations = pgTable('integrations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  provider: text('provider').$type<(typeof integrationProvider)[number]>().notNull().unique(),
+  connected: boolean('connected').notNull().default(false),
+  config: jsonb('config'),
+  connectedAt: timestamp('connected_at', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// A WhatsApp (or future channel) thread with one phone number. Linked to a
+// lead/deal when the phone number matches one on file — set at
+// creation and re-checked on each inbound message, since a lead can get
+// attached after the thread already exists.
+export const conversations = pgTable('conversations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  leadId: uuid('lead_id').references(() => leads.id, { onDelete: 'set null' }),
+  dealId: uuid('deal_id').references(() => deals.id, { onDelete: 'set null' }),
+  contactPhone: text('contact_phone').notNull(), // E.164, e.g. +15551234567
+  contactName: text('contact_name'),
+  channel: text('channel').notNull().default('whatsapp'),
+  lastMessageAt: timestamp('last_message_at', { withTimezone: true }),
+  unreadCount: integer('unread_count').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => ({ phoneIdx: index('conversations_phone_idx').on(t.contactPhone) }));
+
+export const messages = pgTable('messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  conversationId: uuid('conversation_id').notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+  direction: text('direction').$type<(typeof messageDirection)[number]>().notNull(),
+  body: text('body').notNull(),
+  status: text('status').$type<(typeof messageStatus)[number]>().notNull().default('queued'),
+  providerMessageId: text('provider_message_id'), // Twilio's MessageSid — lets the status-callback webhook find this row
+  // Always false for now — every outbound message is a human clicking Send.
+  // An auto-reply agent needs its own explicit opt-in (see NOTES_FOR_MATEO.md);
+  // this column exists so that toggle only has to change how messages get
+  // created, not the schema.
+  sentByAgent: boolean('sent_by_agent').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => ({ convIdx: index('messages_conversation_idx').on(t.conversationId) }));
