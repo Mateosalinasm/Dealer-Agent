@@ -145,7 +145,17 @@ export const deals = pgTable('deals', {
   idType: text('id_type'),
   statedIncome: integer('stated_income'),
   verifiedIncome: integer('verified_income'),
+  // Credit report facts — manual entry until document extraction is
+  // wired up (see lib/credit-grade.ts for how these combine into a
+  // letter grade).
   fico: integer('fico'),
+  inquiries30d: integer('inquiries_30d'),
+  repossessions: integer('repossessions'),
+  collectionsAmount: integer('collections_amount'),   // cents
+  openAutos: integer('open_autos'),
+  autoLates: integer('auto_lates'),
+  bankruptcies: integer('bankruptcies'),
+  mortgages: integer('mortgages'),
   lot: text('lot'),
   payment: integer('payment'),                        // the payment being called out to the customer
   // Manual entry — what the deal actually pays the operator, distinct

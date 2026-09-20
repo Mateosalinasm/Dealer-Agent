@@ -4,6 +4,7 @@ import { db, schema } from "@/lib/db";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProgressRing } from "@/components/progress-ring";
+import { CreditGradeBadge } from "@/components/credit-grade-modal";
 import { formatCents } from "@/lib/utils";
 import { dealStageInfo, monthOf, msSince, pipelineTab, STAGES, type PipelineTab } from "@/lib/deal-stage";
 import { dealFacts } from "@/lib/deal-facts";
@@ -175,8 +176,8 @@ export default async function DealsPage({
 
             return (
               <Card key={deal.id} className="flex flex-col gap-3">
-                <Link href={`/desk/deals/${deal.id}`} className="flex items-start gap-3">
-                  <div className="min-w-0 flex-1">
+                <div className="flex items-start gap-3">
+                  <Link href={`/desk/deals/${deal.id}`} className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <span className="truncate text-[14.5px] font-semibold text-[var(--color-text)]">{deal.customerName}</span>
                       {vehicle && (
@@ -190,9 +191,10 @@ export default async function DealsPage({
                       {deal.lenderId ? `${lenderById.get(deal.lenderId)?.name ?? "Lender"}${deal.lot ? ` · ${deal.lot}` : ""}` : "Pending submission"}
                     </div>
                     <div className="text-[11.5px] text-[var(--color-text-placeholder)]">{deal.idType ?? "US ID"}</div>
-                  </div>
+                  </Link>
+                  <CreditGradeBadge dealId={deal.id} customerName={deal.customerName ?? ""} vehicleLabel={facts.vehicleLabel} facts={deal} />
                   <ProgressRing pct={info.pct} />
-                </Link>
+                </div>
 
                 <div className="flex flex-wrap items-center gap-1.5">
                   <Badge tone={STAGE_TONE[stageIdx]}>{stageName.toUpperCase()}</Badge>

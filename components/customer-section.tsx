@@ -46,10 +46,6 @@ export function CustomerSection({ dealId, deal, lenders }: { dealId: string; dea
         <Input name="openAutoPaymentDollars" type="number" step="0.01" defaultValue={dollarsOrEmpty(deal.openAutoPayment)} />
       </div>
       <div>
-        <Label>FICO</Label>
-        <Input name="fico" type="number" defaultValue={deal.fico ?? ""} placeholder="Run credit" />
-      </div>
-      <div>
         <Label>ID type</Label>
         <Select name="idType" defaultValue={deal.idType ?? "US ID"}>
           <option value="US ID">US ID</option>

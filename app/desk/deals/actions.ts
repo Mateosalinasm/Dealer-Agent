@@ -11,6 +11,7 @@ import { getDealershipTimezone, todayInTimezone } from "@/lib/dealership-time";
 import { dealStageInfo, STAGES } from "@/lib/deal-stage";
 import {
   appointmentSchema,
+  creditSchema,
   customerFactsSchema,
   dealInfoSchema,
   documentUploadSchema,
@@ -91,7 +92,6 @@ export async function updateCustomerFacts(dealId: string, formData: FormData) {
     openAutoPaymentDollars: formData.get("openAutoPaymentDollars") || undefined,
     statedAddress: formData.get("statedAddress") ?? "",
     idType: formData.get("idType") ?? "",
-    fico: formData.get("fico") || undefined,
   });
 
   await db
@@ -106,11 +106,60 @@ export async function updateCustomerFacts(dealId: string, formData: FormData) {
       openAutoPayment: parsed.openAutoPaymentDollars != null ? Math.round(parsed.openAutoPaymentDollars * 100) : null,
       statedAddress: parsed.statedAddress || null,
       idType: parsed.idType || null,
-      fico: parsed.fico ?? null,
     })
     .where(eq(schema.deals.id, dealId));
 
   revalidatePath(`/desk/deals/${dealId}`);
+}
+
+export async function updateCredit(dealId: string, formData: FormData) {
+  const parsed = creditSchema.parse({
+    fico: formData.get("fico") || undefined,
+    idType: formData.get("idType") ?? "",
+    inquiries30d: formData.get("inquiries30d") || undefined,
+    repossessions: formData.get("repossessions") || undefined,
+    collectionsDollars: formData.get("collectionsDollars") || undefined,
+    openAutos: formData.get("openAutos") || undefined,
+    autoLates: formData.get("autoLates") || undefined,
+    bankruptcies: formData.get("bankruptcies") || undefined,
+    mortgages: formData.get("mortgages") || undefined,
+  });
+
+  await db
+    .update(schema.deals)
+    .set({
+      fico: parsed.fico ?? null,
+      idType: parsed.idType || null,
+      inquiries30d: parsed.inquiries30d ?? null,
+      repossessions: parsed.repossessions ?? null,
+      collectionsAmount: parsed.collectionsDollars != null ? Math.round(parsed.collectionsDollars * 100) : null,
+      openAutos: parsed.openAutos ?? null,
+      autoLates: parsed.autoLates ?? null,
+      bankruptcies: parsed.bankruptcies ?? null,
+      mortgages: parsed.mortgages ?? null,
+    })
+    .where(eq(schema.deals.id, dealId));
+
+  revalidatePath(`/desk/deals/${dealId}`);
+  revalidatePath("/desk/deals");
+}
+
+export async function clearCredit(dealId: string) {
+  await db
+    .update(schema.deals)
+    .set({
+      fico: null,
+      inquiries30d: null,
+      repossessions: null,
+      collectionsAmount: null,
+      openAutos: null,
+      autoLates: null,
+      bankruptcies: null,
+      mortgages: null,
+    })
+    .where(eq(schema.deals.id, dealId));
+  revalidatePath(`/desk/deals/${dealId}`);
+  revalidatePath("/desk/deals");
 }
 
 export async function toggleOpenAutoTradeIn(dealId: string) {

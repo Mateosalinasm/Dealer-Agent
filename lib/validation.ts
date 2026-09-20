@@ -52,7 +52,18 @@ export const customerFactsSchema = z.object({
   openAutoPaymentDollars: z.coerce.number().min(0).optional(),
   statedAddress: z.string().optional(),
   idType: z.string().optional(),
+});
+
+export const creditSchema = z.object({
   fico: z.coerce.number().int().min(300).max(900).optional(),
+  idType: z.string().optional(),
+  inquiries30d: z.coerce.number().int().min(0).optional(),
+  repossessions: z.coerce.number().int().min(0).optional(),
+  collectionsDollars: z.coerce.number().min(0).optional(),
+  openAutos: z.coerce.number().int().min(0).optional(),
+  autoLates: z.coerce.number().int().min(0).optional(),
+  bankruptcies: z.coerce.number().int().min(0).optional(),
+  mortgages: z.coerce.number().int().min(0).optional(),
 });
 
 export const submissionSchema = z.object({
