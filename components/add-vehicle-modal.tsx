@@ -209,27 +209,19 @@ export function AddVehicleModal() {
               <Label htmlFor="av-days">Days on the lot</Label>
               <Input id="av-days" name="daysOnLot" type="number" min={0} value={form.daysOnLot} onChange={(e) => set("daysOnLot", e.target.value)} />
             </div>
-            <div className="col-span-2">
+            <div>
               <Label htmlFor="av-vin">VIN</Label>
               <Input id="av-vin" name="vin" placeholder="17-digit VIN" value={form.vin} onChange={(e) => set("vin", e.target.value)} />
             </div>
-
-            <div className="col-span-2 rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)] p-3">
-              <div className="flex items-center justify-between text-[12.5px]">
-                <span className="text-[var(--color-text-muted)]">Room between price and cost</span>
-                <span className="tabular-nums font-semibold text-[var(--color-text)]">{room != null ? formatCents(room) : "—"}</span>
-              </div>
-              {room == null && <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">Enter a price and a cost to see the room.</p>}
-            </div>
           </div>
 
+          <div className="flex flex-col gap-3">
           <div className="rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)] p-4">
             <div className="mb-1 text-[13.5px] font-semibold text-[var(--color-text)]">AutoCheck</div>
             {autocheckStatus === "idle" && (
               <p className="text-[11.5px] text-[var(--color-text-muted)]">
-                Upload the AutoCheck at the top right and the VIN, year, make, model, trim and mileage fill in.
-                Every odometer reading is checked in order, so a reading that goes backwards is flagged before you
-                take the unit in.
+                Upload at the top right to fill in the VIN, year, make, model, trim and mileage, and flag any
+                odometer rollback.
               </p>
             )}
             {(autocheckStatus === "uploading" || autocheckStatus === "analyzing") && (
@@ -266,6 +258,15 @@ export function AddVehicleModal() {
                 </div>
               </div>
             )}
+          </div>
+
+          <div className="rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)] p-3">
+            <div className="flex items-center justify-between text-[12.5px]">
+              <span className="text-[var(--color-text-muted)]">Room between price and cost</span>
+              <span className="tabular-nums font-semibold text-[var(--color-text)]">{room != null ? formatCents(room) : "—"}</span>
+            </div>
+            {room == null && <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">Enter a price and a cost to see the room.</p>}
+          </div>
           </div>
 
           <div className="col-span-full flex justify-end gap-2">
