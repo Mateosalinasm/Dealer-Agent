@@ -63,6 +63,10 @@ const NAV: NavGroup[] = [
     label: "Lenders",
     items: [{ label: "All lenders", href: "/lenders" }],
   },
+  {
+    label: "Settings",
+    items: [{ label: "Integrations", href: "/settings" }],
+  },
 ];
 
 function navLinkClasses(active: boolean) {

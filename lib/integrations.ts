@@ -17,7 +17,7 @@ export async function isIntegrationConnected(provider: Provider): Promise<boolea
   return !!row?.connected;
 }
 
-export async function setIntegrationConfig(provider: Provider, config: Record<string, unknown>): Promise<void> {
+export async function setIntegrationConfig(provider: Provider, config: object): Promise<void> {
   await db
     .insert(schema.integrations)
     .values({ provider, config, connected: true, connectedAt: new Date() })

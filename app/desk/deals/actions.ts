@@ -9,6 +9,7 @@ import { extractDocument } from "@/lib/extraction";
 import { isExtractable } from "@/lib/extraction-schemas";
 import { getDealershipTimezone, todayInTimezone } from "@/lib/dealership-time";
 import { dealStageInfo, STAGES } from "@/lib/deal-stage";
+import { syncAppointmentToGoogle, deleteGoogleEvent } from "@/lib/google-calendar";
 import {
   appointmentSchema,
   creditSchema,
@@ -555,13 +556,27 @@ export async function createAppointment(formData: FormData) {
     dealId: formData.get("dealId") ?? "",
   });
 
-  await db.insert(schema.appointments).values({
-    customerName: parsed.customerName,
-    phone: parsed.phone || null,
-    scheduledAt: new Date(parsed.scheduledAt),
-    notes: parsed.notes || null,
-    dealId: parsed.dealId || null,
-  });
+  const scheduledAt = new Date(parsed.scheduledAt);
+  const [appointment] = await db
+    .insert(schema.appointments)
+    .values({
+      customerName: parsed.customerName,
+      phone: parsed.phone || null,
+      scheduledAt,
+      notes: parsed.notes || null,
+      dealId: parsed.dealId || null,
+    })
+    .returning();
+
+  // Best-effort — Google Calendar being disconnected shouldn't block
+  // scheduling the appointment itself, so this never throws into the caller.
+  const sync = await syncAppointmentToGoogle(
+    { summary: `Appointment — ${parsed.customerName}`, description: parsed.notes || undefined, startsAt: scheduledAt },
+    null,
+  );
+  if (sync.ok && sync.eventId) {
+    await db.update(schema.appointments).set({ googleCalendarEventId: sync.eventId }).where(eq(schema.appointments.id, appointment.id));
+  }
 
   revalidatePath("/desk/appointments");
   if (parsed.dealId) revalidatePath(`/desk/deals/${parsed.dealId}`);
@@ -572,5 +587,13 @@ export async function setAppointmentStatus(
   status: "scheduled" | "completed" | "canceled",
 ) {
   await db.update(schema.appointments).set({ status }).where(eq(schema.appointments.id, appointmentId));
+
+  if (status === "canceled") {
+    const [appointment] = await db.select().from(schema.appointments).where(eq(schema.appointments.id, appointmentId)).limit(1);
+    if (appointment?.googleCalendarEventId) {
+      await deleteGoogleEvent(appointment.googleCalendarEventId);
+    }
+  }
+
   revalidatePath("/desk/appointments");
 }

@@ -51,6 +51,14 @@ on `main`, so you can review the diffs before deciding what to push.
   DB), inbound messages auto-link to a matching lead by phone number. Sending
   fails with a clear on-screen message until Twilio creds are added (see
   below) — verified this actually happens via Playwright, not just assumed.
+- **Google Calendar sync** — new `/settings` page (Integrations section) with
+  a real OAuth connect flow (`/api/integrations/google/connect` →
+  Google's consent screen → `/api/integrations/google/callback` stores the
+  tokens). Scheduling an appointment now attempts to create the matching
+  Google Calendar event (best-effort — a disconnected/failed sync never
+  blocks scheduling, verified via Playwright with no Google creds present);
+  canceling one deletes the remote event. Appointments already had a
+  `googleCalendarEventId` column from an earlier session, unused until now.
 - *(more below as the session continues)*
 
 ---
@@ -72,6 +80,24 @@ vars. Once set, `/messages` starts working end to end — nothing else to build.
 Built with plain `fetch()` against Twilio's REST API, not the `twilio` npm
 package — didn't want to add a dependency I couldn't exercise without your
 credentials. Easy to swap in the SDK later if the raw HTTP feels thin.
+
+### Google Calendar
+1. In [console.cloud.google.com](https://console.cloud.google.com), create
+   a project (or use an existing one), enable the "Google Calendar API",
+   then create an OAuth client ID (Credentials → Create Credentials →
+   OAuth client ID → type "Web application").
+2. Add an Authorized redirect URI: `https://<your domain>/api/integrations/google/callback`.
+3. Add to `.env.local`:
+```
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_REDIRECT_URI=https://<your domain>/api/integrations/google/callback
+```
+4. Go to Settings in the app and click Connect. That's the whole flow —
+   the callback route stores the tokens and refreshes them automatically.
+
+This assumes one Google account/calendar for the whole dealership — see
+"Needs your call" above if that's not what you want.
 
 ---
 
