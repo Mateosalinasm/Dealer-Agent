@@ -97,6 +97,7 @@ const HEADER_ALIASES: Record<string, string[]> = {
   model: ["model"],
   trim: ["trim"],
   color: ["color", "colour", "exterior color", "ext color", "ext. color"],
+  bodyType: ["body", "body type", "bodytype", "body style"],
   miles: ["miles", "mileage", "odometer"],
   askingPriceDollars: ["price", "asking price", "list price", "asking"],
   acquiredOn: ["in stock since", "in stock date", "date in stock", "acquired", "acquired on", "in-service date"],

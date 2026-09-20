@@ -19,6 +19,9 @@ export const inventorySearchParamsSchema = z.object({
 export const newDealSchema = z.object({
   customerName: z.string().trim().min(1, "Customer name is required"),
   vehicleId: z.string().uuid().optional().or(z.literal("")),
+  lenderId: z.string().uuid().optional().or(z.literal("")),
+  dealDate: z.string().optional(),
+  lot: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -132,6 +135,7 @@ export const vehicleImportRowSchema = z.object({
   model: z.string().optional(),
   trim: z.string().optional(),
   color: z.string().optional(),
+  bodyType: z.preprocess(emptyToUndefined, z.enum(["truck", "sedan", "suv"]).optional()),
   miles: z.preprocess(emptyToUndefined, z.coerce.number().int().min(0).optional()),
   askingPriceDollars: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional()),
   acquiredOn: z.string().optional(),

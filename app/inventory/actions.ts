@@ -28,6 +28,7 @@ export async function importVehicles(rows: VehicleImportRowInput[]) {
       model: row.model || null,
       trim: row.trim || null,
       color: row.color || null,
+      bodyType: row.bodyType ?? null,
       miles: row.miles ?? null,
       askingPrice: row.askingPriceDollars != null ? Math.round(row.askingPriceDollars * 100) : null,
       acquiredOn: row.acquiredOn || today,

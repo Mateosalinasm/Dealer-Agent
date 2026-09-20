@@ -3,7 +3,7 @@ import { NewDealView } from "@/components/new-deal-view";
 
 export default function InterceptedNewDeal() {
   return (
-    <RouteModal maxWidth="max-w-lg">
+    <RouteModal maxWidth="max-w-3xl">
       <NewDealView />
     </RouteModal>
   );

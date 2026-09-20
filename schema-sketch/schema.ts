@@ -33,6 +33,7 @@ export const settings = pgTable('settings', {
 
 export const auctionHouse = ['manheim', 'americas', 'iaa'] as const;
 export const titleStatus = ['clean', 'salvage', 'rebuilt', 'flood', 'lemon', 'branded'] as const;
+export const bodyType = ['truck', 'sedan', 'suv'] as const;
 
 // One customer identity shared across every intake channel (WhatsApp, a
 // lead form, a walk-in). `leads`/`deals`/`appointments` keep their own
@@ -95,6 +96,7 @@ export const vehicles = pgTable('vehicles', {
   miles: integer('miles'),
   color: text('color'),
   title: text('title').$type<(typeof titleStatus)[number]>().notNull().default('clean'),
+  bodyType: text('body_type').$type<(typeof bodyType)[number]>(),
   house: text('house').$type<(typeof auctionHouse)[number]>(),
   runNumber: text('run_number'),
   acquiredOn: date('acquired_on'),                    // also drives "days at lot"

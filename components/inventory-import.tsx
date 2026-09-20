@@ -19,6 +19,7 @@ const FIELDS: Array<{ key: keyof VehicleImportRowInput; label: string }> = [
   { key: "model", label: "Model" },
   { key: "trim", label: "Trim" },
   { key: "color", label: "Color" },
+  { key: "bodyType", label: "Body type" },
   { key: "miles", label: "Miles" },
   { key: "askingPriceDollars", label: "Asking price" },
   { key: "acquiredOn", label: "In stock since" },
@@ -38,7 +39,7 @@ export function InventoryImport() {
     setParseErrors(errors);
 
     const fieldIndex = mapHeaders(headers);
-    const optionalFields = new Set(["trim", "stockNumber", "vin"]);
+    const optionalFields = new Set(["trim", "stockNumber", "vin", "bodyType"]);
     const missing = FIELDS.filter((f) => !optionalFields.has(f.key) && fieldIndex[f.key] === undefined);
     if (missing.length) {
       setParseErrors((prev) => [
@@ -56,6 +57,7 @@ export function InventoryImport() {
       model: fieldIndex.model != null ? r[fieldIndex.model] : "",
       trim: fieldIndex.trim != null ? r[fieldIndex.trim] : "",
       color: fieldIndex.color != null ? r[fieldIndex.color] : "",
+      bodyType: fieldIndex.bodyType != null ? r[fieldIndex.bodyType] : "",
       miles: fieldIndex.miles != null ? r[fieldIndex.miles].replace(/[^0-9.]/g, "") : "",
       askingPriceDollars:
         fieldIndex.askingPriceDollars != null
@@ -76,8 +78,8 @@ export function InventoryImport() {
     if (!draft) return;
     setImporting(true);
     const rows = draft.map((row): VehicleImportRowInput => {
-      const { stockNumber, vin, year, make, model, trim, color, miles, askingPriceDollars, acquiredOn } = row;
-      return { stockNumber, vin, year, make, model, trim, color, miles, askingPriceDollars, acquiredOn };
+      const { stockNumber, vin, year, make, model, trim, color, bodyType, miles, askingPriceDollars, acquiredOn } = row;
+      return { stockNumber, vin, year, make, model, trim, color, bodyType, miles, askingPriceDollars, acquiredOn };
     });
     const res = await importVehicles(rows);
     setImporting(false);
@@ -95,8 +97,8 @@ export function InventoryImport() {
       </div>
       <p className="mb-3 text-[12px] text-[var(--color-text-muted)]">
         Upload a CSV with your current inventory. Columns are matched by name (stock #, year, make,
-        model, trim, color, miles, price, in stock since) — review and fix anything below before
-        committing. Nothing is saved until you click Import.
+        model, trim, color, body type, miles, price, in stock since) — review and fix anything below
+        before committing. Nothing is saved until you click Import.
       </p>
       <input
         type="file"

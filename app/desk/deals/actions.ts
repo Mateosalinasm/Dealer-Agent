@@ -36,6 +36,9 @@ export async function createDeal(formData: FormData) {
   const parsed = newDealSchema.parse({
     customerName: formData.get("customerName"),
     vehicleId: formData.get("vehicleId") ?? "",
+    lenderId: formData.get("lenderId") ?? "",
+    dealDate: formData.get("dealDate") || undefined,
+    lot: formData.get("lot") ?? "",
     notes: formData.get("notes") ?? "",
   });
 
@@ -44,13 +47,16 @@ export async function createDeal(formData: FormData) {
     .values({
       customerName: parsed.customerName,
       vehicleId: parsed.vehicleId || null,
+      lenderId: parsed.lenderId || null,
+      lot: parsed.lot || null,
       notes: parsed.notes || null,
-      dealDate: todayInTimezone(await getDealershipTimezone()),
+      dealDate: parsed.dealDate || todayInTimezone(await getDealershipTimezone()),
       stips: DEFAULT_STIPS,
     })
     .returning();
 
   revalidatePath("/desk/priority-queue");
+  revalidatePath("/desk/deals");
   redirect(`/desk/deals/${deal.id}`);
 }
 
