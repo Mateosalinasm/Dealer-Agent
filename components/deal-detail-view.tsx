@@ -17,6 +17,7 @@ import { PtiSection } from "@/components/pti-section";
 import { CustomerSection } from "@/components/customer-section";
 import { SubmissionsSection } from "@/components/submissions-section";
 import { CreditGradeBadge } from "@/components/credit-grade-modal";
+import { IncomeReportBadge } from "@/components/income-report-badge";
 import { getUnderwritingSnapshot } from "@/lib/deal-underwriting";
 import { dealFacts, ptiCalc } from "@/lib/deal-facts";
 import { dealHealth, nextAction, bucketOf } from "@/lib/deal-health";
@@ -106,6 +107,12 @@ export async function DealDetailView({ id }: { id: string }) {
   const openStips = deal.stips.filter((s) => !s.done).length;
   const activeSub = deal.subs.find((s) => s.id === deal.primarySubId) ?? deal.subs.find((s) => s.status === "approved") ?? null;
 
+  const approvedCount = deal.subs.filter((s) => s.status === "approved" || s.status === "counter").length;
+  const waitingCount = deal.subs.filter((s) => s.status === "sent").length;
+  const submissionsSummary = deal.subs.length
+    ? `${deal.subs.length} bank${deal.subs.length === 1 ? "" : "s"} · ${approvedCount} approved · ${waitingCount} waiting`
+    : "Not submitted anywhere yet";
+
   return (
     <div>
       <div className="mb-4 flex items-start justify-between gap-3">
@@ -113,6 +120,7 @@ export async function DealDetailView({ id }: { id: string }) {
           <div className="flex items-center gap-2">
             <h1 className="text-[19px] font-semibold tracking-[-.01em] text-[var(--color-text)]">{deal.customerName}</h1>
             <CreditGradeBadge dealId={id} customerName={deal.customerName ?? ""} vehicleLabel={facts.vehicleLabel} facts={deal} />
+            <IncomeReportBadge incomeSource={snapshot.incomeSource} />
           </div>
           <div className="mt-1 flex items-center gap-2 text-[12.5px] text-[var(--color-text-muted)]">
             <span>{facts.vehicleLabel || "No vehicle attached"}</span>
@@ -155,7 +163,7 @@ export async function DealDetailView({ id }: { id: string }) {
         <DealHealthCard dealId={id} health={health} />
 
         <AccordionSection title="Customer" summary={facts.vehicleLabel || "No vehicle · Pending submission"} defaultOpen>
-          <CustomerSection dealId={id} deal={deal} lenders={lenders} />
+          <CustomerSection dealId={id} deal={deal} lenders={lenders} vehicles={matchVehicles} />
         </AccordionSection>
 
         <AccordionSection
@@ -165,11 +173,28 @@ export async function DealDetailView({ id }: { id: string }) {
           <MoneyTradeSection dealId={id} facts={facts} tradeVehicle={deal.tradeVehicle} />
         </AccordionSection>
 
-        <AccordionSection title="Lender & vehicle match">
-          <LenderMatchCard vehicles={matchVehicles} initialVehicleId={deal.vehicleId} programs={matchPrograms} snapshot={snapshot} />
+        <AccordionSection title="Lenders" summary={vehicle ? undefined : "Needs a unit and a down payment"}>
+          <LenderMatchCard
+            vehicle={
+              vehicle && {
+                id: vehicle.id,
+                year: vehicle.year,
+                make: vehicle.make,
+                model: vehicle.model,
+                trim: vehicle.trim,
+                askingPrice: vehicle.askingPrice,
+                bookValue: vehicle.bookValue,
+                miles: vehicle.miles,
+                title: vehicle.title as TitleStatus,
+              }
+            }
+            programs={matchPrograms}
+            snapshot={snapshot}
+            availableDownCents={deal.cashDown}
+          />
         </AccordionSection>
 
-        <AccordionSection title="Submissions" summary={deal.subs.length ? `${deal.subs.length} submission${deal.subs.length === 1 ? "" : "s"}` : "Not submitted"}>
+        <AccordionSection title="Submissions" summary={submissionsSummary}>
           <SubmissionsSection dealId={id} subs={deal.subs} lenders={lenders} primarySubId={deal.primarySubId} />
         </AccordionSection>
 
@@ -271,7 +296,7 @@ export async function DealDetailView({ id }: { id: string }) {
           )}
         </AccordionSection>
 
-        <Card>
+        <Card id="documents">
           <div className="mb-3 text-[13.5px] font-semibold text-[var(--color-text)]">Documents</div>
           <form action={uploadDocument.bind(null, id)} className="mb-4 flex flex-wrap items-end gap-3">
             <div className="w-48">

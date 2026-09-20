@@ -46,6 +46,7 @@ export const moneyTradeSchema = z.object({
 });
 
 export const customerFactsSchema = z.object({
+  vehicleId: z.string().uuid().optional().or(z.literal("")),
   lenderId: z.string().uuid().optional().or(z.literal("")),
   lot: z.string().optional(),
   cashDownDollars: z.coerce.number().min(0).optional(),

@@ -5,11 +5,41 @@ import type { schema } from "@/lib/db";
 
 type Deal = typeof schema.deals.$inferSelect;
 
-const dollarsOrEmpty = (cents: number | null) => (cents != null ? cents / 100 : "");
+interface VehicleOption {
+  id: string;
+  year: number | null;
+  make: string | null;
+  model: string | null;
+  trim: string | null;
+}
 
-export function CustomerSection({ dealId, deal, lenders }: { dealId: string; deal: Deal; lenders: { id: string; name: string }[] }) {
+const dollarsOrEmpty = (cents: number | null) => (cents != null ? cents / 100 : "");
+const vehicleLabel = (v: VehicleOption) => [v.year, v.make, v.model, v.trim].filter(Boolean).join(" ");
+
+export function CustomerSection({
+  dealId,
+  deal,
+  lenders,
+  vehicles,
+}: {
+  dealId: string;
+  deal: Deal;
+  lenders: { id: string; name: string }[];
+  vehicles: VehicleOption[];
+}) {
   return (
     <form action={updateCustomerFacts.bind(null, dealId)} className="grid grid-cols-2 gap-3">
+      <div className="col-span-2">
+        <Label>Vehicle</Label>
+        <Select name="vehicleId" defaultValue={deal.vehicleId ?? ""}>
+          <option value="">Vehicle TBD</option>
+          {vehicles.map((v) => (
+            <option key={v.id} value={v.id}>
+              {vehicleLabel(v)}
+            </option>
+          ))}
+        </Select>
+      </div>
       <div>
         <Label>Bank</Label>
         <Select name="lenderId" defaultValue={deal.lenderId ?? ""}>

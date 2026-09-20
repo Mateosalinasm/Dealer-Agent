@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input, Label, Select } from "@/components/ui/input";
+import { Input, Label } from "@/components/ui/input";
 import { formatCents } from "@/lib/utils";
 import {
   matchAllPrograms,
@@ -32,8 +32,7 @@ interface VehicleOption {
 }
 
 interface LenderMatchCardProps {
-  vehicles: VehicleOption[];
-  initialVehicleId: string | null;
+  vehicle: VehicleOption | null;
   programs: ProgramForMatch[];
   snapshot: {
     creditScore: number | null;
@@ -41,17 +40,18 @@ interface LenderMatchCardProps {
     monthlyIncomeCents: number | null;
     incomeSource: string | null;
   };
+  availableDownCents: number | null;
 }
 
-export function LenderMatchCard({ vehicles, initialVehicleId, programs, snapshot }: LenderMatchCardProps) {
-  const [vehicleId, setVehicleId] = useState(initialVehicleId ?? vehicles[0]?.id ?? "");
+// Locked to the deal's actual vehicle (set in the Customer section) — see
+// Deal Desk v2.dc.html's "Lenders" section, which matches lenders against
+// the deal you're actually working, not a hypothetical unit.
+export function LenderMatchCard({ vehicle, programs, snapshot, availableDownCents }: LenderMatchCardProps) {
   const [creditScore, setCreditScore] = useState(snapshot.creditScore?.toString() ?? "");
   const [monthlyIncome, setMonthlyIncome] = useState(
     snapshot.monthlyIncomeCents != null ? (snapshot.monthlyIncomeCents / 100).toString() : "",
   );
-  const [availableDown, setAvailableDown] = useState("0");
-
-  const vehicle = vehicles.find((v) => v.id === vehicleId);
+  const [availableDown, setAvailableDown] = useState(availableDownCents != null ? (availableDownCents / 100).toString() : "0");
 
   const results = useMemo(() => {
     if (!vehicle || !vehicle.askingPrice) return null;
@@ -72,45 +72,42 @@ export function LenderMatchCard({ vehicles, initialVehicleId, programs, snapshot
 
   return (
     <Card>
-      <div className="mb-1 text-[13.5px] font-semibold text-[var(--color-text)]">Lender match</div>
+      <div className="mb-1 text-[13.5px] font-semibold text-[var(--color-text)]">Lenders</div>
       <p className="mb-3 text-[11px] text-[var(--color-text-muted)]">
-        Computed from your lender guidelines — not AI, not a quote. Edit any field to see it recompute.
+        Computed from your lender guidelines against this deal&rsquo;s vehicle — not AI, not a quote.
       </p>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="col-span-2 sm:col-span-1">
-          <Label htmlFor="lm-vehicle">Vehicle</Label>
-          <Select id="lm-vehicle" value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}>
-            {vehicles.length === 0 && <option value="">No vehicles in stock</option>}
-            {vehicles.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.year} {v.make} {v.model} {v.trim ?? ""}
-              </option>
-            ))}
-          </Select>
+      {!vehicle ? (
+        <p className="text-[12.5px] text-[var(--color-text-muted)]">Pick a vehicle in Customer to see lender matches.</p>
+      ) : (
+        <div className="mb-3 text-[12.5px] font-semibold text-[var(--color-text)]">
+          {vehicle.year} {vehicle.make} {vehicle.model} {vehicle.trim ?? ""}
         </div>
-        <div>
-          <Label htmlFor="lm-credit">
-            Credit score {snapshot.creditScoreSource && <span className="normal-case text-[var(--color-text-muted)]">({snapshot.creditScoreSource})</span>}
-          </Label>
-          <Input id="lm-credit" type="number" value={creditScore} onChange={(e) => setCreditScore(e.target.value)} placeholder="Unknown" />
-        </div>
-        <div>
-          <Label htmlFor="lm-income">
-            Monthly income {snapshot.incomeSource && <span className="normal-case text-[var(--color-text-muted)]">({snapshot.incomeSource})</span>}
-          </Label>
-          <Input id="lm-income" type="number" step="0.01" value={monthlyIncome} onChange={(e) => setMonthlyIncome(e.target.value)} placeholder="Unknown" />
-        </div>
-        <div>
-          <Label htmlFor="lm-down">Down available</Label>
-          <Input id="lm-down" type="number" step="0.01" value={availableDown} onChange={(e) => setAvailableDown(e.target.value)} />
-        </div>
-      </div>
+      )}
 
-      {!results ? (
-        <p className="mt-4 text-[12.5px] text-[var(--color-text-muted)]">
-          {vehicles.length === 0 ? "No vehicles in stock to match against." : "This vehicle needs an asking price before it can be matched."}
-        </p>
+      {vehicle && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div>
+            <Label htmlFor="lm-credit">
+              Credit score {snapshot.creditScoreSource && <span className="normal-case text-[var(--color-text-muted)]">({snapshot.creditScoreSource})</span>}
+            </Label>
+            <Input id="lm-credit" type="number" value={creditScore} onChange={(e) => setCreditScore(e.target.value)} placeholder="Unknown" />
+          </div>
+          <div>
+            <Label htmlFor="lm-income">
+              Monthly income {snapshot.incomeSource && <span className="normal-case text-[var(--color-text-muted)]">({snapshot.incomeSource})</span>}
+            </Label>
+            <Input id="lm-income" type="number" step="0.01" value={monthlyIncome} onChange={(e) => setMonthlyIncome(e.target.value)} placeholder="Unknown" />
+          </div>
+          <div>
+            <Label htmlFor="lm-down">Down available</Label>
+            <Input id="lm-down" type="number" step="0.01" value={availableDown} onChange={(e) => setAvailableDown(e.target.value)} />
+          </div>
+        </div>
+      )}
+
+      {!vehicle ? null : !results ? (
+        <p className="mt-4 text-[12.5px] text-[var(--color-text-muted)]">This vehicle needs an asking price before it can be matched.</p>
       ) : results.length === 0 ? (
         <p className="mt-4 text-[12.5px] text-[var(--color-text-muted)]">No lender programs set up yet.</p>
       ) : (

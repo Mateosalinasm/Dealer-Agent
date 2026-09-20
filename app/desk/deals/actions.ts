@@ -106,6 +106,7 @@ export async function updateDealInfo(dealId: string, formData: FormData) {
 // that drive dealHealth/nextAction/ptiCalc — see lib/deal-facts.ts.
 export async function updateCustomerFacts(dealId: string, formData: FormData) {
   const parsed = customerFactsSchema.parse({
+    vehicleId: formData.get("vehicleId") ?? "",
     lenderId: formData.get("lenderId") ?? "",
     lot: formData.get("lot") ?? "",
     cashDownDollars: formData.get("cashDownDollars") || undefined,
@@ -120,6 +121,7 @@ export async function updateCustomerFacts(dealId: string, formData: FormData) {
   await db
     .update(schema.deals)
     .set({
+      vehicleId: parsed.vehicleId || null,
       lenderId: parsed.lenderId || null,
       lot: parsed.lot || null,
       cashDown: parsed.cashDownDollars != null ? Math.round(parsed.cashDownDollars * 100) : null,
@@ -133,6 +135,8 @@ export async function updateCustomerFacts(dealId: string, formData: FormData) {
     .where(eq(schema.deals.id, dealId));
 
   revalidatePath(`/desk/deals/${dealId}`);
+  revalidatePath("/desk/priority-queue");
+  revalidatePath("/desk/deals");
 }
 
 export async function updateCredit(dealId: string, formData: FormData) {
