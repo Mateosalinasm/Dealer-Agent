@@ -31,6 +31,7 @@ export default async function LeadsPage() {
                   <div className="text-[13.5px] font-semibold text-[var(--color-text)]">{lead.name}</div>
                   <div className="mt-0.5 text-[12px] text-[var(--color-text-muted)]">
                     {lead.phone ? `${lead.phone} · ` : ""}
+                    {lead.email ? `${lead.email} · ` : ""}
                     {lead.wantMake || lead.wantModel
                       ? `Wants ${[lead.wantMake, lead.wantModel].filter(Boolean).join(" ")}`
                       : lead.wants || "No stated want"}

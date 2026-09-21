@@ -11,6 +11,13 @@ referral message — all four built this round, see "Done this session". You
 also said no to e-sign and reserve/participation tracking — crossed out
 below, not built.
 
+**Round 3**: fixed the modal centering glitch and added AutoCheck upload +
+a manual "Add unit" form to the watch-list, then built the four things you
+picked next — desk brief, post-sale check-ins, the Facebook/Instagram
+webhook, and confirmed the Anthropic key setup (Deal Copilot was already
+built, just needed the key documented clearly). Also answered your JD
+Power pricing question — see the Inventory/sourcing ideas section.
+
 ## How to read this file
 
 - **Needs your call** — genuine business/product decisions I set aside instead
@@ -155,6 +162,47 @@ below, not built.
   about referral money feels like something you'd want to time yourself.
   Say the word if you'd rather it fire automatically alongside the sold
   message.
+- **Modal recentering flash, fixed** — every dialog in the app (Lender
+  match, Warranty match, Deal copilot, etc.) shared one component that
+  centered itself with a transform that fought with its own open
+  animation, which is what caused the "opens off-center, then snaps"
+  glitch you flagged. Switched to flexbox centering — pure layout, so it
+  can't be knocked off by the animation. Verified by sampling the dialog's
+  position across the whole open animation; it stays dead-center now.
+- **Auction watch-list: AutoCheck upload + manual "Add unit"** — each unit
+  on the watch-list now has an AutoCheck tab (upload, AI read, delete —
+  same flow as the deal page's documents). Also added a real "Add unit"
+  form, since the empty state promised "add one directly" but that path
+  never actually existed until now — it reuses the exact same
+  `addToWatchList` logic Run list already calls.
+- **Daily desk brief** — `/settings` has a new Notifications card: your
+  WhatsApp number and/or email, plus a "Send test brief now" button. Once
+  a day (see cron setup below), it sends what's due today: today's
+  appointments, deals in red health with why, open stips count, open
+  leads count — the same numbers as the Analytics snapshot row, just
+  pushed to you instead of waiting for you to open the app. Either
+  channel can be left blank to skip it; nothing sends until you fill in
+  at least one and the matching integration (WhatsApp/email) is
+  connected.
+- **Post-sale check-in sequence (30/60/90 day)** — fully automatic, no
+  button. The same daily job checks every funded deal's `fundedOn` date;
+  the day it crosses 30/60/90 days out, the customer gets a fixed
+  check-in text (90-day one includes your Google review link if you've
+  set one in Settings). Tracked per-deal so it only ever sends once per
+  milestone, even if the job runs twice in a day. Uses the phone number
+  already on the deal — same field the sold/referral messages use.
+- **Facebook/Instagram Lead Ads webhook** — receives Meta's lead
+  notifications, fetches the real name/phone/email via the Graph API, and
+  creates a `leads` row with source "Facebook/Instagram Lead Ads."
+  Signature-verified (rejects anything not provably from Meta) and
+  deduplicated (a retried webhook delivery can't create the same lead
+  twice). **Couldn't verify a live lead flowing through** — this sandbox
+  blocks outbound calls to graph.facebook.com the same way it blocked
+  NHTSA earlier, so I could only confirm the verification handshake,
+  signature check, and dedup logic directly (all pass) — the actual
+  Graph API fetch needs testing from somewhere with normal internet
+  access, or just by connecting a real Meta app and watching a real lead
+  land.
 
 ---
 
@@ -205,6 +253,56 @@ the moment this is set, no other config or restart-specific step needed. This
 is the same env var document extraction (`lib/extraction.ts`) already uses,
 so if you've set it up for that, Deal Copilot is already live.
 
+### Email (Resend) — for the daily desk brief
+Add to `.env.local`:
+```
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL=brief@yourdomain.com
+```
+Sign up at [resend.com](https://resend.com), verify a sending domain (they
+walk you through the DNS records — takes a few minutes, not instant), then
+grab an API key. `RESEND_FROM_EMAIL` has to be an address on that verified
+domain. If you'd rather only use WhatsApp for the desk brief, skip this
+entirely — it's optional per-channel in Settings.
+
+### Daily desk brief + post-sale check-ins — the cron schedule
+Both run off one Vercel Cron job (`vercel.json`), which only takes effect
+once this is deployed on Vercel — nothing to do locally beyond testing with
+the "Send test brief now" button in Settings. It's currently set to run at
+13:00 UTC every day (roughly 7-8am US Central/Eastern depending on the time
+of year — cron doesn't auto-adjust for daylight saving, so the hour will
+drift by one twice a year; edit the `schedule` string in `vercel.json` if
+you want it pinned tighter). Recommend also setting a `CRON_SECRET` env var
+in Vercel (any random string) — Vercel sends it automatically as a bearer
+token on cron-triggered requests, and the route rejects anything else once
+it's set, so nobody else can trigger your desk brief by finding the URL.
+
+### Facebook/Instagram Lead Ads webhook
+This one has more setup than the others since it's a full Meta developer
+flow, not just an API key:
+1. Create a Meta app at [developers.facebook.com](https://developers.facebook.com)
+   (or use an existing one), add the "Webhooks" product.
+2. Under Webhooks → Page, subscribe with callback URL
+   `https://<your domain>/api/leads/meta/webhook`, and pick any string as
+   the verify token — you'll use the same string for `META_WEBHOOK_VERIFY_TOKEN`
+   below. Subscribe to the `leadgen` field.
+3. Your Facebook Page needs to be connected to a Lead Ads form for this to
+   ever fire — if you don't already run Lead Ads, this webhook has nothing
+   to receive.
+4. Get a Page access token with `leads_retrieval` permission (Graph API
+   Explorer is the fastest way to generate one, or your app's own token flow).
+5. Add to `.env.local` (and Vercel's env vars for production):
+```
+META_APP_SECRET=...          (App Settings → Basic)
+META_PAGE_ACCESS_TOKEN=...   (step 4 above)
+META_WEBHOOK_VERIFY_TOKEN=... (whatever string you picked in step 2)
+```
+**Couldn't verify a live lead end to end** — see "Done this session" above.
+The code path is right (verified the handshake, signature check, and
+duplicate-prevention directly), but the actual "Meta sends a real lead,
+Graph API returns real field data" round trip needs a live Meta app to
+confirm.
+
 ---
 
 ## Ideas for later — "one-stop-shop" feature brainstorm
@@ -212,8 +310,8 @@ so if you've set it up for that, Deal Copilot is already live.
 *(not started — for discussion, updated as I think of more)*
 
 **Lead generation / intake**
-- Facebook/Instagram Lead Ads webhook → auto-create a `leads` row (Meta has
-  a real-time lead webhook API; needs a Meta app + page access token).
+- ~~Facebook/Instagram Lead Ads webhook~~ — built this round, see "Done
+  this session." Needs your Meta app setup to actually receive anything.
 - A public "trade-in value" or "get pre-qualified" landing page that writes
   straight into `leads` — cheap lead magnet, no third party needed.
 - Website chat widget → WhatsApp handoff, so a website visitor and a
@@ -221,8 +319,7 @@ so if you've set it up for that, Deal Copilot is already live.
 
 **Organization / calendar**
 - Google Calendar two-way sync (scaffolding this session — see above).
-- A daily "desk brief" — what's due today across appointments, stips,
-  follow-ups — email or WhatsApp to yourself each morning.
+- ~~A daily "desk brief"~~ — built this round, see "Done this session."
 - Task/reminder system independent of appointments (e.g. "call lender by
   Thursday") tied to a deal.
 
@@ -236,17 +333,20 @@ so if you've set it up for that, Deal Copilot is already live.
   started — flag if you want it.
 
 **Inventory / sourcing**
-- VIN decoder API (NHTSA's is free) to auto-fill year/make/model/trim on
-  manual vehicle entry from a VIN alone, no AutoCheck needed.
 - KBB/MMR API integration for book value instead of hand-entering it —
-  needs a paid API key from you.
+  needs a paid API key from you. (You asked about JD Power specifically —
+  their pricing isn't public, quote-based, and the one number I found
+  ($1,335/mo for 1,000 valuations) is sized way past a sub-10-units/month
+  operation. Worth a call to their sales line if you want a real quote,
+  but I wouldn't expect a small-dealer tier.)
 
 **Customer-facing**
 - A simple customer portal (magic-link, no password) to check application
   status / upload documents themselves instead of texting you a photo.
-- Post-sale check-in sequence (30/60/90 day) — service reminders, review
-  requests — could ride on the same WhatsApp infrastructure once the
-  AI-reply question above is answered.
+- ~~Post-sale check-in sequence (30/60/90 day)~~ — built this round, see
+  "Done this session." Turned out not to need the AI-reply decision after
+  all — it's a fixed-template send, same pattern as sold/referral, not
+  an AI-drafted one.
 
 **Ops**
 - Multi-user support — right now this is single-operator (no login,

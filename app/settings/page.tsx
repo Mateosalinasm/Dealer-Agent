@@ -1,10 +1,13 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { NotificationSettingsForm } from "@/components/notification-settings-form";
 import { whatsappConfigured } from "@/lib/whatsapp";
+import { emailConfigured } from "@/lib/email";
 import { googleCalendarConfigured } from "@/lib/google-calendar";
 import { isIntegrationConnected } from "@/lib/integrations";
 import { disconnectGoogleCalendar } from "@/app/settings/actions";
+import { db, schema } from "@/lib/db";
 
 const GOOGLE_STATUS_MESSAGE: Record<string, { tone: "positive" | "negative" | "caution"; text: string }> = {
   connected: { tone: "positive", text: "Google Calendar connected." },
@@ -17,11 +20,14 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const { google } = await searchParams;
   const statusBanner = google ? GOOGLE_STATUS_MESSAGE[google] : null;
 
-  const [waConfigured, gcalEnvConfigured, gcalConnected] = await Promise.all([
+  const [waConfigured, gcalEnvConfigured, gcalConnected, settingsRows] = await Promise.all([
     Promise.resolve(whatsappConfigured()),
     Promise.resolve(googleCalendarConfigured()),
     isIntegrationConnected("google_calendar"),
+    db.select().from(schema.settings).limit(1),
   ]);
+  const settingsRow = settingsRows[0] ?? null;
+  const emlConfigured = emailConfigured();
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -85,7 +91,40 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               </Button>
             )}
           </div>
+
+          <div className="flex items-center justify-between py-3.5">
+            <div>
+              <div className="text-[13.5px] font-semibold text-[var(--color-text)]">Email (Resend)</div>
+              <div className="mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">
+                {emlConfigured ? "Ready — the daily desk brief can email you." : "Add RESEND_API_KEY and RESEND_FROM_EMAIL to .env.local."}
+              </div>
+            </div>
+            <Badge tone={emlConfigured ? "positive" : "neutral"}>{emlConfigured ? "Connected" : "Not connected"}</Badge>
+          </div>
+
+          <div className="flex items-center justify-between py-3.5">
+            <div>
+              <div className="text-[13.5px] font-semibold text-[var(--color-text)]">Anthropic (Deal Copilot)</div>
+              <div className="mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">
+                {process.env.ANTHROPIC_API_KEY ? "Ready — the Deal Copilot button on a deal page is live." : "Add ANTHROPIC_API_KEY to .env.local."}
+              </div>
+            </div>
+            <Badge tone={process.env.ANTHROPIC_API_KEY ? "positive" : "neutral"}>{process.env.ANTHROPIC_API_KEY ? "Connected" : "Not connected"}</Badge>
+          </div>
         </div>
+      </Card>
+
+      <Card>
+        <div className="mb-1 text-[13.5px] font-semibold text-[var(--color-text)]">Notifications</div>
+        <p className="mb-4 text-[11.5px] text-[var(--color-text-muted)]">
+          Where the daily desk brief goes — what&apos;s on today, deals needing attention, open stips and leads. Runs
+          automatically once a day; use the button below to see it right now.
+        </p>
+        <NotificationSettingsForm
+          operatorPhone={settingsRow?.operatorPhone ?? null}
+          operatorEmail={settingsRow?.operatorEmail ?? null}
+          googleReviewUrl={settingsRow?.googleReviewUrl ?? null}
+        />
       </Card>
     </div>
   );

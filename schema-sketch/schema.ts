@@ -1,5 +1,5 @@
 import {
-  pgTable, uuid, text, integer, boolean, date, timestamp, jsonb, index,
+  pgTable, uuid, text, integer, boolean, date, timestamp, jsonb, index, uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
 // --- Additions beyond the original 8-table handoff, for the Desk features
@@ -34,6 +34,16 @@ export const settings = pgTable('settings', {
   // (Vercel), but the auction lane doesn't. Null falls back to a default;
   // see lib/dealership-time.ts.
   timezone: text('timezone'),
+  // Where the daily desk brief (lib/desk-brief.ts) and post-sale check-ins
+  // go — the operator's own number/inbox, not a customer's. Either can be
+  // left blank to skip that channel; the cron route just sends to whichever
+  // is set.
+  operatorPhone: text('operator_phone'),
+  operatorEmail: text('operator_email'),
+  // Included in the 90-day post-sale check-in message when set — left blank
+  // otherwise rather than sending a generic "leave us a review" with
+  // nowhere to click.
+  googleReviewUrl: text('google_review_url'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -240,6 +250,12 @@ export const deals = pgTable('deals', {
   // (see toggleDealStep) — standard first-payment convention — and stays
   // editable afterward since the actual due date can move.
   firstPaymentDate: date('first_payment_date'),
+
+  // Which post-sale check-in milestones (lib/post-sale-checkins.ts) have
+  // already gone out for this deal — e.g. ["30","60"]. Checked before
+  // sending so the daily cron never double-texts a customer if it runs
+  // more than once on the same day the window opens.
+  checkinsSent: jsonb('checkins_sent').$type<string[]>().notNull().default([]),
 });
 
 export const leads = pgTable('leads', {
@@ -247,6 +263,7 @@ export const leads = pgTable('leads', {
   contactId: uuid('contact_id').references(() => contacts.id, { onDelete: 'set null' }),
   name: text('name').notNull(),
   phone: text('phone'),
+  email: text('email'),
   source: text('source'),                             // channel: "Facebook Marketplace", "Walk-in", etc.
   wants: text('wants'),                              // free text: "Silverado 1500, under 120k"
   wantMake: text('want_make'),                       // parsed, drives run-list want flags
@@ -256,7 +273,11 @@ export const leads = pgTable('leads', {
   downAvailable: integer('down_available'),
   status: text('status').notNull().default('open'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+  // The source webhook's own id for this lead (e.g. Meta's leadgen_id,
+  // prefixed "meta:") — lets a retried webhook delivery no-op instead of
+  // creating a duplicate lead. Null for every non-webhook source.
+  externalId: text('external_id'),
+}, t => ({ externalIdIdx: uniqueIndex('leads_external_id_idx').on(t.externalId) }));
 
 export const watchItems = pgTable('watch_items', {
   id: uuid('id').primaryKey().defaultRandom(),

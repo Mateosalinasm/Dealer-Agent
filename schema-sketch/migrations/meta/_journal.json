@@ -85,6 +85,13 @@
       "when": 1789971540919,
       "tag": "0011_soft_jack_flag",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1790010128751,
+      "tag": "0012_legal_jackpot",
+      "breakpoints": true
     }
   ]
 }

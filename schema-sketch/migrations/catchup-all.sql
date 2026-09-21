@@ -370,3 +370,12 @@ DO $$ BEGIN
  ALTER TABLE "documents" ADD CONSTRAINT "documents_watch_item_id_watch_items_id_fk" FOREIGN KEY ("watch_item_id") REFERENCES "public"."watch_items"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION WHEN duplicate_object THEN null; END $$;
 CREATE INDEX IF NOT EXISTS "documents_watch_item_idx" ON "documents" USING btree ("watch_item_id");
+
+-- --- 0012 ---
+ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "checkins_sent" jsonb DEFAULT '[]'::jsonb NOT NULL;
+ALTER TABLE "leads" ADD COLUMN IF NOT EXISTS "email" text;
+ALTER TABLE "leads" ADD COLUMN IF NOT EXISTS "external_id" text;
+ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "operator_phone" text;
+ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "operator_email" text;
+ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "google_review_url" text;
+CREATE UNIQUE INDEX IF NOT EXISTS "leads_external_id_idx" ON "leads" USING btree ("external_id");
