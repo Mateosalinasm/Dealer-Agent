@@ -93,6 +93,11 @@ export function daysSince(date: Date): number {
   return Math.floor((Date.now() - date.getTime()) / 86_400_000);
 }
 
+/** Caps at the 120 most recent entries, newest last — deal.log is read newest-first (see lib/deal-health.ts). */
+export function appendLog(log: { at: number; text: string }[], text: string) {
+  return [...log, { at: Date.now(), text }].slice(-120);
+}
+
 export function msSince(date: Date): number {
   return Date.now() - date.getTime();
 }

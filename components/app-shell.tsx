@@ -61,7 +61,10 @@ const NAV: NavGroup[] = [
   },
   {
     label: "Lenders",
-    items: [{ label: "All lenders", href: "/lenders" }],
+    items: [
+      { label: "All lenders", href: "/lenders" },
+      { label: "Warranty & F&I products", href: "/warranty" },
+    ],
   },
   {
     label: "Settings",

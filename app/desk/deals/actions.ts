@@ -8,8 +8,10 @@ import { saveFile, readStoredFile } from "@/lib/storage";
 import { extractDocument } from "@/lib/extraction";
 import { isExtractable } from "@/lib/extraction-schemas";
 import { getDealershipTimezone, todayInTimezone } from "@/lib/dealership-time";
-import { dealStageInfo, STAGES } from "@/lib/deal-stage";
+import { normalizePhone } from "@/lib/phone";
+import { dealStageInfo, STAGES, appendLog } from "@/lib/deal-stage";
 import { syncAppointmentToGoogle, deleteGoogleEvent } from "@/lib/google-calendar";
+import { handleDealFunded, sendReferralMessage as sendReferralMessageToPhone } from "@/lib/deal-sold-automation";
 import {
   appointmentSchema,
   creditSchema,
@@ -23,11 +25,6 @@ import {
 } from "@/lib/validation";
 import { randomUUID } from "node:crypto";
 
-/** Caps at the 120 most recent entries, newest last — see lib/deal-health.ts for how they're read (newest first). */
-function appendLog(log: { at: number; text: string }[], text: string) {
-  return [...log, { at: Date.now(), text }].slice(-120);
-}
-
 const DEFAULT_STIPS = ["POI", "POR", "TurboPass", "Insurance"].map((label) => ({
   label,
   done: false,
@@ -36,6 +33,7 @@ const DEFAULT_STIPS = ["POI", "POR", "TurboPass", "Insurance"].map((label) => ({
 export async function createDeal(formData: FormData) {
   const parsed = newDealSchema.parse({
     customerName: formData.get("customerName"),
+    phone: formData.get("phone") ?? "",
     vehicleId: formData.get("vehicleId") ?? "",
     wantBodyType: formData.get("wantBodyType") ?? "",
     lenderId: formData.get("lenderId") ?? "",
@@ -48,6 +46,7 @@ export async function createDeal(formData: FormData) {
     .insert(schema.deals)
     .values({
       customerName: parsed.customerName,
+      phone: normalizePhone(parsed.phone),
       vehicleId: parsed.vehicleId || null,
       wantBodyType: parsed.wantBodyType || null,
       lenderId: parsed.lenderId || null,
@@ -112,6 +111,8 @@ export async function updateCustomerFacts(dealId: string, formData: FormData) {
     vehicleId: formData.get("vehicleId") ?? "",
     wantBodyType: formData.get("wantBodyType") ?? "",
     lenderId: formData.get("lenderId") ?? "",
+    phone: formData.get("phone") ?? "",
+    firstPaymentDate: formData.get("firstPaymentDate") || undefined,
     lot: formData.get("lot") ?? "",
     cashDownDollars: formData.get("cashDownDollars") || undefined,
     statedIncomeDollars: formData.get("statedIncomeDollars") || undefined,
@@ -128,6 +129,8 @@ export async function updateCustomerFacts(dealId: string, formData: FormData) {
       vehicleId: parsed.vehicleId || null,
       wantBodyType: parsed.wantBodyType || null,
       lenderId: parsed.lenderId || null,
+      phone: normalizePhone(parsed.phone),
+      firstPaymentDate: parsed.firstPaymentDate || null,
       lot: parsed.lot || null,
       cashDown: parsed.cashDownDollars != null ? Math.round(parsed.cashDownDollars * 100) : null,
       statedIncome: parsed.statedIncomeDollars != null ? Math.round(parsed.statedIncomeDollars * 100) : null,
@@ -449,9 +452,25 @@ export async function toggleDealStep(dealId: string, stepId: string) {
     revalidatePath("/sourcing/buy-scorecard");
   }
 
+  // Lead status sync + sold/first-payment WhatsApp message — only on the
+  // false -> true edge, never on every checklist toggle or on unfunding.
+  // See lib/deal-sold-automation.ts for why each step there is best-effort.
+  if (funded && !deal.funded) {
+    await handleDealFunded(dealId, today);
+    revalidatePath("/leads");
+    revalidatePath("/messages");
+  }
+
   revalidatePath(`/desk/deals/${dealId}`);
   revalidatePath("/desk/priority-queue");
   revalidatePath("/desk/deals");
+}
+
+export async function sendReferralMessage(dealId: string) {
+  const result = await sendReferralMessageToPhone(dealId);
+  revalidatePath(`/desk/deals/${dealId}`);
+  revalidatePath("/messages");
+  return result;
 }
 
 export async function setDealArchived(dealId: string, archived: boolean) {

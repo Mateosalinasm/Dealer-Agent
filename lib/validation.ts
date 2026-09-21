@@ -18,6 +18,7 @@ export const inventorySearchParamsSchema = z.object({
 
 export const newDealSchema = z.object({
   customerName: z.string().trim().min(1, "Customer name is required"),
+  phone: z.string().optional(),
   vehicleId: z.string().uuid().optional().or(z.literal("")),
   wantBodyType: z.enum(["truck", "sedan", "suv"]).optional().or(z.literal("")),
   lenderId: z.string().uuid().optional().or(z.literal("")),
@@ -50,6 +51,8 @@ export const customerFactsSchema = z.object({
   vehicleId: z.string().uuid().optional().or(z.literal("")),
   wantBodyType: z.enum(["truck", "sedan", "suv"]).optional().or(z.literal("")),
   lenderId: z.string().uuid().optional().or(z.literal("")),
+  phone: z.string().optional(),
+  firstPaymentDate: z.string().optional(),
   lot: z.string().optional(),
   cashDownDollars: z.coerce.number().min(0).optional(),
   statedIncomeDollars: z.coerce.number().min(0).optional(),
@@ -127,6 +130,24 @@ export const programSchema = z.object({
   maxPtiPct: optionalPct,
   typicalAprPct: z.preprocess(emptyToUndefined, z.coerce.number().min(0).max(60).optional()),
   allowedTitles: z.array(z.enum(titleStatusValues)).optional(),
+  notes: z.string().optional(),
+});
+
+export const warrantyProductTypeValues = ["vsc", "gap", "tire_wheel", "key_replacement", "maintenance", "other"] as const;
+
+export const warrantyProductSchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+  provider: z.string().trim().min(1, "Provider is required"),
+  productType: z.enum(warrantyProductTypeValues),
+  costDollars: z.coerce.number().min(0),
+  priceDollars: z.coerce.number().min(0),
+  termMonths: optionalInt,
+  termMiles: optionalInt,
+  deductibleDollars: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional()),
+  maxVehicleAgeYears: optionalInt,
+  maxVehicleMiles: optionalInt,
+  minSalePriceDollars: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional()),
+  maxSalePriceDollars: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional()),
   notes: z.string().optional(),
 });
 

@@ -65,6 +65,14 @@ export function CustomerSection({
         <Input name="lot" defaultValue={deal.lot ?? ""} placeholder="Main lot" />
       </div>
       <div>
+        <Label>Phone (WhatsApp)</Label>
+        <Input name="phone" type="tel" defaultValue={deal.phone ?? ""} placeholder="(555) 123-4567" />
+      </div>
+      <div>
+        <Label>First payment date</Label>
+        <Input name="firstPaymentDate" type="date" defaultValue={deal.firstPaymentDate ?? ""} />
+      </div>
+      <div>
         <Label>Down payment</Label>
         <Input name="cashDownDollars" type="number" step="0.01" defaultValue={dollarsOrEmpty(deal.cashDown)} />
       </div>

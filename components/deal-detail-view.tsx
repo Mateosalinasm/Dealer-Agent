@@ -11,6 +11,10 @@ import { StipChecklist } from "@/components/stip-checklist";
 import { StageChecklist } from "@/components/stage-checklist";
 import { DocumentRow } from "@/components/document-row";
 import { LenderVehicleMatchModal } from "@/components/lender-vehicle-match-modal";
+import { WarrantyMatchModal } from "@/components/warranty-match-modal";
+import { DealCopilotModal } from "@/components/deal-copilot-modal";
+import { SendReferralButton } from "@/components/send-referral-button";
+import { copilotConfigured } from "@/lib/deal-copilot";
 import { DealHealthCard } from "@/components/deal-health-card";
 import { PtiSection } from "@/components/pti-section";
 import { CustomerSection } from "@/components/customer-section";
@@ -32,7 +36,7 @@ export async function DealDetailView({ id }: { id: string }) {
   const [deal] = await db.select().from(schema.deals).where(eq(schema.deals.id, id)).limit(1);
   if (!deal) notFound();
 
-  const [vehicle, lenders, programs, documents, stockVehicles, snapshot] = await Promise.all([
+  const [vehicle, lenders, programs, documents, stockVehicles, snapshot, warrantyProducts] = await Promise.all([
     deal.vehicleId
       ? db.select().from(schema.vehicles).where(eq(schema.vehicles.id, deal.vehicleId)).then((r) => r[0] ?? null)
       : Promise.resolve(null),
@@ -41,6 +45,7 @@ export async function DealDetailView({ id }: { id: string }) {
     db.select().from(schema.documents).where(eq(schema.documents.dealId, id)),
     db.select().from(schema.vehicles).where(eq(schema.vehicles.sold, false)),
     getUnderwritingSnapshot(id),
+    db.select().from(schema.warrantyProducts).where(eq(schema.warrantyProducts.active, true)),
   ]);
 
   const lenderNameById = new Map(lenders.map((l) => [l.id, l.name]));
@@ -135,6 +140,7 @@ export async function DealDetailView({ id }: { id: string }) {
         </div>
         <div className="flex flex-none items-center gap-2">
           <Badge tone={deal.funded ? "positive" : "neutral"}>{deal.funded ? "Funded" : "Open"}</Badge>
+          {deal.funded && <SendReferralButton dealId={id} />}
           <Link href={`/desk/appointments?dealId=${id}&customerName=${encodeURIComponent(deal.customerName ?? "")}`}>
             <Button type="button" variant="secondary">
               Schedule appointment
@@ -162,7 +168,7 @@ export async function DealDetailView({ id }: { id: string }) {
         <div className="mt-1.5 text-[16px] font-semibold leading-tight text-white">{next.label}</div>
       </div>
 
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap gap-2">
         <LenderVehicleMatchModal
           dealId={id}
           customerName={deal.customerName ?? ""}
@@ -194,6 +200,28 @@ export async function DealDetailView({ id }: { id: string }) {
           inventory={inventoryCandidates}
           attentionNeeded={health.status !== "green"}
         />
+        <WarrantyMatchModal
+          customerName={deal.customerName ?? ""}
+          vehicle={{ year: vehicle?.year ?? null, miles: vehicle?.miles ?? null }}
+          deal={{ salePriceCents: deal.salePrice, cashDownCents: deal.cashDown, tradePayoffCents: deal.tradePayoff, tradeAcvCents: deal.tradeAcv }}
+          products={warrantyProducts.map((p) => ({
+            id: p.id,
+            name: p.name,
+            provider: p.provider,
+            productType: p.productType,
+            costCents: p.costCents,
+            priceCents: p.priceCents,
+            termMonths: p.termMonths,
+            termMiles: p.termMiles,
+            deductibleCents: p.deductibleCents,
+            maxVehicleAgeYears: p.maxVehicleAgeYears,
+            maxVehicleMiles: p.maxVehicleMiles,
+            minSalePriceCents: p.minSalePriceCents,
+            maxSalePriceCents: p.maxSalePriceCents,
+            active: p.active,
+          }))}
+        />
+        <DealCopilotModal dealId={id} customerName={deal.customerName ?? ""} configured={copilotConfigured()} />
       </div>
 
       <div className="flex flex-col gap-4">

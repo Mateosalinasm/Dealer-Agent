@@ -18,6 +18,8 @@ export const integrationProvider = ['whatsapp', 'google_calendar'] as const;
 export const messageDirection = ['inbound', 'outbound'] as const;
 export const messageStatus = ['queued', 'sent', 'delivered', 'read', 'failed'] as const;
 
+export const warrantyProductType = ['vsc', 'gap', 'tire_wheel', 'key_replacement', 'maintenance', 'other'] as const;
+
 // All money is integer CENTS. No floats anywhere in this file.
 
 export const settings = pgTable('settings', {
@@ -228,6 +230,16 @@ export const deals = pgTable('deals', {
   fundedOn: date('funded_on'),
   notes: text('notes'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+
+  // Customer's WhatsApp/SMS number (E.164) — set on New deal, editable
+  // from Customer facts. Drives the sold/first-payment and referral
+  // WhatsApp automations below (lib/deal-sold.ts); a deal with no phone
+  // just skips those, logged rather than silently failing.
+  phone: text('phone'),
+  // Defaults to fundedOn + 30 days the moment a deal is marked funded
+  // (see toggleDealStep) — standard first-payment convention — and stays
+  // editable afterward since the actual due date can move.
+  firstPaymentDate: date('first_payment_date'),
 });
 
 export const leads = pgTable('leads', {
@@ -378,3 +390,30 @@ export const messages = pgTable('messages', {
   sentByAgent: boolean('sent_by_agent').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => ({ convIdx: index('messages_conversation_idx').on(t.conversationId) }));
+
+// The F&I product catalog (service contracts, GAP, tire & wheel, key
+// replacement, maintenance plans). Hand-entered per provider's rate
+// sheet — this is reference data, not a per-deal record; a deal's
+// actual back-end numbers (warranty/gapIns/backEndCost) stay on `deals`
+// as they were before this table existed. See lib/warranty-match.ts for
+// the eligibility/recommendation rules, which read this table the same
+// deterministic way lib/lender-match.ts reads lender_programs — no AI,
+// fully auditable.
+export const warrantyProducts = pgTable('warranty_products', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  provider: text('provider').notNull(),
+  productType: text('product_type').$type<(typeof warrantyProductType)[number]>().notNull(),
+  costCents: integer('cost_cents').notNull(),   // what the dealership pays the provider
+  priceCents: integer('price_cents').notNull(), // what it's sold to the customer for
+  termMonths: integer('term_months'),
+  termMiles: integer('term_miles'),             // coverage miles added on top of odometer at sale
+  deductibleCents: integer('deductible_cents'),
+  maxVehicleAgeYears: integer('max_vehicle_age_years'), // eligibility cap: model-year age at time of sale
+  maxVehicleMiles: integer('max_vehicle_miles'),        // eligibility cap: odometer at time of sale
+  minSalePriceCents: integer('min_sale_price_cents'),
+  maxSalePriceCents: integer('max_sale_price_cents'),
+  active: boolean('active').notNull().default(true),
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});

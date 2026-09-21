@@ -53,9 +53,15 @@ export function NewDealForm({ vehicles, lenders }: { vehicles: VehicleOption[]; 
   return (
     <form id="new-deal-form" action={createDeal} className="grid grid-cols-1 gap-4 md:grid-cols-[1.3fr_1fr]">
       <div className="flex flex-col gap-4">
-        <div>
-          <Label htmlFor="customerName">Customer</Label>
-          <Input id="customerName" name="customerName" required placeholder="First Last" />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label htmlFor="customerName">Customer</Label>
+            <Input id="customerName" name="customerName" required placeholder="First Last" />
+          </div>
+          <div>
+            <Label htmlFor="phone">Phone (WhatsApp)</Label>
+            <Input id="phone" name="phone" type="tel" placeholder="(555) 123-4567" />
+          </div>
         </div>
 
         <div>

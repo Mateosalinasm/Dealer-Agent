@@ -5,6 +5,12 @@ scaffold WhatsApp + Google Calendar, brainstorm a "one-stop-shop" feature set,
 and do a UI polish pass. Nothing here is pushed to GitHub — local commits only,
 on `main`, so you can review the diffs before deciding what to push.
 
+**Round 2**, after you came back and picked from the brainstorm list below:
+warranty/F&I database, Deal Copilot, WhatsApp sold-automation, and the
+referral message — all four built this round, see "Done this session". You
+also said no to e-sign and reserve/participation tracking — crossed out
+below, not built.
+
 ## How to read this file
 
 - **Needs your call** — genuine business/product decisions I set aside instead
@@ -20,20 +26,26 @@ on `main`, so you can review the diffs before deciding what to push.
 
 ## Needs your call
 
-- **AI auto-reply on WhatsApp** — you asked for "an agent to message customers
-  that reach out." I built the messaging infrastructure (conversations,
-  send/receive, webhook) but deliberately did **not** wire up an AI that
-  auto-replies to customers unsupervised. Two real reasons, not me being
-  timid: (1) an LLM improvising about pricing, approval odds, or payment
-  numbers to a real customer over WhatsApp is a liability problem if it
-  gets something wrong — dealership compliance stuff, not a coding
-  question I can answer for you; (2) TCPA — texting customers (WhatsApp
-  counts) generally needs documented consent, and I don't know what your
-  current consent capture looks like. Tell me when you're back: should the
-  agent (a) draft replies for a human to approve before sending, (b) only
-  auto-reply to a narrow whitelist of questions ("what are your hours,"
-  "is the F-150 still available"), or (c) something else? I'll build
-  whichever once you pick.
+- **AI auto-reply to general inbound WhatsApp** — this is narrower than it
+  was before: the two specific triggers you asked for (deal goes funded →
+  first-payment/lienholder text; referral message) are now built and fully
+  automatic/on-demand, no AI drafting involved — see "Done this session"
+  below. What's still unbuilt is the general case: a customer texts in out
+  of nowhere with a question, and an AI drafts or sends the reply. Two real
+  reasons I didn't just build something, not me being timid: (1) an LLM
+  improvising about pricing, approval odds, or payment numbers to a real
+  customer over WhatsApp is a liability problem if it gets something wrong
+  — dealership compliance stuff, not a coding question I can answer for
+  you; (2) TCPA — texting customers (WhatsApp counts) generally needs
+  documented consent, and I don't know what your current consent capture
+  looks like. Tell me when you're back: should the agent (a) draft replies
+  for a human to approve before sending, (b) only auto-reply to a narrow
+  whitelist of questions ("what are your hours," "is the F-150 still
+  available"), or (c) something else? I'll build whichever once you pick.
+- **Deal Copilot** — built and wired up (chat button on every deal page),
+  but it's genuinely idle until you add `ANTHROPIC_API_KEY` — see
+  "Scaffolded, not wired up" below for the one-line setup. Nothing else to
+  decide; no design question attached to this one.
 - **Google Calendar — which calendar, whose account** — the OAuth scaffolding
   (below) assumes one dealership Google account connects once and every
   appointment syncs to its primary calendar. If you actually want per-salesperson
@@ -98,7 +110,51 @@ on `main`, so you can review the diffs before deciding what to push.
   blocks scheduling, verified via Playwright with no Google creds present);
   canceling one deletes the remote event. Appointments already had a
   `googleCalendarEventId` column from an earlier session, unused until now.
-- *(more below as the session continues)*
+- **Warranty & F&I product database** — new `/warranty` page to manage the
+  product catalog (name, provider, cost/sell price, term, deductible,
+  vehicle age/mileage/sale-price eligibility caps). A new "Warranty & F&I
+  match" button on every deal page (next to Lender & vehicle match) runs
+  `lib/warranty-match.ts` against that catalog and the deal's actual
+  vehicle/trade numbers — same deterministic, no-AI house style as the
+  lender matcher: eligibility (age/mileage/price caps) is a hard pass/fail,
+  and GAP/VSC get a "Recommended" flag with a plain-English reason (thin
+  or negative equity for GAP; vehicle likely past a typical factory
+  warranty for VSC) that's always shown, never asserted silently. This
+  is advisory only — it doesn't write into the deal's own warranty/gapIns
+  fields, since there's no reliable way to split the deal's single
+  combined `backEndCost` between two products without guessing; you still
+  enter the deal's own back-end numbers by hand.
+- **Deal Copilot** — chat button on every deal page. Calls the Anthropic
+  API with a real context block built from that deal's vehicle, credit/
+  income facts, live lender-program match results, and eligible F&I
+  products — same numbers you'd see in the other two match tools, not a
+  fresh guess. Idle with a clear "Not connected yet" message until
+  `ANTHROPIC_API_KEY` is set (see below) — verified that gating actually
+  shows via Playwright, same as every other credential-gated feature this
+  session.
+- **WhatsApp sold automation** — hooked into the funding checklist's last
+  step (`toggleDealStep`, only on the false→true edge, never on every
+  toggle or on un-funding). Three things happen, each independently
+  logged to the deal so one failing never blocks the others: (1)
+  `firstPaymentDate` defaults to funded date + 30 days if you haven't
+  already set one by hand (still editable in Customer facts); (2) a lead
+  with a matching phone number gets flipped to `sold`; (3) the customer
+  gets a WhatsApp text with their first payment date and lienholder
+  (their lender's name). Needs a phone number on the deal — added a Phone
+  field to New Deal and Customer facts for this. No phone on file, or
+  WhatsApp not connected yet? It skips that step and says so in the deal's
+  activity log instead of failing silently — verified end-to-end with a
+  disposable test deal (funded it, watched the lead flip to sold, watched
+  the honest "WhatsApp isn't connected yet" log line appear, cleaned
+  everything up after).
+- **WhatsApp referral message** — "Send referral message" button on a
+  funded deal's header, next to the Funded badge. One tap sends the
+  customer a fixed $200-per-referral message to their phone on file;
+  logged the same way as the sold message. Kept this manual (not
+  automatic) since you didn't say when it should go out, and a message
+  about referral money feels like something you'd want to time yourself.
+  Say the word if you'd rather it fire automatically alongside the sold
+  message.
 
 ---
 
@@ -138,6 +194,17 @@ GOOGLE_REDIRECT_URI=https://<your domain>/api/integrations/google/callback
 This assumes one Google account/calendar for the whole dealership — see
 "Needs your call" above if that's not what you want.
 
+### Deal Copilot (Anthropic)
+Add to `.env.local`:
+```
+ANTHROPIC_API_KEY=sk-ant-...
+```
+Get this from [console.anthropic.com](https://console.anthropic.com). That's
+the whole setup — the "Deal copilot" button on every deal page starts working
+the moment this is set, no other config or restart-specific step needed. This
+is the same env var document extraction (`lib/extraction.ts`) already uses,
+so if you've set it up for that, Deal Copilot is already live.
+
 ---
 
 ## Ideas for later — "one-stop-shop" feature brainstorm
@@ -160,15 +227,13 @@ This assumes one Google account/calendar for the whole dealership — see
   Thursday") tied to a deal.
 
 **F&I**
-- E-sign integration (DocuSign or similar) for buyer's orders / disclosures —
-  real compliance surface, needs your state's specific forms, so this is a
-  "needs your call" item once we get here, not something to guess at.
+- ~~E-sign integration~~ — you said no, not needed. Not building this.
+- ~~Reserve/participation tracking per funded deal~~ — you said not
+  necessary. Not building this.
 - Rate-sheet ingestion — if a lender emails a rate sheet PDF instead of
   updating their program in Lenders manually, AI extraction (already have
-  the pipeline) could parse it into `lender_programs` automatically.
-- Reserve/participation tracking per funded deal — you already track
-  commission; reserve income is a natural adjacent number for the
-  Analytics page.
+  the pipeline) could parse it into `lender_programs` automatically. Not
+  started — flag if you want it.
 
 **Inventory / sourcing**
 - VIN decoder API (NHTSA's is free) to auto-fill year/make/model/trim on
