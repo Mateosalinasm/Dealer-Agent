@@ -18,6 +18,35 @@ webhook, and confirmed the Anthropic key setup (Deal Copilot was already
 built, just needed the key documented clearly). Also answered your JD
 Power pricing question — see the Inventory/sourcing ideas section.
 
+**If ANTHROPIC_API_KEY (or any env var) ever shows "Not connected" even
+though you're sure it's in `.env.local` correctly**: two real bugs bit us
+getting this working, worth knowing about:
+1. **VS Code's Console Ninja extension breaks env loading inside VS Code's
+   own integrated terminal.** It hooks into the Node runtime for its
+   console-log-in-editor feature, and something about that hook stops
+   `next dev` from picking up `.env.local` changes — even after a full
+   restart, even after clearing `.next`. Toggling the extension off in VS
+   Code's Extensions panel isn't enough either; it stays attached until a
+   full VS Code window reload. **Fix: run `npm run dev` from a plain
+   Terminal.app window instead of VS Code's built-in terminal.** If you'd
+   rather keep using VS Code's terminal, fully reload the VS Code window
+   (not just disable-the-extension) after toggling Console Ninja off.
+2. **A stray `package-lock.json` in your home folder confuses Turbopack's
+   project-root detection**, which printed a warning
+   ("ignored package-lock.json ... outside the current Git repository")
+   and, near as we could tell, was also affecting where env files got
+   resolved from. Fixed permanently in `next.config.ts` — it now pins
+   `turbopack.root` explicitly to this project's own folder, so this can't
+   happen again regardless of what else exists elsewhere on your machine.
+   Nothing for you to do here, already fixed and committed.
+
+Both had to happen together to fully explain what we saw — the Console
+Ninja issue alone would've been enough to break it, but we also found the
+key's actual *value* had gotten clobbered with the wrong clipboard content
+partway through troubleshooting (an artifact of one specific fix attempt,
+not a recurring risk). If you ever add a new env var and it won't take,
+try Terminal.app first before anything else.
+
 ## How to read this file
 
 - **Needs your call** — genuine business/product decisions I set aside instead
