@@ -47,6 +47,9 @@ partway through troubleshooting (an artifact of one specific fix attempt,
 not a recurring risk). If you ever add a new env var and it won't take,
 try Terminal.app first before anything else.
 
+**Round 4**: built the task/reminder system you picked off the priority
+list — see "Done this session" below.
+
 ## How to read this file
 
 - **Needs your call** — genuine business/product decisions I set aside instead
@@ -232,6 +235,18 @@ try Terminal.app first before anything else.
   Graph API fetch needs testing from somewhere with normal internet
   access, or just by connecting a real Meta app and watching a real lead
   land.
+- **Task/reminder system** — new `/desk/tasks` page (nav: Desk → Tasks):
+  add a task, optionally with a due date and optionally tied to a deal.
+  Bucketed into Overdue / Due today / Upcoming / No due date, plus a
+  "Recently completed" list you can glance at (no undo button, but you
+  can always re-add). Every deal page also got its own "Tasks" accordion
+  section — same underlying table, just filtered to that deal, so a
+  reminder like "call lender by Thursday" can live right where the deal
+  is instead of a separate list. Tasks due today or overdue now also
+  show up in the daily desk brief (WhatsApp/email), same as appointments
+  and stips. Verified the full loop via Playwright: add, bucket
+  correctly by due date, toggle done, and cross-linking between a deal's
+  own Tasks section and the global Tasks page.
 
 ---
 
@@ -349,8 +364,8 @@ confirm.
 **Organization / calendar**
 - Google Calendar two-way sync (scaffolding this session — see above).
 - ~~A daily "desk brief"~~ — built this round, see "Done this session."
-- Task/reminder system independent of appointments (e.g. "call lender by
-  Thursday") tied to a deal.
+- ~~Task/reminder system independent of appointments~~ — built this
+  round, see "Done this session."
 
 **F&I**
 - ~~E-sign integration~~ — you said no, not needed. Not building this.

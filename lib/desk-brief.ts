@@ -4,6 +4,7 @@ import { db, schema } from "@/lib/db";
 import { getDealershipTimezone, todayInTimezone } from "@/lib/dealership-time";
 import { dealFacts } from "@/lib/deal-facts";
 import { dealHealth, nextAction } from "@/lib/deal-health";
+import { getOpenTasksGrouped } from "@/lib/tasks";
 
 /** YYYY-MM-DD for a Date in the given IANA timezone — same shape todayInTimezone returns, for comparing against it. */
 function dateInTimezone(date: Date, timezone: string): string {
@@ -32,11 +33,12 @@ export async function buildDeskBrief(): Promise<DeskBrief> {
   const timezone = await getDealershipTimezone();
   const today = todayInTimezone(timezone);
 
-  const [appointments, allDeals, vehicles, leads] = await Promise.all([
+  const [appointments, allDeals, vehicles, leads, taskGroups] = await Promise.all([
     db.select().from(schema.appointments).where(eq(schema.appointments.status, "scheduled")),
     db.select().from(schema.deals),
     db.select().from(schema.vehicles),
     db.select({ status: schema.leads.status }).from(schema.leads),
+    getOpenTasksGrouped(),
   ]);
 
   const vehicleById = new Map(vehicles.map((v) => [v.id, v]));
@@ -77,6 +79,16 @@ export async function buildDeskBrief(): Promise<DeskBrief> {
     lines.push(`${criticalDeals.length} deal${criticalDeals.length === 1 ? "" : "s"} need attention:`);
     for (const r of criticalDeals) {
       lines.push(`- ${r.deal.customerName ?? "Unnamed"} — ${r.next.label}`);
+    }
+  }
+
+  const dueTasks = [...taskGroups.overdue, ...taskGroups.dueToday];
+  if (dueTasks.length > 0) {
+    lines.push("");
+    lines.push(`${dueTasks.length} task${dueTasks.length === 1 ? "" : "s"} due${taskGroups.overdue.length ? " or overdue" : ""}:`);
+    for (const t of dueTasks) {
+      const overdueTag = taskGroups.overdue.includes(t) ? " (overdue)" : "";
+      lines.push(`- ${t.title}${t.dealCustomerName ? ` — ${t.dealCustomerName}` : ""}${overdueTag}`);
     }
   }
 

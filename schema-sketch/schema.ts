@@ -446,3 +446,18 @@ export const warrantyProducts = pgTable('warranty_products', {
   notes: text('notes'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+// Independent of appointments — a plain to-do ("call lender by Thursday")
+// that may or may not be tied to a deal. dealId is nullable so this also
+// works as a general reminder list, not just a per-deal one. Overdue/due-
+// today tasks feed into the daily desk brief (lib/desk-brief.ts) the same
+// way appointments and stips do.
+export const tasks = pgTable('tasks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  dealId: uuid('deal_id').references(() => deals.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  dueDate: date('due_date'),
+  done: boolean('done').notNull().default(false),
+  doneAt: timestamp('done_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => ({ dealIdx: index('tasks_deal_idx').on(t.dealId) }));

@@ -14,6 +14,7 @@ import { LenderVehicleMatchModal } from "@/components/lender-vehicle-match-modal
 import { WarrantyMatchModal } from "@/components/warranty-match-modal";
 import { DealCopilotModal } from "@/components/deal-copilot-modal";
 import { SendReferralButton } from "@/components/send-referral-button";
+import { DealTasksSection } from "@/components/deal-tasks-section";
 import { copilotConfigured } from "@/lib/deal-copilot";
 import { DealHealthCard } from "@/components/deal-health-card";
 import { PtiSection } from "@/components/pti-section";
@@ -36,7 +37,7 @@ export async function DealDetailView({ id }: { id: string }) {
   const [deal] = await db.select().from(schema.deals).where(eq(schema.deals.id, id)).limit(1);
   if (!deal) notFound();
 
-  const [vehicle, lenders, programs, documents, stockVehicles, snapshot, warrantyProducts] = await Promise.all([
+  const [vehicle, lenders, programs, documents, stockVehicles, snapshot, warrantyProducts, tasks] = await Promise.all([
     deal.vehicleId
       ? db.select().from(schema.vehicles).where(eq(schema.vehicles.id, deal.vehicleId)).then((r) => r[0] ?? null)
       : Promise.resolve(null),
@@ -46,6 +47,7 @@ export async function DealDetailView({ id }: { id: string }) {
     db.select().from(schema.vehicles).where(eq(schema.vehicles.sold, false)),
     getUnderwritingSnapshot(id),
     db.select().from(schema.warrantyProducts).where(eq(schema.warrantyProducts.active, true)),
+    db.select().from(schema.tasks).where(eq(schema.tasks.dealId, id)),
   ]);
 
   const lenderNameById = new Map(lenders.map((l) => [l.id, l.name]));
@@ -241,6 +243,10 @@ export async function DealDetailView({ id }: { id: string }) {
 
         <AccordionSection title="Stips" summary={openStips ? `${openStips} open` : "Clear"}>
           <StipChecklist dealId={id} stips={deal.stips} />
+        </AccordionSection>
+
+        <AccordionSection title="Tasks" summary={tasks.filter((t) => !t.done).length ? `${tasks.filter((t) => !t.done).length} open` : undefined}>
+          <DealTasksSection dealId={id} tasks={tasks} />
         </AccordionSection>
 
         <AccordionSection title="Program & terms" summary={deal.termMonths ? `${deal.termMonths} mo · ${deal.apr != null ? deal.apr / 100 : "?"}% fallback` : undefined}>
