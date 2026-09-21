@@ -100,6 +100,15 @@ export async function getWatchListData() {
     })
     .from(schema.saleComps);
 
+  const allDocs = await db.select().from(schema.documents);
+  const docsByWatchItem = new Map<string, typeof allDocs>();
+  for (const doc of allDocs) {
+    if (!doc.watchItemId) continue;
+    const list = docsByWatchItem.get(doc.watchItemId) ?? [];
+    list.push(doc);
+    docsByWatchItem.set(doc.watchItemId, list);
+  }
+
   return {
     turnDays: ctx.turnDays,
     holdingPerDay: ctx.holdingPerDay,
@@ -108,7 +117,8 @@ export async function getWatchListData() {
     rows: items.map((item) => {
       const { plan, cappedRetail } = planForWatchItem(item, ctx);
       const stats = compStats(comps, item.make, item.model);
-      return { item, plan, stats, cappedRetail };
+      const documents = docsByWatchItem.get(item.id) ?? [];
+      return { item, plan, stats, cappedRetail, documents };
     }),
   };
 }

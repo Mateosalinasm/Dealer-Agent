@@ -310,6 +310,13 @@ export const documents = pgTable('documents', {
   dealId: uuid('deal_id').references(() => deals.id, { onDelete: 'cascade' }),
   vehicleId: uuid('vehicle_id').references(() => vehicles.id, { onDelete: 'cascade' }),
   lenderId: uuid('lender_id').references(() => lenders.id, { onDelete: 'cascade' }),
+  // A watch_items row is pre-purchase (Sourcing) — an AutoCheck attached
+  // there is a scouting reference for a unit that hasn't been bought yet,
+  // separate from the AutoCheck a vehicle gets once it's actually owned
+  // (vehicleId above). watch_items is otherwise append-only-adjacent (not
+  // literally, like sale_comps, but not something else cascades from) so
+  // this cascade is safe.
+  watchItemId: uuid('watch_item_id').references(() => watchItems.id, { onDelete: 'cascade' }),
   category: text('category').$type<(typeof documentCategory)[number]>().notNull(),
   fileName: text('file_name').notNull(),
   storagePath: text('storage_path').notNull(),       // opaque to the app; see lib/storage.ts
@@ -327,6 +334,7 @@ export const documents = pgTable('documents', {
   dealIdx: index('documents_deal_idx').on(t.dealId),
   vehicleIdx: index('documents_vehicle_idx').on(t.vehicleId),
   lenderIdx: index('documents_lender_idx').on(t.lenderId),
+  watchItemIdx: index('documents_watch_item_idx').on(t.watchItemId),
 }));
 
 export const appointments = pgTable('appointments', {

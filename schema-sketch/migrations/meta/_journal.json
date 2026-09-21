@@ -78,6 +78,13 @@
       "when": 1789967661589,
       "tag": "0010_curved_fallen_one",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789971540919,
+      "tag": "0011_soft_jack_flag",
+      "breakpoints": true
     }
   ]
 }

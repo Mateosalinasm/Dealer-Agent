@@ -363,3 +363,10 @@ CREATE TABLE IF NOT EXISTS "warranty_products" (
 );
 ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "phone" text;
 ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "first_payment_date" date;
+
+-- --- 0011 ---
+ALTER TABLE "documents" ADD COLUMN IF NOT EXISTS "watch_item_id" uuid;
+DO $$ BEGIN
+ ALTER TABLE "documents" ADD CONSTRAINT "documents_watch_item_id_watch_items_id_fk" FOREIGN KEY ("watch_item_id") REFERENCES "public"."watch_items"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+CREATE INDEX IF NOT EXISTS "documents_watch_item_idx" ON "documents" USING btree ("watch_item_id");

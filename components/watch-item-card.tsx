@@ -1,11 +1,17 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DocumentRow } from "@/components/document-row";
 import { cn, formatCents } from "@/lib/utils";
-import { updateWatchItemRunSale } from "@/app/sourcing/watch-list/actions";
+import {
+  analyzeWatchItemDocument,
+  deleteWatchItemDocument,
+  updateWatchItemRunSale,
+  uploadWatchItemAutocheck,
+} from "@/app/sourcing/watch-list/actions";
 import type { WatchListRow } from "@/lib/watch-list-data";
 import type { BidPlan } from "@/schema-sketch/bid-math";
 
@@ -90,10 +96,11 @@ function LaneHistory({ stats, maxBid }: { stats: NonNullable<WatchListRow["stats
 }
 
 export function WatchItemCard({ row }: { row: WatchListRow }) {
-  const { item, plan, stats, cappedRetail } = row;
+  const { item, plan, stats, cappedRetail, documents } = row;
   const [runNumber, setRunNumber] = useState(item.runNumber ?? "");
   const [saleDate, setSaleDate] = useState(item.saleDate ?? "");
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   function saveRun(value: string) {
     setRunNumber(value);
@@ -102,6 +109,15 @@ export function WatchItemCard({ row }: { row: WatchListRow }) {
   function saveSale(value: string) {
     setSaleDate(value);
     startTransition(() => updateWatchItemRunSale(item.id, { saleDate: value }));
+  }
+
+  function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    startTransition(() => uploadWatchItemAutocheck(item.id, formData));
+    e.target.value = "";
   }
 
   const titleTone = TITLE_TONE[item.title] ?? "neutral";
@@ -151,6 +167,7 @@ export function WatchItemCard({ row }: { row: WatchListRow }) {
           <TabsTrigger value="banks">Banks</TabsTrigger>
           <TabsTrigger value="math">Math</TabsTrigger>
           <TabsTrigger value="history">History</TabsTrigger>
+          <TabsTrigger value="autocheck">AutoCheck{documents.length > 0 ? ` (${documents.length})` : ""}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="math">
@@ -191,6 +208,35 @@ export function WatchItemCard({ row }: { row: WatchListRow }) {
           <div className="py-2 text-[12.5px] text-[var(--color-text-muted)]">
             House: {HOUSE_LABEL[item.house] ?? item.house}
           </div>
+        </TabsContent>
+
+        <TabsContent value="autocheck">
+          {documents.length === 0 ? (
+            <p className="py-3 text-[12.5px] text-[var(--color-text-muted)]">
+              No AutoCheck attached yet — upload one to reference while you&apos;re deciding on this unit.
+            </p>
+          ) : (
+            <div className="flex flex-col">
+              {documents.map((doc) => (
+                <DocumentRow
+                  key={doc.id}
+                  document={doc}
+                  onAnalyze={analyzeWatchItemDocument.bind(null, item.id)}
+                  onDelete={deleteWatchItemDocument.bind(null, item.id)}
+                />
+              ))}
+            </div>
+          )}
+
+          <input ref={fileInputRef} type="file" onChange={handleFileSelected} className="hidden" accept=".pdf,.png,.jpg,.jpeg,.webp" />
+          <button
+            type="button"
+            disabled={isPending}
+            onClick={() => fileInputRef.current?.click()}
+            className="mt-3 w-full rounded-[var(--radius-panel)] border border-dashed border-[var(--color-hairline)] py-2.5 text-[12px] font-semibold text-[var(--color-primary)] hover:bg-[var(--color-fill-subtle)] disabled:opacity-60"
+          >
+            {isPending ? "Uploading…" : "Upload AutoCheck"}
+          </button>
         </TabsContent>
       </Tabs>
     </Card>
