@@ -10,10 +10,19 @@ import { z } from "zod";
 
 const confidence = z.enum(["known", "inferred", "unknown"]).nullable();
 
+// Tool-use output isn't schema-enforced at the API level the way a plain
+// JSON mode is — the model occasionally writes a string ("none found") or
+// null into a list field instead of an empty array when it finds nothing.
+// Coerce anything that isn't already an array to [] rather than failing
+// the whole extraction over one malformed sub-field; a human reviews
+// every extraction anyway (see the "Couldn't read" badge in the UI), so
+// silently treating "not an array" as "nothing found" is a safe degrade.
+const looseArray = <T extends z.ZodTypeAny>(item: T) => z.preprocess((val) => (Array.isArray(val) ? val : []), z.array(item));
+
 export const turbopassSchema = z.object({
   applicantName: z.string().nullable(),
   reportDate: z.string().nullable().describe("ISO date if present"),
-  accounts: z.array(
+  accounts: looseArray(
     z.object({
       institution: z.string().nullable(),
       accountType: z.string().nullable().describe("checking, savings, etc."),
@@ -21,7 +30,7 @@ export const turbopassSchema = z.object({
       currentBalanceCents: z.number().int().nullable(),
     }),
   ),
-  incomeSources: z.array(
+  incomeSources: looseArray(
     z.object({
       payer: z.string().nullable().describe("employer or source name"),
       description: z.string().nullable(),
@@ -43,7 +52,7 @@ export const bankStatementSchema = z.object({
   beginningBalanceCents: z.number().int().nullable(),
   endingBalanceCents: z.number().int().nullable(),
   averageDailyBalanceCents: z.number().int().nullable(),
-  recurringDeposits: z.array(
+  recurringDeposits: looseArray(
     z.object({
       description: z.string().nullable(),
       amountCents: z.number().int().nullable(),
@@ -57,7 +66,7 @@ export const bankStatementSchema = z.object({
 export const creditReportSchema = z.object({
   applicantName: z.string().nullable(),
   bureau: z.string().nullable().describe("Equifax, Experian, TransUnion, or unknown"),
-  scores: z.array(z.object({ bureau: z.string().nullable(), score: z.number().int().nullable() })),
+  scores: looseArray(z.object({ bureau: z.string().nullable(), score: z.number().int().nullable() })),
   openTradelines: z.number().int().nullable(),
   openAutoLoans: z.number().int().nullable(),
   totalMonthlyDebtPaymentsCents: z.number().int().nullable(),
@@ -95,7 +104,7 @@ export const autocheckSchema = z.object({
   titleBrand: z.string().nullable().describe("clean, salvage, rebuilt, flood, lemon, or branded, as reported"),
   ownerCount: z.number().int().nullable(),
   accidentsReported: z.number().int().nullable(),
-  odometerReadings: z.array(
+  odometerReadings: looseArray(
     z.object({
       date: z.string().nullable().describe("ISO date if present"),
       miles: z.number().int().nullable(),

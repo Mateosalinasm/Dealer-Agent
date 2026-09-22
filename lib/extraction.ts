@@ -31,6 +31,9 @@ Rules, in order of importance:
    unreadable), still call the tool, leave every field null, and explain what's wrong in "notes".
 5. Report the document's own numbers as they appear — do not convert currencies, do not net
    figures together unless the field explicitly asks for a total.
+6. Every list field (accounts, incomeSources, recurringDeposits, scores, odometerReadings, etc.)
+   must always be an array — use an empty array [] when you find nothing for it. Never put a
+   string, a note, or null into a field that's supposed to be a list.
 
 Always respond by calling the "extract" tool exactly once. Do not respond with plain text.`;
 
