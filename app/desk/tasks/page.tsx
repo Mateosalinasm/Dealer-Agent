@@ -7,6 +7,8 @@ import { TaskRow } from "@/components/task-row";
 import { getOpenTasksGrouped } from "@/lib/tasks";
 import { createTask } from "@/app/desk/tasks/actions";
 
+export const dynamic = "force-dynamic";
+
 export default async function TasksPage() {
   const [{ overdue, dueToday, upcoming, noDueDate, totalOpen }, deals, recentlyDone] = await Promise.all([
     getOpenTasksGrouped(),

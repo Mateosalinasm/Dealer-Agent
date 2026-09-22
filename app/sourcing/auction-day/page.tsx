@@ -7,6 +7,8 @@ import { LaneBudgetInput } from "@/components/lane-budget-input";
 import { TimezoneInput } from "@/components/timezone-input";
 import { formatCents } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export default async function AuctionDayPage() {
   const [{ rows }, [settingsRow], timezone] = await Promise.all([
     getWatchListData(),

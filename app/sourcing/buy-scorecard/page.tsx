@@ -4,6 +4,8 @@ import { Card } from "@/components/ui/card";
 import { formatCents, cn } from "@/lib/utils";
 import { HOUSE_FEES, type House } from "@/schema-sketch/bid-math";
 
+export const dynamic = "force-dynamic";
+
 export default async function BuyScorecardPage() {
   const [vehicles, deals] = await Promise.all([
     db.select().from(schema.vehicles).where(eq(schema.vehicles.sold, true)),

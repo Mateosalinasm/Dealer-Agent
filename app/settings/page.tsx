@@ -9,6 +9,8 @@ import { isIntegrationConnected } from "@/lib/integrations";
 import { disconnectGoogleCalendar } from "@/app/settings/actions";
 import { db, schema } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 const GOOGLE_STATUS_MESSAGE: Record<string, { tone: "positive" | "negative" | "caution"; text: string }> = {
   connected: { tone: "positive", text: "Google Calendar connected." },
   error: { tone: "negative", text: "Couldn't connect Google Calendar — check the server log for details." },

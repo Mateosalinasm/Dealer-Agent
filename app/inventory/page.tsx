@@ -8,6 +8,8 @@ import { AddVehicleModal } from "@/components/add-vehicle-modal";
 import { formatCents } from "@/lib/utils";
 import { markVehicleSold } from "@/app/inventory/actions";
 
+export const dynamic = "force-dynamic";
+
 function daysAtLot(acquiredOn: string | null): number | null {
   if (!acquiredOn) return null;
   const acquired = new Date(acquiredOn + "T00:00:00");

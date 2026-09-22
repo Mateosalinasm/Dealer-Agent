@@ -3,6 +3,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { sourcePerformance } from "@/lib/lead-source-stats";
 
+export const dynamic = "force-dynamic";
+
 export default async function MarketingPage() {
   const leads = await db
     .select({ source: schema.leads.source, status: schema.leads.status })

@@ -14,6 +14,8 @@ import { dealFacts } from "@/lib/deal-facts";
 import { dealHealth, nextAction, bucketOf } from "@/lib/deal-health";
 import { setDealArchived } from "@/app/desk/deals/actions";
 
+export const dynamic = "force-dynamic";
+
 const HEALTH_ORDER: Record<"red" | "yellow" | "green", number> = { red: 0, yellow: 1, green: 2 };
 
 const TAB_LABEL: Record<PipelineTab | "all", string> = {

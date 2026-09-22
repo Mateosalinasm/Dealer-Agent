@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { createAppointment, setAppointmentStatus } from "@/app/desk/deals/actions";
 
+export const dynamic = "force-dynamic";
+
 const STATUS_TONE = {
   scheduled: "info",
   completed: "positive",

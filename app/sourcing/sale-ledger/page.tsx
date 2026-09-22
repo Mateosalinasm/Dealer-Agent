@@ -6,6 +6,8 @@ import { DeleteCompButton } from "@/components/delete-comp-button";
 import { formatCents, cn } from "@/lib/utils";
 import { compKey, compStats, outbidBy, type Comp } from "@/schema-sketch/bid-math";
 
+export const dynamic = "force-dynamic";
+
 const HOUSE_LABEL: Record<string, string> = { manheim: "Manheim", americas: "America's", iaa: "IAA" };
 
 export default async function SaleLedgerPage() {

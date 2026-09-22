@@ -8,6 +8,8 @@ import { dealFacts } from "@/lib/deal-facts";
 import { dealHealth } from "@/lib/deal-health";
 import { daysSince } from "@/lib/deal-stage";
 
+export const dynamic = "force-dynamic";
+
 const RANGES = [
   { key: "30", label: "30 days", days: 30 },
   { key: "90", label: "90 days", days: 90 },

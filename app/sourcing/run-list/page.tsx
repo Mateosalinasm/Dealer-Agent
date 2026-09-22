@@ -1,6 +1,8 @@
 import { getRunListContext } from "@/lib/run-list-data";
 import { RunListWorkspace } from "@/components/run-list-workspace";
 
+export const dynamic = "force-dynamic";
+
 export default async function RunListPage() {
   const ctx = await getRunListContext();
 

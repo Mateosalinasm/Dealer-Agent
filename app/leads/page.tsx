@@ -8,6 +8,8 @@ import { formatCents } from "@/lib/utils";
 import { createLead, deleteLead } from "@/app/leads/actions";
 import { leadSourceValues } from "@/lib/validation";
 
+export const dynamic = "force-dynamic";
+
 export default async function LeadsPage() {
   const leads = await db.select().from(schema.leads).orderBy(desc(schema.leads.createdAt));
 

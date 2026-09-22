@@ -9,6 +9,8 @@ import { MessageThread } from "@/components/message-thread";
 import { StartConversationForm } from "@/components/start-conversation-form";
 import { cn } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 function timeAgo(date: Date | null): string {
   if (!date) return "";
   const ms = Date.now() - date.getTime();

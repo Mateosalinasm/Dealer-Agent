@@ -5,6 +5,8 @@ import { runPostSaleCheckins } from "@/lib/post-sale-checkins";
 import { sendWhatsAppMessage, whatsappConfigured } from "@/lib/whatsapp";
 import { sendEmail, emailConfigured } from "@/lib/email";
 
+export const dynamic = "force-dynamic";
+
 // One daily Vercel Cron job (see vercel.json) instead of two, to stay
 // within Hobby-plan cron limits — does the desk brief send and the
 // post-sale check-in sweep back to back. Each piece is independent and

@@ -4,6 +4,8 @@ import { WarrantyProductCard } from "@/components/warranty-product-card";
 import { WarrantyProductForm } from "@/components/warranty-product-form";
 import { createWarrantyProduct } from "@/app/warranty/actions";
 
+export const dynamic = "force-dynamic";
+
 export default async function WarrantyPage() {
   const products = await db.select().from(schema.warrantyProducts);
   products.sort((a, b) => a.name.localeCompare(b.name));

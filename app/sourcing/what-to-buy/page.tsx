@@ -3,6 +3,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { compKey } from "@/schema-sketch/bid-math";
 
+export const dynamic = "force-dynamic";
+
 function turnDaysBetween(acquiredOn: string, soldOn: string): number {
   return Math.round((Date.parse(soldOn + "T00:00:00") - Date.parse(acquiredOn + "T00:00:00")) / 86_400_000);
 }

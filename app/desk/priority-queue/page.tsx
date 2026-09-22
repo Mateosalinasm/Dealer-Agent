@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCents } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export default async function PriorityQueuePage() {
   const deals = await db
     .select()

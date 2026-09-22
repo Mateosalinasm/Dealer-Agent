@@ -4,6 +4,8 @@ import { PricingAssumptionsBar } from "@/components/pricing-assumptions-bar";
 import { AddWatchItemModal } from "@/components/add-watch-item-modal";
 import { formatCents } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+
 export default async function WatchListPage() {
   const { rows, turnDays, holdingPerDay, targetGross, assumedDown } = await getWatchListData();
 

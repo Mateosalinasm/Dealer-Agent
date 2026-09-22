@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { LenderCard } from "@/components/lender-card";
 import { createLender } from "@/app/lenders/actions";
 
+export const dynamic = "force-dynamic";
+
 export default async function LendersPage() {
   const [lenders, programs, guidelinesDocs] = await Promise.all([
     db.select().from(schema.lenders),
