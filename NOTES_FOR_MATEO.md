@@ -59,6 +59,21 @@ image (it wasn't available to me this round) — so spacing/typography match
 the existing Organic design tokens throughout, but if anything still looks
 off next to the mockup, point me at it and I'll fix that spot directly.
 
+**Round 6**: first live-deploy debugging round, now that the app is
+actually on Vercel. Fixed three real bugs that only show up in
+production, not local dev — see "Done this session":
+1. Every DB-backed page was silently static-prerendered at build time
+   (Next.js's default when nothing signals otherwise), so `next build`
+   tried to connect to Postgres during the build itself instead of at
+   request time — worked locally by coincidence (a real DB was always
+   reachable during my builds), broke on Vercel's build machine.
+2. The homepage redirected to the watch-list from before the redesign
+   made Dashboard the actual entry point — now lands on the deals board.
+3. **File uploads were 500ing in production** — `lib/storage.ts` wrote to
+   local disk, which Vercel's serverless functions can't do (read-only
+   filesystem outside `/tmp`). Swapped to Supabase Storage, see
+   "Scaffolded, not wired up" below for the two env vars this needs.
+
 ## How to read this file
 
 - **Needs your call** — genuine business/product decisions I set aside instead
@@ -104,6 +119,30 @@ off next to the mockup, point me at it and I'll fix that spot directly.
 
 ## Done this session
 
+- **Three production-only bugs found and fixed post-deploy** — none of
+  these showed up locally, only once the app was actually live on Vercel:
+  1. Every DB-backed page (`/desk/tasks`, `/inventory`, `/leads`,
+     `/lenders`, `/marketing`, `/sourcing/*`, `/warranty`, both deal-detail
+     routes, etc.) now explicitly forces per-request rendering
+     (`export const dynamic = "force-dynamic"`) instead of letting
+     Next.js silently try to statically prerender them at build time,
+     which is what caused the `ECONNREFUSED 127.0.0.1:5432` build failure
+     you hit. Verified by building with a deliberately unreachable,
+     garbage `DATABASE_URL` — every route now shows dynamic and the build
+     still succeeds, since nothing touches the DB until request time.
+  2. The homepage redirected to `/sourcing/watch-list` — a leftover from
+     before the redesign made Dashboard the real entry point. Now lands
+     on `/desk/deals`.
+  3. **File uploads were 500ing in production** — `lib/storage.ts` wrote
+     to local disk, which doesn't work on Vercel's read-only serverless
+     filesystem. Swapped to Supabase Storage (falls back to local disk
+     automatically when running without the Supabase env vars, so local
+     dev is unaffected) — same function signatures, so none of the 4
+     files/6 call sites that upload or read documents needed to change.
+     Verified the local-disk fallback with a real upload round-trip
+     (Playwright); the Supabase Storage path itself needs the bucket +
+     service role key from "Scaffolded, not wired up" below before it can
+     be verified against real credentials.
 - **Redesign pass matching Claude Design** — ten concrete changes, all
   verified via tsc/eslint/build and a Playwright run against a real
   `next start` server (checklist toggles, sort, nav collapse, month filter,
@@ -309,6 +348,31 @@ off next to the mockup, point me at it and I'll fix that spot directly.
 ---
 
 ## Scaffolded, not wired up
+
+### Supabase Storage (file uploads)
+Needed now that you're deployed — without this, every upload (TurboPass,
+credit report, credit app, insurance, AutoCheck) will 500 in production:
+1. In your Supabase project → **Storage** → **New bucket**. Name it
+   `documents`, and set it **Private** (not public) — uploads include
+   credit reports and title scans, and the app already gates every read
+   through its own `/api/documents/[id]/file` route, so the bucket itself
+   never needs to be public.
+2. In Supabase → **Project Settings → API**, grab the **Project URL** and
+   the **service_role** secret key (not the `anon` key — the service role
+   key is what lets the server write to a private bucket on your behalf).
+3. Add to Vercel's environment variables:
+```
+SUPABASE_URL=https://<your-project-ref>.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+4. Redeploy (or just re-invoke — env var changes apply on the next
+   request without a full rebuild, but doing a redeploy is the safest
+   way to be sure). Uploads go to Supabase Storage from then on.
+
+Local dev doesn't need this — `lib/storage.ts` falls back to writing into
+a local `uploads/` folder when these two vars aren't set, so `npm run dev`
+keeps working with zero extra setup. Only production needs it.
+
 
 ### WhatsApp (Twilio)
 Add to `.env.local`, then point your WhatsApp sender's webhook (Twilio
