@@ -1,15 +1,20 @@
 import Link from "next/link";
-import { Home, SlidersHorizontal, TriangleAlert } from "lucide-react";
+import { Home, Landmark, TriangleAlert } from "lucide-react";
 import { db, schema } from "@/lib/db";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProgressRing } from "@/components/progress-ring";
 import { CreditGradeBadge } from "@/components/credit-grade-modal";
+import { StopPropagation } from "@/components/stop-propagation";
+import { BoardChecklistPreview } from "@/components/board-checklist-preview";
+import { SortMenu, type SortKey } from "@/components/sort-menu";
 import { formatCents } from "@/lib/utils";
 import { dealStageInfo, monthOf, msSince, pipelineTab, STAGES, type PipelineTab } from "@/lib/deal-stage";
 import { dealFacts } from "@/lib/deal-facts";
 import { dealHealth, nextAction, bucketOf } from "@/lib/deal-health";
 import { setDealArchived } from "@/app/desk/deals/actions";
+
+const HEALTH_ORDER: Record<"red" | "yellow" | "green", number> = { red: 0, yellow: 1, green: 2 };
 
 const TAB_LABEL: Record<PipelineTab | "all", string> = {
   working: "Dashboard",
@@ -36,12 +41,13 @@ function hoursOnDesk(createdAt: Date): string {
 export default async function DealsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; monthOffset?: string; metric?: string }>;
+  searchParams: Promise<{ tab?: string; monthOffset?: string; metric?: string; sort?: string }>;
 }) {
-  const { tab: rawTab, monthOffset: rawOffset, metric: rawMetric } = await searchParams;
+  const { tab: rawTab, monthOffset: rawOffset, metric: rawMetric, sort: rawSort } = await searchParams;
   const tab = (TABS.includes(rawTab as (typeof TABS)[number]) ? rawTab : "working") as (typeof TABS)[number];
   const monthOffset = Number.isFinite(Number(rawOffset)) ? Math.trunc(Number(rawOffset)) : 0;
   const metric = rawMetric === "profit" ? "profit" : "commission";
+  const sort: SortKey = rawSort === "oldest" ? "oldest" : rawSort === "urgent" ? "urgent" : "newest";
 
   const [deals, lenders] = await Promise.all([db.select().from(schema.deals), db.select().from(schema.lenders)]);
   const vehicleIds = deals.map((d) => d.vehicleId).filter((v): v is string => !!v);
@@ -70,16 +76,30 @@ export default async function DealsPage({
   const monthDeals = withFacts.filter((r) => r.bucket !== "archived" && r.month === targetMonth);
   const monthTotal = monthDeals.reduce((sum, r) => sum + (metric === "commission" ? (r.deal.commission ?? 0) : (r.facts.totalGross ?? 0)), 0);
 
+  // Every tab is scoped to the selected month (via the ‹ › nav above), not
+  // just "All this month" — a deal's month comes from its dealDate, an
+  // archived deal's from when it was archived. Picking October must not
+  // show September's deals on any tab.
+  const monthOf_ = (row: (typeof withFacts)[number]) =>
+    row.bucket === "archived" ? monthOf(row.deal.archivedAt ?? row.deal.createdAt) : row.month;
+
   withFacts.forEach((r) => {
-    if (r.bucket !== "archived" && r.month === currentMonth) counts.all++;
+    if (monthOf_(r) !== targetMonth) return;
+    if (r.bucket !== "archived") counts.all++;
     counts[r.bucket]++;
   });
 
   const rows = withFacts
-    .filter((row) => (tab === "all" ? row.bucket !== "archived" && row.month === currentMonth : row.bucket === tab))
-    .sort((a, b) =>
-      tab === "archived" ? (b.deal.archivedAt?.getTime() ?? 0) - (a.deal.archivedAt?.getTime() ?? 0) : b.deal.createdAt.getTime() - a.deal.createdAt.getTime(),
-    );
+    .filter((row) => (tab === "all" ? row.bucket !== "archived" : row.bucket === tab) && monthOf_(row) === targetMonth)
+    .sort((a, b) => {
+      if (sort === "urgent") {
+        const diff = HEALTH_ORDER[a.health.status] - HEALTH_ORDER[b.health.status];
+        return diff !== 0 ? diff : b.deal.createdAt.getTime() - a.deal.createdAt.getTime();
+      }
+      const cmp =
+        tab === "archived" ? (b.deal.archivedAt?.getTime() ?? 0) - (a.deal.archivedAt?.getTime() ?? 0) : b.deal.createdAt.getTime() - a.deal.createdAt.getTime();
+      return sort === "oldest" ? -cmp : cmp;
+    });
 
   return (
     <div>
@@ -91,7 +111,7 @@ export default async function DealsPage({
         {TABS.map((t) => (
           <Link
             key={t}
-            href={`/desk/deals?tab=${t}`}
+            href={`/desk/deals?tab=${t}&monthOffset=${monthOffset}&metric=${metric}&sort=${sort}`}
             className={`rounded-[var(--radius-pill)] px-3 py-1.5 text-[12.5px] font-medium ${
               t === tab ? "bg-[var(--color-info-bg)] text-[var(--color-info-text)]" : "bg-[var(--color-fill-subtle)] text-[var(--color-text-muted)] hover:bg-[var(--color-surface)]"
             }`}
@@ -106,7 +126,7 @@ export default async function DealsPage({
       <Card className="mb-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Link
-            href={`/desk/deals?tab=${tab}&monthOffset=${monthOffset - 1}&metric=${metric}`}
+            href={`/desk/deals?tab=${tab}&monthOffset=${monthOffset - 1}&metric=${metric}&sort=${sort}`}
             className="rounded-full p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-fill-subtle)]"
             aria-label="Previous month"
           >
@@ -122,7 +142,7 @@ export default async function DealsPage({
             </div>
           </div>
           <Link
-            href={`/desk/deals?tab=${tab}&monthOffset=${monthOffset + 1}&metric=${metric}`}
+            href={`/desk/deals?tab=${tab}&monthOffset=${monthOffset + 1}&metric=${metric}&sort=${sort}`}
             className="rounded-full p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-fill-subtle)]"
             aria-label="Next month"
           >
@@ -135,7 +155,7 @@ export default async function DealsPage({
             {(["commission", "profit"] as const).map((m) => (
               <Link
                 key={m}
-                href={`/desk/deals?tab=${tab}&monthOffset=${monthOffset}&metric=${m}`}
+                href={`/desk/deals?tab=${tab}&monthOffset=${monthOffset}&metric=${m}&sort=${sort}`}
                 className={`rounded-[var(--radius-pill)] px-2.5 py-1 text-[11px] font-semibold capitalize ${
                   metric === m ? "bg-[var(--color-text)] text-[var(--color-surface)]" : "text-[var(--color-text-muted)]"
                 }`}
@@ -151,12 +171,7 @@ export default async function DealsPage({
         </div>
       </Card>
 
-      <div className="mb-3 flex items-center gap-2 text-[12.5px] text-[var(--color-text-muted)]">
-        <SlidersHorizontal size={14} />
-        <span>
-          Newest first · {rows.length} deal{rows.length === 1 ? "" : "s"}
-        </span>
-      </div>
+      <SortMenu current={sort} count={rows.length} />
 
       {rows.length === 0 ? (
         <div className="rounded-[var(--radius-card)] bg-[var(--color-surface)] p-8 text-center">
@@ -172,7 +187,8 @@ export default async function DealsPage({
             const stageName = info.stageIdx === 3 ? "Funded" : STAGES[stageIdx].name;
             const openStips = deal.stips.filter((s) => !s.done).length;
             const nextBucket = bucketOf(next.bucket);
-            const remainingPreview = info.remaining.slice(0, 2);
+            const remainingPreview = info.remaining.slice(0, 4);
+            const lenderName = deal.lenderId ? (lenderById.get(deal.lenderId)?.name ?? "Lender") : null;
 
             return (
               <Card key={deal.id} className="flex flex-col gap-3">
@@ -180,19 +196,26 @@ export default async function DealsPage({
                   <Link href={`/desk/deals/${deal.id}`} className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
                       <span className="truncate text-[14.5px] font-semibold text-[var(--color-text)]">{deal.customerName}</span>
+                      <StopPropagation>
+                        <CreditGradeBadge dealId={deal.id} customerName={deal.customerName ?? ""} vehicleLabel={facts.vehicleLabel} facts={deal} />
+                      </StopPropagation>
                       {vehicle && (
-                        <span className="flex-none rounded-full bg-[var(--color-positive-bg)] p-1 text-[var(--color-positive-text)]">
+                        <span className="flex-none rounded-full bg-[var(--color-positive-bg)] p-1 text-[var(--color-positive-text)]" title="Vehicle attached">
                           <Home size={10} />
+                        </span>
+                      )}
+                      {lenderName && (
+                        <span className="flex-none rounded-full bg-[var(--color-info-bg)] p-1 text-[var(--color-info-text)]" title={lenderName}>
+                          <Landmark size={10} />
                         </span>
                       )}
                     </div>
                     <div className="mt-0.5 truncate text-[12px] text-[var(--color-text-muted)]">{facts.vehicleLabel || "Vehicle TBD"}</div>
                     <div className="truncate text-[11.5px] text-[var(--color-text-placeholder)]">
-                      {deal.lenderId ? `${lenderById.get(deal.lenderId)?.name ?? "Lender"}${deal.lot ? ` · ${deal.lot}` : ""}` : "Pending submission"}
+                      {lenderName ? `${lenderName}${deal.lot ? ` · ${deal.lot}` : ""}` : "Pending submission"}
                     </div>
                     <div className="text-[11.5px] text-[var(--color-text-placeholder)]">{deal.idType ?? "US ID"}</div>
                   </Link>
-                  <CreditGradeBadge dealId={deal.id} customerName={deal.customerName ?? ""} vehicleLabel={facts.vehicleLabel} facts={deal} />
                   <ProgressRing pct={info.pct} />
                 </div>
 
@@ -215,17 +238,7 @@ export default async function DealsPage({
                     </span>
                   </div>
                   <div className="mt-1 text-[13px] font-semibold text-white">{next.label}</div>
-                  {remainingPreview.length > 0 && (
-                    <div className="mt-2 flex flex-col gap-1 border-t border-white/10 pt-2">
-                      <div className="text-[9.5px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">Also remaining</div>
-                      {remainingPreview.map((r, i) => (
-                        <div key={r.step.id} className="flex items-center gap-2 text-[11.5px] text-white/80">
-                          <span className={`h-2.5 w-2.5 flex-none rounded-full border ${i === 0 ? "border-[var(--color-primary)] bg-[var(--color-primary)]" : "border-white/30"}`} />
-                          {r.step.label}
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  <BoardChecklistPreview dealId={deal.id} remaining={remainingPreview} />
                 </div>
 
                 <form action={setDealArchived.bind(null, deal.id, !deal.archived)} className="self-end">

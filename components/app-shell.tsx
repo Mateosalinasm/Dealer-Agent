@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { ChevronDown, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -17,11 +17,13 @@ interface NavGroup {
   items: NavItem[];
 }
 
+// Six top-level sections, each collapsed to its subcategories until opened
+// — fewer things on screen at once than a flat, always-expanded list.
 const NAV: NavGroup[] = [
   {
-    label: "Deals",
+    label: "Dashboard",
     items: [
-      { label: "Dashboard", href: "/desk/deals?tab=working" },
+      { label: "Working", href: "/desk/deals?tab=working" },
       { label: "In funding", href: "/desk/deals?tab=funding" },
       { label: "Booked", href: "/desk/deals?tab=booked" },
       { label: "Funded", href: "/desk/deals?tab=funded" },
@@ -54,7 +56,7 @@ const NAV: NavGroup[] = [
     ],
   },
   {
-    label: "Marketing & leads",
+    label: "Marketing",
     items: [
       { label: "Marketing", href: "/marketing" },
       { label: "Leads", href: "/leads" },
@@ -67,11 +69,10 @@ const NAV: NavGroup[] = [
       { label: "Warranty & F&I products", href: "/warranty" },
     ],
   },
-  {
-    label: "Settings",
-    items: [{ label: "Integrations", href: "/settings" }],
-  },
 ];
+
+// Not part of the six main sections — always visible, one line, no toggle.
+const UTILITY_ITEMS: NavItem[] = [{ label: "Integrations", href: "/settings" }];
 
 function navLinkClasses(active: boolean) {
   return cn(
@@ -87,23 +88,54 @@ function NavLinks({ onNavigate }: { onNavigate: () => void }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentPath = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
+  const activeGroup = NAV.find((g) => g.items.some((i) => i.href.split("?")[0] === pathname))?.label ?? NAV[0].label;
+  const [openGroups, setOpenGroups] = useState<Set<string>>(() => new Set([activeGroup]));
+
+  function toggleGroup(label: string) {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
+      return next;
+    });
+  }
 
   return (
     <>
-      {NAV.map((group) => (
-        <div key={group.label}>
-          <div className="px-2 pb-1.5 text-[10.5px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">
-            {group.label}
+      {NAV.map((group) => {
+        const isOpen = openGroups.has(group.label);
+        return (
+          <div key={group.label}>
+            <button
+              type="button"
+              onClick={() => toggleGroup(group.label)}
+              className="flex w-full items-center justify-between rounded-[var(--radius-panel)] px-2 py-1.5 text-[10.5px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)] hover:bg-[var(--color-fill-subtle)] hover:text-[var(--color-text-muted)]"
+              aria-expanded={isOpen}
+            >
+              {group.label}
+              <ChevronDown size={13} className={cn("transition-transform duration-200", isOpen && "rotate-180")} />
+            </button>
+            <div className="grid transition-[grid-template-rows] duration-200 ease-out" style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}>
+              <div className="overflow-hidden">
+                <div className="flex flex-col gap-0.5 pb-1">
+                  {group.items.map((item) => (
+                    <Link key={item.href} href={item.href} onClick={onNavigate} className={navLinkClasses(currentPath === item.href)}>
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-col gap-0.5">
-            {group.items.map((item) => (
-              <Link key={item.href} href={item.href} onClick={onNavigate} className={navLinkClasses(currentPath === item.href)}>
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-      ))}
+        );
+      })}
+      <div className="mt-1 flex flex-col gap-0.5 border-t border-[var(--color-hairline)] pt-2">
+        {UTILITY_ITEMS.map((item) => (
+          <Link key={item.href} href={item.href} onClick={onNavigate} className={navLinkClasses(currentPath === item.href)}>
+            {item.label}
+          </Link>
+        ))}
+      </div>
     </>
   );
 }
@@ -125,6 +157,13 @@ function NavLinksFallback() {
           </div>
         </div>
       ))}
+      <div className="mt-1 flex flex-col gap-0.5 border-t border-[var(--color-hairline)] pt-2">
+        {UTILITY_ITEMS.map((item) => (
+          <Link key={item.href} href={item.href} className={navLinkClasses(false)}>
+            {item.label}
+          </Link>
+        ))}
+      </div>
     </>
   );
 }

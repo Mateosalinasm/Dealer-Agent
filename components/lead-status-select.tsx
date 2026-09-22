@@ -14,7 +14,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function LeadStatusSelect({ leadId, status }: { leadId: string; status: string }) {
-  // Same pattern as StipChecklist: this is a controlled input against a
+  // Same pattern as StageChecklist: this is a controlled input against a
   // server-fetched prop, so it needs local optimistic state or React snaps
   // it back to the old value before the server round-trip lands.
   const [localStatus, setLocalStatus] = useState(status);

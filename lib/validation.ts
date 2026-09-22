@@ -98,6 +98,8 @@ export const appointmentSchema = z.object({
   scheduledAt: z.string().min(1, "Date and time are required"),
   notes: z.string().optional(),
   dealId: z.string().uuid().optional().or(z.literal("")),
+  vehicleId: z.string().uuid().optional().or(z.literal("")),
+  vehicleBodyType: z.enum(["truck", "sedan", "suv"]).optional().or(z.literal("")),
 });
 
 export const documentUploadSchema = z.object({

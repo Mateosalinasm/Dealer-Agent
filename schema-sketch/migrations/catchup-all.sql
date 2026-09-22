@@ -394,3 +394,10 @@ DO $$ BEGIN
  ALTER TABLE "tasks" ADD CONSTRAINT "tasks_deal_id_deals_id_fk" FOREIGN KEY ("deal_id") REFERENCES "public"."deals"("id") ON DELETE cascade ON UPDATE no action;
 EXCEPTION WHEN duplicate_object THEN null; END $$;
 CREATE INDEX IF NOT EXISTS "tasks_deal_idx" ON "tasks" USING btree ("deal_id");
+
+-- --- 0014 ---
+ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "vehicle_id" uuid;
+ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "vehicle_body_type" text;
+DO $$ BEGIN
+ ALTER TABLE "appointments" ADD CONSTRAINT "appointments_vehicle_id_vehicles_id_fk" FOREIGN KEY ("vehicle_id") REFERENCES "public"."vehicles"("id") ON DELETE set null ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN null; END $$;

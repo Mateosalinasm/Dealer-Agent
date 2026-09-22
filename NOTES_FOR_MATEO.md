@@ -50,6 +50,15 @@ try Terminal.app first before anything else.
 **Round 4**: built the task/reminder system you picked off the priority
 list — see "Done this session" below.
 
+**Round 5**: the redesign pass matching the Claude Design mockup — nav,
+board card layout, month filter bug, sort, merged stips into the checklist,
+in-context appointment modal, and removed the History tab. See "Done this
+session" for the full list, and one honest caveat: I worked from your
+description of where things sat in the mockup, not a fresh look at the
+image (it wasn't available to me this round) — so spacing/typography match
+the existing Organic design tokens throughout, but if anything still looks
+off next to the mockup, point me at it and I'll fix that spot directly.
+
 ## How to read this file
 
 - **Needs your call** — genuine business/product decisions I set aside instead
@@ -95,6 +104,55 @@ list — see "Done this session" below.
 
 ## Done this session
 
+- **Redesign pass matching Claude Design** — ten concrete changes, all
+  verified via tsc/eslint/build and a Playwright run against a real
+  `next start` server (checklist toggles, sort, nav collapse, month filter,
+  appointment scheduling all exercised end-to-end, test data cleaned up
+  after):
+  1. Board card: the credit-grade badge now sits right next to the
+     customer's name, and a new bank icon (only shown once a lender's
+     chosen) sits beside it. The "Also remaining" checklist preview on each
+     card is now directly checkable — no more opening the deal for a quick
+     step.
+  2. The board's filter control actually does something now — a dropdown
+     for Newest first / Oldest first / Most urgent (urgent = red-health
+     deals first), replacing the decorative "Newest first" label.
+  3. Hamburger nav redesigned: six top-level sections (Dashboard, Inventory,
+     Sourcing, Desk, Marketing, Lenders), each collapsed until you open it,
+     instead of everything always expanded. Integrations sits below as a
+     plain utility link.
+  4. **Real bug fixed**: the month selector (‹ Month ›) wasn't actually
+     filtering which deals showed on any tab except "All this month," and
+     even that one ignored the selected month and always used today's —
+     so picking October could still show September's deals. Every tab is
+     now scoped to the selected month (an archived deal's month is when it
+     was archived, not when the deal started).
+  5. Deal modal: dropped the X button — closes on click-outside only, like
+     the mockup (the click-outside behavior already existed, this was pure
+     subtraction).
+  6. "Schedule appointment" opens as a modal on top of the deal now instead
+     of navigating to `/desk/appointments` — customer name, optional phone,
+     separate date and time fields, notes, and a vehicle field that's
+     either a generic body type or a specific inventory unit with
+     autocomplete (new `appointments.vehicle_id` / `vehicle_body_type`
+     columns, migration `0014`, applied locally and folded into
+     `catchup-all.sql` — run that against Supabase when you're ready).
+  7. Stips are no longer a separate checklist — they're itemized under the
+     Funding stage's "Collect stips & insurance" step, which checks itself
+     off once every stip is collected. Each stage (Application/Approval/
+     Funding) also got its own "Check all" button, scoped to just that
+     stage.
+  8. Removed the History tab from the deal view. Checked for a duplicate
+     Documents section — there isn't one; the credit-grade and income
+     badges each have their own small upload widget for their own document
+     category, which is intentional and already explained in the
+     Documents card's own copy.
+  9. New `components/stop-propagation.tsx` and
+     `components/board-checklist-preview.tsx` — small, reusable, not
+     one-off hacks.
+  10. Full pass: `tsc --noEmit` clean, ESLint clean on every touched file,
+      `next build` clean, Playwright smoke test (19 checks) green against a
+      production build with real DB writes verified via `psql`.
 - **WhatsApp messaging** — new `conversations`/`messages` tables, a `/messages`
   page (conversation list + thread + composer, matches the app's existing
   visual language), Twilio webhook at `/api/whatsapp/webhook` (signature-

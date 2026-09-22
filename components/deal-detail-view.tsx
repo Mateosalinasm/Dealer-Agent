@@ -1,5 +1,4 @@
 import { eq } from "drizzle-orm";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db, schema } from "@/lib/db";
 import { Card } from "@/components/ui/card";
@@ -7,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, Textarea } from "@/components/ui/input";
 import { AccordionSection } from "@/components/accordion-section";
-import { StipChecklist } from "@/components/stip-checklist";
 import { StageChecklist } from "@/components/stage-checklist";
 import { DocumentRow } from "@/components/document-row";
 import { LenderVehicleMatchModal } from "@/components/lender-vehicle-match-modal";
@@ -15,6 +13,7 @@ import { WarrantyMatchModal } from "@/components/warranty-match-modal";
 import { DealCopilotModal } from "@/components/deal-copilot-modal";
 import { SendReferralButton } from "@/components/send-referral-button";
 import { DealTasksSection } from "@/components/deal-tasks-section";
+import { ScheduleAppointmentModal } from "@/components/schedule-appointment-modal";
 import { copilotConfigured } from "@/lib/deal-copilot";
 import { DealHealthCard } from "@/components/deal-health-card";
 import { PtiSection } from "@/components/pti-section";
@@ -143,11 +142,7 @@ export async function DealDetailView({ id }: { id: string }) {
         <div className="flex flex-none items-center gap-2">
           <Badge tone={deal.funded ? "positive" : "neutral"}>{deal.funded ? "Funded" : "Open"}</Badge>
           {deal.funded && <SendReferralButton dealId={id} />}
-          <Link href={`/desk/appointments?dealId=${id}&customerName=${encodeURIComponent(deal.customerName ?? "")}`}>
-            <Button type="button" variant="secondary">
-              Schedule appointment
-            </Button>
-          </Link>
+          <ScheduleAppointmentModal dealId={id} customerName={deal.customerName ?? ""} phone={deal.phone} vehicles={combinedVehicles} />
           <form action={setDealArchived.bind(null, id, !deal.archived)}>
             <Button type="submit" variant="secondary">
               {deal.archived ? "Restore" : "Archive"}
@@ -237,12 +232,11 @@ export async function DealDetailView({ id }: { id: string }) {
           <PtiSection dealId={id} facts={facts} pti={pti} ptiPriceOverride={deal.ptiPrice} openAutoTradeIn={deal.openAutoTradeIn} />
         </AccordionSection>
 
-        <AccordionSection title="Stage checklist" summary={`${stageInfo.doneCount}/${stageInfo.total} steps · ${STAGES[Math.min(stageInfo.stageIdx, 2)].name}`}>
-          <StageChecklist dealId={id} done={deal.done} />
-        </AccordionSection>
-
-        <AccordionSection title="Stips" summary={openStips ? `${openStips} open` : "Clear"}>
-          <StipChecklist dealId={id} stips={deal.stips} />
+        <AccordionSection
+          title="Stage checklist"
+          summary={`${stageInfo.doneCount}/${stageInfo.total} steps · ${STAGES[Math.min(stageInfo.stageIdx, 2)].name}${openStips ? ` · ${openStips} stip${openStips === 1 ? "" : "s"} open` : ""}`}
+        >
+          <StageChecklist dealId={id} done={deal.done} stips={deal.stips} />
         </AccordionSection>
 
         <AccordionSection title="Tasks" summary={tasks.filter((t) => !t.done).length ? `${tasks.filter((t) => !t.done).length} open` : undefined}>
@@ -312,27 +306,6 @@ export async function DealDetailView({ id }: { id: string }) {
               Save
             </Button>
           </form>
-        </AccordionSection>
-
-        <AccordionSection title="History" summary={deal.log.length ? `${deal.log.length} entr${deal.log.length === 1 ? "y" : "ies"}` : "Nothing recorded yet"}>
-          {deal.log.length === 0 ? (
-            <p className="text-[12.5px] text-[var(--color-text-muted)]">
-              Nothing recorded yet. Submissions, approvals, stips and checklist steps all write a line here as you work.
-            </p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {[...deal.log]
-                .reverse()
-                .map((entry, i) => (
-                  <div key={i} className="flex items-center justify-between gap-3 text-[12.5px]">
-                    <span className="text-[var(--color-text)]">{entry.text}</span>
-                    <span className="flex-none tabular-nums text-[var(--color-text-muted)]">
-                      {new Date(entry.at).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
-                    </span>
-                  </div>
-                ))}
-            </div>
-          )}
         </AccordionSection>
 
         <Card id="documents">

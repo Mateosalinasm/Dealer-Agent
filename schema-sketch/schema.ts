@@ -366,6 +366,11 @@ export const appointments = pgTable('appointments', {
   customerName: text('customer_name').notNull(),
   phone: text('phone'),
   scheduledAt: timestamp('scheduled_at', { withTimezone: true }).notNull(),
+  // Either a specific unit (vehicleId) or a generic body type (vehicleBodyType)
+  // — never both. Set from the deal's own inventory list when scheduled
+  // from a deal, so "test drive the truck" doesn't need a stock number yet.
+  vehicleId: uuid('vehicle_id').references(() => vehicles.id, { onDelete: 'set null' }),
+  vehicleBodyType: text('vehicle_body_type').$type<(typeof bodyType)[number]>(),
   status: text('status').$type<(typeof appointmentStatus)[number]>().notNull().default('scheduled'),
   // Set once Phase 6 (Google Calendar) exists — the calendar's own event id,
   // so a cancel/reschedule from either side can find its counterpart.

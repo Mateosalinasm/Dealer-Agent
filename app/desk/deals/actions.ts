@@ -403,6 +403,10 @@ export async function reopenHealthIssue(dealId: string, key: string) {
   revalidatePath(`/desk/deals/${dealId}`);
 }
 
+// The stips list lives inside the Funding stage's "Collect stips &
+// insurance" step (see components/stage-checklist.tsx) rather than a
+// separate checklist — done.stips is derived here, not toggled directly,
+// so that step checks itself off once every stip is collected.
 export async function toggleStip(dealId: string, index: number) {
   const [deal] = await db.select().from(schema.deals).where(eq(schema.deals.id, dealId)).limit(1);
   if (!deal) return;
@@ -410,9 +414,11 @@ export async function toggleStip(dealId: string, index: number) {
   if (!stips[index]) return;
   const nowDone = !stips[index].done;
   stips[index] = { ...stips[index], done: nowDone };
+  const done = { ...deal.done, stips: stips.length > 0 && stips.every((s) => s.done) };
   const log = appendLog(deal.log, `${nowDone ? "Collected" : "Reopened"} stip "${stips[index].label}"`);
-  await db.update(schema.deals).set({ stips, log }).where(eq(schema.deals.id, dealId));
+  await db.update(schema.deals).set({ stips, done, log }).where(eq(schema.deals.id, dealId));
   revalidatePath(`/desk/deals/${dealId}`);
+  revalidatePath("/desk/deals");
 }
 
 // Toggles one step of the Application/Approval/Funding checklist (see
@@ -573,6 +579,8 @@ export async function createAppointment(formData: FormData) {
     scheduledAt: formData.get("scheduledAt"),
     notes: formData.get("notes") ?? "",
     dealId: formData.get("dealId") ?? "",
+    vehicleId: formData.get("vehicleId") ?? "",
+    vehicleBodyType: formData.get("vehicleBodyType") ?? "",
   });
 
   const scheduledAt = new Date(parsed.scheduledAt);
@@ -584,6 +592,8 @@ export async function createAppointment(formData: FormData) {
       scheduledAt,
       notes: parsed.notes || null,
       dealId: parsed.dealId || null,
+      vehicleId: parsed.vehicleId || null,
+      vehicleBodyType: parsed.vehicleBodyType || null,
     })
     .returning();
 
