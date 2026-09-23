@@ -214,6 +214,16 @@ export async function toggleOpenAutoTradeIn(dealId: string) {
   revalidatePath(`/desk/deals/${dealId}`);
 }
 
+// "Use this total" on the TurboPass breakdown (components/turbopass-breakdown.tsx)
+// — commits the checked income lines straight to verifiedIncome, the same
+// field the Customer form's "Verified income" input writes to and the one
+// PTI/lender-match actually read (see lib/deal-facts.ts).
+export async function setVerifiedIncome(dealId: string, cents: number) {
+  await db.update(schema.deals).set({ verifiedIncome: Math.max(0, Math.round(cents)) }).where(eq(schema.deals.id, dealId));
+  revalidatePath(`/desk/deals/${dealId}`);
+  revalidatePath("/desk/deals");
+}
+
 // Money & trade — backEndGross is recomputed here (warranty + gapIns -
 // backEndCost) so app/desk/analytics, which reads that column directly,
 // doesn't need to change.

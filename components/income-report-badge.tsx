@@ -1,11 +1,14 @@
 "use client";
 
-import { useTransition } from "react";
+import { useMemo, useTransition } from "react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label, Select } from "@/components/ui/input";
 import { DocumentRow } from "@/components/document-row";
+import { TurboPassBreakdown } from "@/components/turbopass-breakdown";
 import { analyzeDocument, deleteDocument, uploadDocument } from "@/app/desk/deals/actions";
+import { EXTRACTION_SCHEMAS } from "@/lib/extraction-schemas";
+import { analyzeTurboPass } from "@/lib/turbopass-analysis";
 import { formatCents, cn } from "@/lib/utils";
 
 interface IncomeDoc {
@@ -34,6 +37,18 @@ export interface IncomeReportBadgeProps {
 export function IncomeReportBadge({ dealId, customerName, incomeSource, monthlyIncomeCents, documents }: IncomeReportBadgeProps) {
   const verified = incomeSource === "TurboPass" || !!incomeSource?.startsWith("Bank statement");
   const [isPending, startTransition] = useTransition();
+
+  // Most-recently-extracted TurboPass doc drives the rich breakdown below
+  // the summary card — parsed defensively, same as everywhere else this
+  // schema is read, so a still-old-shaped or failed extraction just omits
+  // the breakdown instead of crashing the modal.
+  const turbopassAnalysis = useMemo(() => {
+    const turbopassDoc = [...documents].reverse().find((d) => d.category === "turbopass" && d.extractionStatus === "success");
+    if (!turbopassDoc) return null;
+    const parsed = EXTRACTION_SCHEMAS.turbopass.safeParse(turbopassDoc.extractedData);
+    if (!parsed.success || parsed.data.transactions.length === 0) return null;
+    return analyzeTurboPass(parsed.data);
+  }, [documents]);
 
   // A bound server-action reference passed directly as a form's `action`
   // triggers Next's full action/navigation machinery, which can fight with
@@ -65,7 +80,7 @@ export function IncomeReportBadge({ dealId, customerName, incomeSource, monthlyI
           </svg>
         </button>
       </DialogTrigger>
-      <DialogContent title={customerName} subtitle="income verification">
+      <DialogContent title={customerName} subtitle="income verification" className="max-w-3xl">
         <div className="rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)] p-4">
           <div
             className={cn(
@@ -80,6 +95,8 @@ export function IncomeReportBadge({ dealId, customerName, incomeSource, monthlyI
           </div>
           {incomeSource && <div className="text-[11.5px] text-[var(--color-text-muted)]">Source: {incomeSource}</div>}
         </div>
+
+        {turbopassAnalysis && <TurboPassBreakdown dealId={dealId} analysis={turbopassAnalysis} />}
 
         <div className="mt-4">
           <p className="mb-2 text-[11px] text-[var(--color-text-muted)]">

@@ -113,28 +113,16 @@ function ExtractedSummary({ category, data }: { category: ExtractableCategory; d
 
   if (category === "turbopass") {
     const d = parsed.data as (typeof EXTRACTION_SCHEMAS)["turbopass"]["_output"];
+    const holderNames = d.holders.map((h) => h.name).filter((n): n is string => !!n);
     return (
       <div className="mt-2 rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)] p-3">
         {row("Applicant", d.applicantName)}
         {row("Total monthly income", d.totalMonthlyIncomeCents != null ? formatCents(d.totalMonthlyIncomeCents) : null)}
-        {d.incomeSources.length > 0 && (
-          <div className="mt-1.5">
-            <div className="text-[10.5px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">
-              Income sources
-            </div>
-            {d.incomeSources.map((s, i) => (
-              <div key={i} className="flex items-center justify-between py-0.5">
-                <span className="text-[11.5px] text-[var(--color-text)]">
-                  {s.payer ?? "Unknown source"} {s.frequency ? `· ${s.frequency}` : ""}
-                </span>
-                <span className="tabular-nums text-[11.5px] font-medium">
-                  {s.monthlyAverageCents != null ? formatCents(s.monthlyAverageCents) : "—"}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
+        {holderNames.length > 0 && row("Holders", holderNames.join(", "))}
+        {row("Accounts", d.accounts.length || null)}
+        {row("Transactions", d.transactions.length || null)}
         {d.notes && <p className="mt-1.5 text-[11px] italic text-[var(--color-text-muted)]">{d.notes}</p>}
+        <p className="mt-1.5 text-[10.5px] text-[var(--color-text-placeholder)]">Full categorized breakdown is above, in the income verification card.</p>
       </div>
     );
   }

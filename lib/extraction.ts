@@ -39,10 +39,17 @@ Always respond by calling the "extract" tool exactly once. Do not respond with p
 
 const CATEGORY_INSTRUCTIONS: Record<ExtractableCategory, string> = {
   turbopass:
-    "This is a TurboPass bank-verification report. It shows linked bank accounts and detected " +
-    "income/payroll deposits for one or more people. Extract every account and every distinct " +
-    "recurring income source you can find, each with its own line. If multiple people are on the " +
-    "report, use applicantName for the primary one and note co-applicants in `notes`.",
+    "This is a TurboPass bank-verification report. It shows linked bank accounts and every " +
+    "transaction line TurboPass detected. List every distinct person named as an owner on any " +
+    "account in `holders`, and every account in `accounts` with the name(s) on it. Then extract " +
+    "EVERY transaction line into `transactions` — do not summarize or skip rows, the app does its " +
+    "own grouping and math from the raw list. For each transaction, categorize it as payroll " +
+    "(recurring employer/payroll deposit), zelle (a Zelle or person-to-person transfer, in either " +
+    "direction — set counterpartyName to the other party), internal_transfer (between the " +
+    "customer's own linked accounts), mobile_deposit, cash_deposit, fee (NSF/overdraft/monthly " +
+    "fees), card_debit (card or debit purchases), or other. amountCents is positive for money in, " +
+    "negative for money out. If multiple people are on the report, use applicantName for the " +
+    "primary one and note anything ambiguous about the others in `notes`.",
   bank_statement:
     "This is a bank statement (possibly multiple months). Extract the account holder, the " +
     "statement period, beginning/ending balances, and every recurring deposit you can identify " +
@@ -109,7 +116,11 @@ export async function extractDocument<C extends ExtractableCategory>(
   try {
     const response = await client.messages.create({
       model: MODEL,
-      max_tokens: 4096,
+      // TurboPass now asks for every transaction line, not a summary — a
+      // multi-month report can run to hundreds of rows. 4096 truncated
+      // real reports mid-JSON; 16000 is the SDK's own recommended default
+      // for non-streaming requests and comfortably covers this.
+      max_tokens: 16000,
       system: SYSTEM_PROMPT,
       tools: [
         {
