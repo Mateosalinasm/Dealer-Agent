@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { inArray } from "drizzle-orm";
 import { Home, Landmark, TriangleAlert } from "lucide-react";
 import { db, schema } from "@/lib/db";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ProgressRing } from "@/components/progress-ring";
 import { CreditGradeBadge } from "@/components/credit-grade-modal";
+import { IncomeReportBadge } from "@/components/income-report-badge";
 import { StopPropagation } from "@/components/stop-propagation";
 import { BoardChecklistPreview } from "@/components/board-checklist-preview";
 import { SortMenu, type SortKey } from "@/components/sort-menu";
@@ -13,6 +15,7 @@ import { dealStageInfo, monthOf, msSince, pipelineTab, STAGES, type PipelineTab 
 import { dealFacts } from "@/lib/deal-facts";
 import { dealHealth, nextAction, bucketOf } from "@/lib/deal-health";
 import { setDealArchived } from "@/app/desk/deals/actions";
+import { getUnderwritingSnapshotsForDeals } from "@/lib/deal-underwriting";
 
 export const dynamic = "force-dynamic";
 
@@ -51,11 +54,25 @@ export default async function DealsPage({
   const metric = rawMetric === "profit" ? "profit" : "commission";
   const sort: SortKey = rawSort === "oldest" ? "oldest" : rawSort === "urgent" ? "urgent" : "newest";
 
+  type DocumentRow = typeof schema.documents.$inferSelect;
+
   const [deals, lenders] = await Promise.all([db.select().from(schema.deals), db.select().from(schema.lenders)]);
   const vehicleIds = deals.map((d) => d.vehicleId).filter((v): v is string => !!v);
-  const vehicles = vehicleIds.length ? await db.select().from(schema.vehicles) : [];
+  const dealIds = deals.map((d) => d.id);
+  const [vehicles, documents, snapshotByDeal] = await Promise.all([
+    vehicleIds.length ? db.select().from(schema.vehicles) : Promise.resolve([]),
+    dealIds.length ? db.select().from(schema.documents).where(inArray(schema.documents.dealId, dealIds)) : Promise.resolve<DocumentRow[]>([]),
+    getUnderwritingSnapshotsForDeals(dealIds),
+  ]);
   const vehicleById = new Map(vehicles.map((v) => [v.id, v]));
   const lenderById = new Map(lenders.map((l) => [l.id, l]));
+  const incomeDocsByDeal = new Map<string, DocumentRow[]>();
+  for (const doc of documents) {
+    if (!doc.dealId || (doc.category !== "turbopass" && doc.category !== "bank_statement")) continue;
+    const list = incomeDocsByDeal.get(doc.dealId);
+    if (list) list.push(doc);
+    else incomeDocsByDeal.set(doc.dealId, [doc]);
+  }
 
   const today = new Date();
   const targetMonthDate = new Date(today.getFullYear(), today.getMonth() + monthOffset, 1);
@@ -191,6 +208,8 @@ export default async function DealsPage({
             const nextBucket = bucketOf(next.bucket);
             const remainingPreview = info.remaining.slice(0, 4);
             const lenderName = deal.lenderId ? (lenderById.get(deal.lenderId)?.name ?? "Lender") : null;
+            const snapshot = snapshotByDeal.get(deal.id) ?? { monthlyIncomeCents: null, incomeSource: null };
+            const incomeDocs = incomeDocsByDeal.get(deal.id) ?? [];
 
             return (
               <Card key={deal.id} className="flex flex-col gap-3">
@@ -200,6 +219,13 @@ export default async function DealsPage({
                       <span className="truncate text-[14.5px] font-semibold text-[var(--color-text)]">{deal.customerName}</span>
                       <StopPropagation>
                         <CreditGradeBadge dealId={deal.id} customerName={deal.customerName ?? ""} vehicleLabel={facts.vehicleLabel} facts={deal} />
+                        <IncomeReportBadge
+                          dealId={deal.id}
+                          customerName={deal.customerName ?? ""}
+                          incomeSource={snapshot.incomeSource}
+                          monthlyIncomeCents={snapshot.monthlyIncomeCents}
+                          documents={incomeDocs}
+                        />
                       </StopPropagation>
                       {vehicle && (
                         <span className="flex-none rounded-full bg-[var(--color-positive-bg)] p-1 text-[var(--color-positive-text)]" title="Vehicle attached">

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { EXTRACTION_SCHEMAS } from "@/lib/extraction-schemas";
 import { analyzeTurboPass } from "@/lib/turbopass-analysis";
@@ -10,6 +10,8 @@ export interface UnderwritingSnapshot {
   monthlyIncomeCents: number | null;
   incomeSource: string | null;
 }
+
+type DocumentRow = typeof schema.documents.$inferSelect;
 
 /**
  * Pulls the best available credit score and income figure out of a deal's
@@ -23,6 +25,33 @@ export async function getUnderwritingSnapshot(dealId: string): Promise<Underwrit
     .from(schema.documents)
     .where(and(eq(schema.documents.dealId, dealId), eq(schema.documents.extractionStatus, "success")));
 
+  return snapshotFromDocs(docs);
+}
+
+/**
+ * Same as getUnderwritingSnapshot, but for every deal in one query — used by
+ * the board (app/desk/deals/page.tsx) so the badges next to each card don't
+ * cost one query per deal.
+ */
+export async function getUnderwritingSnapshotsForDeals(dealIds: string[]): Promise<Map<string, UnderwritingSnapshot>> {
+  if (dealIds.length === 0) return new Map();
+  const docs = await db
+    .select()
+    .from(schema.documents)
+    .where(and(inArray(schema.documents.dealId, dealIds), eq(schema.documents.extractionStatus, "success")));
+
+  const byDeal = new Map<string, DocumentRow[]>();
+  for (const doc of docs) {
+    if (!doc.dealId) continue;
+    const list = byDeal.get(doc.dealId);
+    if (list) list.push(doc);
+    else byDeal.set(doc.dealId, [doc]);
+  }
+
+  return new Map(dealIds.map((id) => [id, snapshotFromDocs(byDeal.get(id) ?? [])]));
+}
+
+function snapshotFromDocs(docs: DocumentRow[]): UnderwritingSnapshot {
   let creditScore: number | null = null;
   let creditScoreSource: string | null = null;
   const creditDoc = docs.find((d) => d.category === "credit_report");
