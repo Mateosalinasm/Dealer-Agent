@@ -48,7 +48,10 @@ export function DialogContent({
             </div>
             <div className="flex flex-none items-center gap-2">
               {headerExtra}
-              <RadixDialog.Close className="flex-none rounded-full p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-fill-subtle)]" aria-label="Close">
+              <RadixDialog.Close
+                className="relative flex-none rounded-full p-1.5 text-[var(--color-text-muted)] transition-colors after:absolute after:-inset-3 after:content-[''] hover:bg-[var(--color-fill-subtle)] active:bg-[var(--color-fill-subtle)] active:scale-90"
+                aria-label="Close"
+              >
                 <X size={18} />
               </RadixDialog.Close>
             </div>

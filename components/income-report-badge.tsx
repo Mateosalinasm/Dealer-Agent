@@ -66,7 +66,7 @@ export function IncomeReportBadge({ dealId, customerName, incomeSource, monthlyI
           type="button"
           title={verified ? `Income verified — ${incomeSource}` : "Income not verified — upload a TurboPass or bank statements"}
           className={cn(
-            "flex h-5 w-5 flex-none items-center justify-center rounded-full",
+            "relative flex h-5 w-5 flex-none items-center justify-center rounded-full transition-transform after:absolute after:-inset-1 after:content-[''] active:scale-90",
             verified ? "bg-[var(--color-positive-bg)] text-[var(--color-positive-text)]" : "bg-[var(--color-fill-subtle)] text-[var(--color-text-placeholder)]",
           )}
         >

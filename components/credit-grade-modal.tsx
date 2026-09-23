@@ -64,7 +64,7 @@ export function CreditGradeBadge({ dealId, customerName, vehicleLabel, facts, cr
         <button
           type="button"
           className={cn(
-            "flex h-5 min-w-5 flex-none items-center justify-center rounded-full px-1 text-[10.5px] font-bold",
+            "relative flex h-5 min-w-5 flex-none items-center justify-center rounded-full px-1 text-[10.5px] font-bold transition-transform after:absolute after:-inset-1 after:content-[''] active:scale-90",
             hasScore ? GRADE_TONE[result.grade] : "bg-[var(--color-fill-subtle)] text-[var(--color-text-placeholder)]",
           )}
           title="Credit grade"

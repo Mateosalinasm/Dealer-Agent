@@ -198,7 +198,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <button
             aria-label="Close menu"
             onClick={() => setOpen(false)}
-            className="rounded-full p-1.5 text-[var(--color-text-muted)] hover:bg-[var(--color-fill-subtle)]"
+            className="relative rounded-full p-1.5 text-[var(--color-text-muted)] transition-colors after:absolute after:-inset-3 after:content-[''] hover:bg-[var(--color-fill-subtle)] active:bg-[var(--color-fill-subtle)] active:scale-90"
           >
             <X size={18} />
           </button>
@@ -219,7 +219,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <button
             aria-label="Open menu"
             onClick={() => setOpen(true)}
-            className="rounded-full p-1.5 text-[var(--color-text)] hover:bg-[var(--color-fill-subtle)]"
+            className="relative rounded-full p-1.5 text-[var(--color-text)] transition-colors after:absolute after:-inset-3 after:content-[''] hover:bg-[var(--color-fill-subtle)] active:bg-[var(--color-fill-subtle)] active:scale-90"
           >
             <Menu size={20} />
           </button>
