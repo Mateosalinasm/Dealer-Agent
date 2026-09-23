@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { ProgressRing } from "@/components/progress-ring";
 import { CreditGradeBadge } from "@/components/credit-grade-modal";
 import { IncomeReportBadge } from "@/components/income-report-badge";
-import { StopPropagation } from "@/components/stop-propagation";
 import { BoardChecklistPreview } from "@/components/board-checklist-preview";
 import { SortMenu, type SortKey } from "@/components/sort-menu";
 import { formatCents } from "@/lib/utils";
@@ -214,36 +213,50 @@ export default async function DealsPage({
             return (
               <Card key={deal.id} className="flex flex-col gap-3">
                 <div className="flex items-start gap-3">
-                  <Link href={`/desk/deals/${deal.id}`} className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="truncate text-[14.5px] font-semibold text-[var(--color-text)]">{deal.customerName}</span>
-                      <StopPropagation>
-                        <CreditGradeBadge dealId={deal.id} customerName={deal.customerName ?? ""} vehicleLabel={facts.vehicleLabel} facts={deal} />
-                        <IncomeReportBadge
-                          dealId={deal.id}
-                          customerName={deal.customerName ?? ""}
-                          incomeSource={snapshot.incomeSource}
-                          monthlyIncomeCents={snapshot.monthlyIncomeCents}
-                          documents={incomeDocs}
-                        />
-                      </StopPropagation>
-                      {vehicle && (
-                        <span className="flex-none rounded-full bg-[var(--color-positive-bg)] p-1 text-[var(--color-positive-text)]" title="Vehicle attached">
-                          <Home size={10} />
+                  {/* The badges below are real <button>s (Dialog triggers) —
+                      nesting them inside an <a> is invalid HTML and makes
+                      click handling unreliable (a stopPropagation() wrapper
+                      used to sit here, but clicks could still fall through
+                      to the browser's native anchor navigation instead of
+                      opening the dialog). Link is a same-size absolute
+                      sibling behind the real content instead, and the
+                      content layer is pointer-events-none so clicks pass
+                      straight through it to the link underneath — except
+                      the badges, which opt back in with pointer-events-auto
+                      so they still catch their own clicks. */}
+                  <div className="relative min-w-0 flex-1">
+                    <Link href={`/desk/deals/${deal.id}`} className="absolute inset-0 z-0" aria-label={`Open ${deal.customerName || "deal"}`} />
+                    <div className="relative z-10 pointer-events-none">
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-[14.5px] font-semibold text-[var(--color-text)]">{deal.customerName}</span>
+                        <span className="pointer-events-auto inline-flex flex-none items-center gap-1">
+                          <CreditGradeBadge dealId={deal.id} customerName={deal.customerName ?? ""} vehicleLabel={facts.vehicleLabel} facts={deal} />
+                          <IncomeReportBadge
+                            dealId={deal.id}
+                            customerName={deal.customerName ?? ""}
+                            incomeSource={snapshot.incomeSource}
+                            monthlyIncomeCents={snapshot.monthlyIncomeCents}
+                            documents={incomeDocs}
+                          />
                         </span>
-                      )}
-                      {lenderName && (
-                        <span className="flex-none rounded-full bg-[var(--color-info-bg)] p-1 text-[var(--color-info-text)]" title={lenderName}>
-                          <Landmark size={10} />
-                        </span>
-                      )}
+                        {vehicle && (
+                          <span className="pointer-events-auto flex-none rounded-full bg-[var(--color-positive-bg)] p-1 text-[var(--color-positive-text)]" title="Vehicle attached">
+                            <Home size={10} />
+                          </span>
+                        )}
+                        {lenderName && (
+                          <span className="pointer-events-auto flex-none rounded-full bg-[var(--color-info-bg)] p-1 text-[var(--color-info-text)]" title={lenderName}>
+                            <Landmark size={10} />
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-0.5 truncate text-[12px] text-[var(--color-text-muted)]">{facts.vehicleLabel || "Vehicle TBD"}</div>
+                      <div className="truncate text-[11.5px] text-[var(--color-text-placeholder)]">
+                        {lenderName ? `${lenderName}${deal.lot ? ` · ${deal.lot}` : ""}` : "Pending submission"}
+                      </div>
+                      <div className="text-[11.5px] text-[var(--color-text-placeholder)]">{deal.idType ?? "US ID"}</div>
                     </div>
-                    <div className="mt-0.5 truncate text-[12px] text-[var(--color-text-muted)]">{facts.vehicleLabel || "Vehicle TBD"}</div>
-                    <div className="truncate text-[11.5px] text-[var(--color-text-placeholder)]">
-                      {lenderName ? `${lenderName}${deal.lot ? ` · ${deal.lot}` : ""}` : "Pending submission"}
-                    </div>
-                    <div className="text-[11.5px] text-[var(--color-text-placeholder)]">{deal.idType ?? "US ID"}</div>
-                  </Link>
+                  </div>
                   <ProgressRing pct={info.pct} />
                 </div>
 
