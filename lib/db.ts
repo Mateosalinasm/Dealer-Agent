@@ -16,6 +16,15 @@ const pool =
     connectionString: process.env.DATABASE_URL,
     // Supabase's pooler requires SSL; local Postgres doesn't offer it.
     ssl: isLocal ? undefined : { rejectUnauthorized: false },
+    // A single operator generates very little real concurrency — a small
+    // pool avoids opening more connections against Supabase's own pgbouncer
+    // pooler than this app will ever use at once. keepAlive stops those
+    // connections from going stale and needing a fresh TLS handshake (the
+    // main source of the "click a deal, wait a second" lag) the next time a
+    // warm serverless instance reuses this pool after sitting idle.
+    max: 5,
+    keepAlive: true,
+    connectionTimeoutMillis: 10_000,
   });
 
 if (process.env.NODE_ENV !== "production") {
