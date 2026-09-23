@@ -36,6 +36,7 @@ interface LenderRow {
   id: string;
   name: string;
   contact: string | null;
+  repPhone: string | null;
   notes: string | null;
   active: boolean;
 }
@@ -46,17 +47,21 @@ export function LenderCard({ lender, programs, guidelinesDocs }: { lender: Lende
   const [editingProgramId, setEditingProgramId] = useState<string | null>(null);
 
   return (
-    <Card>
-      <div className="flex items-start justify-between">
-        <div>
+    <Card className="flex h-full flex-col">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-[15px] font-semibold text-[var(--color-text)]">{lender.name}</span>
-            {!lender.active && <Badge tone="neutral">Inactive</Badge>}
+            <span className="truncate text-[15px] font-semibold text-[var(--color-text)]">{lender.name}</span>
+            <Badge tone={lender.active ? "positive" : "neutral"}>{lender.active ? "Active" : "Inactive"}</Badge>
           </div>
-          {lender.contact && <div className="mt-0.5 text-[12px] text-[var(--color-text-muted)]">{lender.contact}</div>}
-          {lender.notes && <div className="mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">{lender.notes}</div>}
+          {lender.contact && <div className="mt-1 text-[12px] text-[var(--color-text-muted)]">{lender.contact}</div>}
+          {lender.repPhone && (
+            <a href={`tel:${lender.repPhone.replace(/[^0-9+]/g, "")}`} className="mt-0.5 block text-[12px] font-medium text-[var(--color-info-text)] hover:underline">
+              {lender.repPhone}
+            </a>
+          )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-none items-center gap-1.5">
           <form action={setLenderActive.bind(null, lender.id, !lender.active)}>
             <Button type="submit" variant="secondary" className="px-2 py-1 text-[11px]">
               {lender.active ? "Deactivate" : "Activate"}
@@ -73,6 +78,8 @@ export function LenderCard({ lender, programs, guidelinesDocs }: { lender: Lende
         </div>
       </div>
 
+      {lender.notes && <div className="mt-1.5 text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">{lender.notes}</div>}
+
       {editingLender && (
         <form
           action={async (fd) => {
@@ -88,6 +95,10 @@ export function LenderCard({ lender, programs, guidelinesDocs }: { lender: Lende
           <div>
             <Label htmlFor={`contact-${lender.id}`}>Contact</Label>
             <Input id={`contact-${lender.id}`} name="contact" defaultValue={lender.contact ?? ""} />
+          </div>
+          <div>
+            <Label htmlFor={`rep-phone-${lender.id}`}>Rep phone</Label>
+            <Input id={`rep-phone-${lender.id}`} name="repPhone" type="tel" placeholder="(555) 555-0123" defaultValue={lender.repPhone ?? ""} />
           </div>
           <div>
             <Label htmlFor={`lnotes-${lender.id}`}>Notes</Label>

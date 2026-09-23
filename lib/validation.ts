@@ -115,6 +115,7 @@ const optionalPct = z.preprocess(emptyToUndefined, z.coerce.number().min(0).max(
 export const lenderSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
   contact: z.string().optional(),
+  repPhone: z.string().optional(),
   notes: z.string().optional(),
 });
 

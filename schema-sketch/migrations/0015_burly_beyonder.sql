@@ -1,0 +1,1 @@
+ALTER TABLE "lenders" ADD COLUMN "rep_phone" text;

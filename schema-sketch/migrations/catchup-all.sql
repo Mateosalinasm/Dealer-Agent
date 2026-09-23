@@ -401,3 +401,6 @@ ALTER TABLE "appointments" ADD COLUMN IF NOT EXISTS "vehicle_body_type" text;
 DO $$ BEGIN
  ALTER TABLE "appointments" ADD CONSTRAINT "appointments_vehicle_id_vehicles_id_fk" FOREIGN KEY ("vehicle_id") REFERENCES "public"."vehicles"("id") ON DELETE set null ON UPDATE no action;
 EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+-- --- 0015 ---
+ALTER TABLE "lenders" ADD COLUMN IF NOT EXISTS "rep_phone" text;

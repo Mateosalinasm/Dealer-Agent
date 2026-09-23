@@ -73,6 +73,7 @@ export const lenders = pgTable('lenders', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   contact: text('contact'),
+  repPhone: text('rep_phone'),
   notes: text('notes'),
   active: boolean('active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

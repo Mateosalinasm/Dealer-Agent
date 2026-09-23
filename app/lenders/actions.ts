@@ -27,11 +27,13 @@ export async function createLender(formData: FormData) {
   const parsed = lenderSchema.parse({
     name: formData.get("name"),
     contact: formData.get("contact") ?? "",
+    repPhone: formData.get("repPhone") ?? "",
     notes: formData.get("notes") ?? "",
   });
   await db.insert(schema.lenders).values({
     name: parsed.name,
     contact: parsed.contact || null,
+    repPhone: parsed.repPhone || null,
     notes: parsed.notes || null,
   });
   revalidatePath("/lenders");
@@ -41,11 +43,12 @@ export async function updateLender(lenderId: string, formData: FormData) {
   const parsed = lenderSchema.parse({
     name: formData.get("name"),
     contact: formData.get("contact") ?? "",
+    repPhone: formData.get("repPhone") ?? "",
     notes: formData.get("notes") ?? "",
   });
   await db
     .update(schema.lenders)
-    .set({ name: parsed.name, contact: parsed.contact || null, notes: parsed.notes || null })
+    .set({ name: parsed.name, contact: parsed.contact || null, repPhone: parsed.repPhone || null, notes: parsed.notes || null })
     .where(eq(schema.lenders.id, lenderId));
   revalidatePath("/lenders");
 }

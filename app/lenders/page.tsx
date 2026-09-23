@@ -31,20 +31,24 @@ export default async function LendersPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div>
       <h1 className="mb-5 text-[19px] font-semibold tracking-[-.01em] text-[var(--color-text)]">Lenders</h1>
 
-      <Card className="mb-4">
+      <Card className="mb-4 max-w-3xl">
         <div className="mb-2 text-[13.5px] font-semibold text-[var(--color-text)]">Add a lender</div>
         <form action={createLender} className="flex flex-col gap-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <Label htmlFor="name">Name</Label>
               <Input id="name" name="name" required placeholder="Veros" />
             </div>
             <div>
               <Label htmlFor="contact">Contact (optional)</Label>
-              <Input id="contact" name="contact" placeholder="Rep name / phone" />
+              <Input id="contact" name="contact" placeholder="Rep name" />
+            </div>
+            <div>
+              <Label htmlFor="repPhone">Rep phone (optional)</Label>
+              <Input id="repPhone" name="repPhone" type="tel" placeholder="(555) 555-0123" />
             </div>
           </div>
           <div>
@@ -63,7 +67,7 @@ export default async function LendersPage() {
           <p className="mt-1 text-[12.5px] text-[var(--color-text-muted)]">Add one above to start matching deals.</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
           {lenders.map((lender) => (
             <LenderCard
               key={lender.id}
