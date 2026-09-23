@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatCents } from "@/lib/utils";
 import { EXTRACTION_SCHEMAS, isExtractable, type ExtractableCategory } from "@/lib/extraction-schemas";
+import { analyzeTurboPass } from "@/lib/turbopass-analysis";
 
 const CATEGORY_LABEL: Record<string, string> = {
   turbopass: "TurboPass",
@@ -114,10 +115,15 @@ function ExtractedSummary({ category, data }: { category: ExtractableCategory; d
   if (category === "turbopass") {
     const d = parsed.data as (typeof EXTRACTION_SCHEMAS)["turbopass"]["_output"];
     const holderNames = d.holders.map((h) => h.name).filter((n): n is string => !!n);
+    // The deterministic combined baseline is the trustworthy figure once
+    // there's a transaction list to compute it from — see
+    // lib/deal-underwriting.ts for why the model's own totalMonthlyIncomeCents
+    // is only a fallback, not the primary source.
+    const monthlyIncomeCents = d.transactions.length > 0 ? analyzeTurboPass(d).combinedBaselineCents : d.totalMonthlyIncomeCents;
     return (
       <div className="mt-2 rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)] p-3">
         {row("Applicant", d.applicantName)}
-        {row("Total monthly income", d.totalMonthlyIncomeCents != null ? formatCents(d.totalMonthlyIncomeCents) : null)}
+        {row("Total monthly income", monthlyIncomeCents != null ? formatCents(monthlyIncomeCents) : null)}
         {holderNames.length > 0 && row("Holders", holderNames.join(", "))}
         {row("Accounts", d.accounts.length || null)}
         {row("Transactions", d.transactions.length || null)}

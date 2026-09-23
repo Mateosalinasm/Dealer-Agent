@@ -94,6 +94,15 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Tailwind's preflight resets buttons to cursor: default, which is why
+   hovering one gives no feedback at all — every button in the app is
+   genuinely clickable, it just doesn't look it. This restores the
+   pointer cursor site-wide instead of adding cursor-pointer to every
+   button usage individually. */
+button:not(:disabled) {
+  cursor: pointer;
+}
+
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }

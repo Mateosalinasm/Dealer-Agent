@@ -31,9 +31,13 @@ Rules, in order of importance:
    unreadable), still call the tool, leave every field null, and explain what's wrong in "notes".
 5. Report the document's own numbers as they appear — do not convert currencies, do not net
    figures together unless the field explicitly asks for a total.
-6. Every list field (accounts, incomeSources, recurringDeposits, scores, odometerReadings, etc.)
+6. Every list field (accounts, transactions, recurringDeposits, scores, odometerReadings, etc.)
    must always be an array — use an empty array [] when you find nothing for it. Never put a
    string, a note, or null into a field that's supposed to be a list.
+7. If a document has too many rows to fit everything, the list fields (especially transactions)
+   come first — truncate or shorten "notes" before you ever drop a row from a list field, and
+   never summarize a list in prose instead of populating it. A human reviews every row anyway; a
+   short "notes" is fine, an empty transactions array on a document full of transactions is not.
 
 Always respond by calling the "extract" tool exactly once. Do not respond with plain text.`;
 
@@ -114,13 +118,15 @@ export async function extractDocument<C extends ExtractableCategory>(
         };
 
   try {
-    const response = await client.messages.create({
+    // TurboPass now asks for every transaction line, not a summary — a
+    // real report can run to hundreds of rows (500+ transactions isn't
+    // unusual), which needs far more than the SDK's own ~16000-token
+    // non-streaming default. Streaming is what makes a large max_tokens
+    // safe to request at all — the SDK requires it above a few tens of
+    // thousands of tokens to avoid the request just timing out over HTTP.
+    const stream = client.messages.stream({
       model: MODEL,
-      // TurboPass now asks for every transaction line, not a summary — a
-      // multi-month report can run to hundreds of rows. 4096 truncated
-      // real reports mid-JSON; 16000 is the SDK's own recommended default
-      // for non-streaming requests and comfortably covers this.
-      max_tokens: 16000,
+      max_tokens: 64000,
       system: SYSTEM_PROMPT,
       tools: [
         {
@@ -138,10 +144,19 @@ export async function extractDocument<C extends ExtractableCategory>(
         },
       ],
     });
+    const response = await stream.finalMessage();
 
     const toolUse = response.content.find((block) => block.type === "tool_use");
     if (!toolUse || toolUse.type !== "tool_use") {
       return { ok: false, error: "The model didn't return structured data — try again." };
+    }
+
+    // A tool_use block can still contain syntactically valid (if
+    // incomplete) JSON when generation was cut off mid-object — it would
+    // pass schema validation as a quietly truncated report rather than
+    // failing loudly, which is worse. Catch that case explicitly instead.
+    if (response.stop_reason === "max_tokens") {
+      return { ok: false, error: "This document is too large to fully transcribe in one pass — try splitting it (e.g. by month) and uploading the parts separately." };
     }
 
     const parsed = schema.safeParse(toolUse.input);

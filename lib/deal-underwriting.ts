@@ -2,6 +2,7 @@ import "server-only";
 import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { EXTRACTION_SCHEMAS } from "@/lib/extraction-schemas";
+import { analyzeTurboPass } from "@/lib/turbopass-analysis";
 
 export interface UnderwritingSnapshot {
   creditScore: number | null;
@@ -46,9 +47,20 @@ export async function getUnderwritingSnapshot(dealId: string): Promise<Underwrit
   const turbopassDoc = docs.find((d) => d.category === "turbopass");
   if (turbopassDoc) {
     const parsed = EXTRACTION_SCHEMAS.turbopass.safeParse(turbopassDoc.extractedData);
-    if (parsed.success && parsed.data.totalMonthlyIncomeCents != null) {
-      monthlyIncomeCents = parsed.data.totalMonthlyIncomeCents;
-      incomeSource = "TurboPass";
+    if (parsed.success) {
+      // The deterministic combined baseline (payroll + unrelated transfers,
+      // related-party excluded — lib/turbopass-analysis.ts) is trustworthy
+      // arithmetic; the model's own totalMonthlyIncomeCents is just its
+      // best-effort cross-check guess and only falls back to it when there's
+      // no transaction data to compute the real figure from (e.g. an older
+      // extraction from before this schema).
+      if (parsed.data.transactions.length > 0) {
+        monthlyIncomeCents = analyzeTurboPass(parsed.data).combinedBaselineCents;
+        incomeSource = "TurboPass";
+      } else if (parsed.data.totalMonthlyIncomeCents != null) {
+        monthlyIncomeCents = parsed.data.totalMonthlyIncomeCents;
+        incomeSource = "TurboPass";
+      }
     }
   }
 
