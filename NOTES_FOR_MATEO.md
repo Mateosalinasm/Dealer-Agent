@@ -74,6 +74,24 @@ production, not local dev — see "Done this session":
    filesystem outside `/tmp`). Swapped to Supabase Storage, see
    "Scaffolded, not wired up" below for the two env vars this needs.
 
+**Round 7**: more live-deploy bug reports plus two feature requests.
+The TurboPass extraction now shows a full transaction-level income
+breakdown (payroll grouped by holder, Zelle/cash grouped separately,
+related-party transfers excluded, split correctly when an account has
+more than one person or more than one payroll source) instead of a flat
+summary, buttons everywhere got real hover/press feedback, a bank/income
+badge now shows on the dashboard cards (it only used to show once you
+opened a deal), and clicking that badge — or the credit-grade badge next
+to it — no longer misfires into a full page navigation. Biggest one:
+**clicking a deal card had a real, fixable lag** — the intercepted modal
+route had no loading state at all, so Next.js showed nothing until all
+8 of the deal page's queries finished; it now shows an instant skeleton
+(confirmed ~30ms vs. ~350ms+ of nothing beforehand) and lets Next.js
+prefetch the modal shell as cards scroll into view. Also added a rep
+phone field to Lenders and laid that page out as a grid instead of one
+stacked column — **needs `catchup-all.sql` run against Supabase** (see
+below) before rep phone will actually save in production.
+
 ## How to read this file
 
 - **Needs your call** — genuine business/product decisions I set aside instead
@@ -344,6 +362,44 @@ production, not local dev — see "Done this session":
   and stips. Verified the full loop via Playwright: add, bucket
   correctly by due date, toggle done, and cross-linking between a deal's
   own Tasks section and the global Tasks page.
+- **Round 7:**
+  1. TurboPass income breakdown — the AI now transcribes every
+     transaction instead of summarizing, and a deterministic module
+     (`lib/turbopass-analysis.ts`, never the AI's own arithmetic) groups
+     payroll by holder, separates Zelle/cash-deposit/other, excludes
+     transfers from someone sharing the account holder's last name, and
+     splits payroll by person when more than one holder or income source
+     is on the account. Shows as a real breakdown in the income modal
+     instead of a flat "Total monthly income: —".
+  2. Buttons everywhere now show real hover/press feedback (color
+     change, cursor, a slight press-down) — previously only custom
+     checkboxes had `cursor: pointer` at all, and most buttons had no
+     active state.
+  3. **Bank/income badge on the dashboard** — it only ever showed once
+     you opened a deal; now it's on the board cards next to the credit
+     grade badge, same green/verified-or-gray as before.
+  4. **Fixed: clicking either badge on a dashboard card sometimes
+     navigated to the full deal page instead of opening its dialog** —
+     both were real `<button>`s nested inside the card's link, which is
+     invalid HTML and made click handling unreliable. Restructured so
+     the link sits behind the card's text (click-through via
+     `pointer-events`) instead of wrapping the badges.
+  5. **Deal modal felt laggy** — clicking a deal card had no loading
+     state, so nothing appeared until all 8 of the deal page's queries
+     resolved. Added `loading.tsx` to the modal routes: an instant
+     skeleton now shows immediately (measured ~30ms vs. ~350ms+ of
+     nothing before), and it lets Next.js prefetch the modal as cards
+     scroll into view. Also trimmed the Postgres connection pool
+     settings for less overhead on a cold serverless request.
+  6. **Lenders: rep phone field + grid layout.** New `lenders.rep_phone`
+     column (separate from the existing free-text "contact" field),
+     shown as a tap-to-call link on each card. The page now lays lenders
+     out in a grid (like the mockup) instead of one stacked column.
+     **This one needs a step from you**: the new column only exists in
+     your local database so far — paste `schema-sketch/migrations/catchup-all.sql`
+     into the Supabase SQL Editor and run it (same one-time step as past
+     rounds; safe to re-run, every statement skips what's already there)
+     before rep phone will save without erroring in production.
 
 ---
 
