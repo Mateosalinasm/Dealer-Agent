@@ -81,9 +81,9 @@ export function dealStageInfo(done: Record<string, boolean>): DealStageInfo {
   };
 }
 
-export type PipelineTab = "working" | "funding" | "booked" | "funded" | "all" | "archived";
+export type PipelineTab = "working" | "funding" | "booked" | "funded" | "archived";
 
-/** YYYY-MM for grouping deals by month on the pipeline board's "All this month" tab. */
+/** YYYY-MM for grouping deals by month on the pipeline board. */
 export function monthOf(dateLike: string | Date): string {
   const d = typeof dateLike === "string" ? new Date(dateLike) : dateLike;
   return d.toISOString().slice(0, 7);

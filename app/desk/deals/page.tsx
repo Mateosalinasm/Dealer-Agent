@@ -20,16 +20,15 @@ export const dynamic = "force-dynamic";
 
 const HEALTH_ORDER: Record<"red" | "yellow" | "green", number> = { red: 0, yellow: 1, green: 2 };
 
-const TAB_LABEL: Record<PipelineTab | "all", string> = {
+const TAB_LABEL: Record<PipelineTab, string> = {
   working: "Working",
   funding: "In funding",
   booked: "Booked",
   funded: "Funded",
-  all: "All this month",
   archived: "Archived",
 };
 
-const TABS: (PipelineTab | "all")[] = ["working", "funding", "booked", "funded", "all", "archived"];
+const TABS: PipelineTab[] = ["working", "funding", "booked", "funded", "archived"];
 
 const STAGE_TONE = ["info", "caution", "positive"] as const;
 
@@ -79,7 +78,7 @@ export default async function DealsPage({
   const currentMonth = monthOf(today);
   const isCurrentMonth = targetMonth === currentMonth;
 
-  const counts: Record<(typeof TABS)[number], number> = { working: 0, funding: 0, booked: 0, funded: 0, all: 0, archived: 0 };
+  const counts: Record<(typeof TABS)[number], number> = { working: 0, funding: 0, booked: 0, funded: 0, archived: 0 };
 
   const withFacts = deals.map((deal) => {
     const vehicle = deal.vehicleId ? (vehicleById.get(deal.vehicleId) ?? null) : null;
@@ -94,21 +93,20 @@ export default async function DealsPage({
   const monthDeals = withFacts.filter((r) => r.bucket !== "archived" && r.month === targetMonth);
   const monthTotal = monthDeals.reduce((sum, r) => sum + (metric === "commission" ? (r.deal.commission ?? 0) : (r.facts.totalGross ?? 0)), 0);
 
-  // Every tab is scoped to the selected month (via the ‹ › nav above), not
-  // just "All this month" — a deal's month comes from its dealDate, an
-  // archived deal's from when it was archived. Picking October must not
-  // show September's deals on any tab.
+  // Every tab is scoped to the selected month (via the ‹ › nav above) — a
+  // deal's month comes from its dealDate, an archived deal's from when it
+  // was archived. Picking October must not show September's deals on any
+  // tab.
   const monthOf_ = (row: (typeof withFacts)[number]) =>
     row.bucket === "archived" ? monthOf(row.deal.archivedAt ?? row.deal.createdAt) : row.month;
 
   withFacts.forEach((r) => {
     if (monthOf_(r) !== targetMonth) return;
-    if (r.bucket !== "archived") counts.all++;
     counts[r.bucket]++;
   });
 
   const rows = withFacts
-    .filter((row) => (tab === "all" ? row.bucket !== "archived" : row.bucket === tab) && monthOf_(row) === targetMonth)
+    .filter((row) => row.bucket === tab && monthOf_(row) === targetMonth)
     .sort((a, b) => {
       if (sort === "urgent") {
         const diff = HEALTH_ORDER[a.health.status] - HEALTH_ORDER[b.health.status];

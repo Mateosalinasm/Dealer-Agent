@@ -31,7 +31,6 @@ const NAV: NavGroup[] = [
       { label: "In funding", href: "/desk/deals?tab=funding" },
       { label: "Booked", href: "/desk/deals?tab=booked" },
       { label: "Funded", href: "/desk/deals?tab=funded" },
-      { label: "All this month", href: "/desk/deals?tab=all" },
       { label: "Archived", href: "/desk/deals?tab=archived" },
     ],
   },
