@@ -16,13 +16,16 @@ const pool =
     connectionString: process.env.DATABASE_URL,
     // Supabase's pooler requires SSL; local Postgres doesn't offer it.
     ssl: isLocal ? undefined : { rejectUnauthorized: false },
-    // A single operator generates very little real concurrency — a small
-    // pool avoids opening more connections against Supabase's own pgbouncer
-    // pooler than this app will ever use at once. keepAlive stops those
-    // connections from going stale and needing a fresh TLS handshake (the
-    // main source of the "click a deal, wait a second" lag) the next time a
-    // warm serverless instance reuses this pool after sitting idle.
-    max: 5,
+    // A single operator generates very little concurrency across separate
+    // requests, but one request can still fire several queries at once —
+    // the deal detail view alone runs 8 in a single Promise.all. max needs
+    // to clear that comfortably or queries start queuing for a free
+    // connection *inside* what's supposed to be one parallel batch, adding
+    // a full extra round trip to the slowest ones. keepAlive stops pooled
+    // connections from going stale and needing a fresh TLS handshake the
+    // next time a warm serverless instance reuses this pool after sitting
+    // idle.
+    max: 15,
     keepAlive: true,
     connectionTimeoutMillis: 10_000,
   });

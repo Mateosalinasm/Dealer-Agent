@@ -211,22 +211,25 @@ export default async function DealsPage({
             const incomeDocs = incomeDocsByDeal.get(deal.id) ?? [];
 
             return (
-              <Card key={deal.id} className="flex flex-col gap-3">
-                <div className="flex items-start gap-3">
-                  {/* The badges below are real <button>s (Dialog triggers) —
-                      nesting them inside an <a> is invalid HTML and makes
-                      click handling unreliable (a stopPropagation() wrapper
-                      used to sit here, but clicks could still fall through
-                      to the browser's native anchor navigation instead of
-                      opening the dialog). Link is a same-size absolute
-                      sibling behind the real content instead, and the
-                      content layer is pointer-events-none so clicks pass
-                      straight through it to the link underneath — except
-                      the badges, which opt back in with pointer-events-auto
-                      so they still catch their own clicks. */}
-                  <div className="relative min-w-0 flex-1">
-                    <Link href={`/desk/deals/${deal.id}`} className="absolute inset-0 z-0" aria-label={`Open ${deal.customerName || "deal"}`} />
-                    <div className="relative z-10 pointer-events-none">
+              <Card key={deal.id} className="relative flex flex-col gap-3">
+                {/* Covers the whole card so clicking anywhere opens the deal
+                    — not just the customer-name block. It has to be a
+                    sibling behind the real content (not a wrapper), because
+                    nesting the badges' and checklist's real <button>s inside
+                    an <a> is invalid HTML and makes their clicks
+                    unreliable (see the credit-grade/income badge fix). The
+                    content layer is pointer-events-none so clicks fall
+                    through empty space to the link underneath; anything
+                    genuinely interactive (badges, the board checklist,
+                    Archive) opts back in with pointer-events-auto. */}
+                <Link
+                  href={`/desk/deals/${deal.id}`}
+                  className="absolute inset-0 z-0 rounded-[var(--radius-card)]"
+                  aria-label={`Open ${deal.customerName || "deal"}`}
+                />
+                <div className="relative z-10 flex flex-col gap-3 pointer-events-none">
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
                         <span className="truncate text-[14.5px] font-semibold text-[var(--color-text)]">{deal.customerName}</span>
                         <span className="pointer-events-auto inline-flex flex-none items-center gap-1">
@@ -256,37 +259,39 @@ export default async function DealsPage({
                       </div>
                       <div className="text-[11.5px] text-[var(--color-text-placeholder)]">{deal.idType ?? "US ID"}</div>
                     </div>
+                    <ProgressRing pct={info.pct} />
                   </div>
-                  <ProgressRing pct={info.pct} />
-                </div>
 
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <Badge tone={STAGE_TONE[stageIdx]}>{stageName.toUpperCase()}</Badge>
-                  {openStips > 0 && (
-                    <span className="inline-flex items-center gap-1 rounded-[var(--radius-pill)] bg-[var(--color-caution-bg)] px-2 py-1 text-[10.5px] font-semibold text-[var(--color-caution-text)]">
-                      <TriangleAlert size={10} />
-                      {openStips} STIP{openStips === 1 ? "" : "S"} OUT
-                    </span>
-                  )}
-                  <span className="ml-auto flex-none text-[11px] text-[var(--color-text-muted)]">{hoursOnDesk(deal.createdAt)}</span>
-                </div>
-
-                <div className="rounded-[var(--radius-panel)] bg-[#1d1d1f] p-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">Next action</span>
-                    <span className="ml-auto rounded-full px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-[.04em]" style={{ background: nextBucket.bg, color: nextBucket.fg }}>
-                      {nextBucket.label}
-                    </span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <Badge tone={STAGE_TONE[stageIdx]}>{stageName.toUpperCase()}</Badge>
+                    {openStips > 0 && (
+                      <span className="inline-flex items-center gap-1 rounded-[var(--radius-pill)] bg-[var(--color-caution-bg)] px-2 py-1 text-[10.5px] font-semibold text-[var(--color-caution-text)]">
+                        <TriangleAlert size={10} />
+                        {openStips} STIP{openStips === 1 ? "" : "S"} OUT
+                      </span>
+                    )}
+                    <span className="ml-auto flex-none text-[11px] text-[var(--color-text-muted)]">{hoursOnDesk(deal.createdAt)}</span>
                   </div>
-                  <div className="mt-1 text-[13px] font-semibold text-white">{next.label}</div>
-                  <BoardChecklistPreview dealId={deal.id} remaining={remainingPreview} />
-                </div>
 
-                <form action={setDealArchived.bind(null, deal.id, !deal.archived)} className="self-end">
-                  <button type="submit" className="text-[11px] font-semibold text-[var(--color-text-muted)] hover:underline">
-                    {deal.archived ? "Restore" : "Archive"}
-                  </button>
-                </form>
+                  <div className="rounded-[var(--radius-panel)] bg-[#1d1d1f] p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">Next action</span>
+                      <span className="ml-auto rounded-full px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-[.04em]" style={{ background: nextBucket.bg, color: nextBucket.fg }}>
+                        {nextBucket.label}
+                      </span>
+                    </div>
+                    <div className="mt-1 text-[13px] font-semibold text-white">{next.label}</div>
+                    <div className="pointer-events-auto">
+                      <BoardChecklistPreview dealId={deal.id} remaining={remainingPreview} />
+                    </div>
+                  </div>
+
+                  <form action={setDealArchived.bind(null, deal.id, !deal.archived)} className="pointer-events-auto self-end">
+                    <button type="submit" className="text-[11px] font-semibold text-[var(--color-text-muted)] hover:underline">
+                      {deal.archived ? "Restore" : "Archive"}
+                    </button>
+                  </form>
+                </div>
               </Card>
             );
           })}
