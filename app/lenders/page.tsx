@@ -50,6 +50,14 @@ export default async function LendersPage() {
               <Label htmlFor="repPhone">Rep phone (optional)</Label>
               <Input id="repPhone" name="repPhone" type="tel" placeholder="(555) 555-0123" />
             </div>
+            <div>
+              <Label htmlFor="address">Address (optional)</Label>
+              <Input id="address" name="address" placeholder="For insurance lienholder matching" />
+            </div>
+            <div>
+              <Label htmlFor="maxDeductibleDollars">Max insurance deductible ($)</Label>
+              <Input id="maxDeductibleDollars" name="maxDeductibleDollars" type="number" step="1" min={0} defaultValue={1000} />
+            </div>
           </div>
           <div>
             <Label htmlFor="notes">Notes (optional)</Label>

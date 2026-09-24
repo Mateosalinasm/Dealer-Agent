@@ -148,12 +148,36 @@ export const autocheckSchema = z.object({
   notes: z.string().nullable(),
 });
 
+export const insuranceSchema = z.object({
+  insuredName: z.string().nullable(),
+  policyNumber: z.string().nullable(),
+  effectiveDate: z.string().nullable().describe("ISO date if present"),
+  expirationDate: z.string().nullable().describe("ISO date if present"),
+  drivers: looseArray(z.object({ name: z.string().nullable() })),
+  vehicles: looseArray(
+    z.object({
+      vin: z.string().nullable(),
+      year: z.number().int().nullable(),
+      make: z.string().nullable(),
+      model: z.string().nullable(),
+      comprehensiveDeductibleCents: z.number().int().nullable(),
+      collisionDeductibleCents: z.number().int().nullable(),
+    }),
+  ),
+  lienholder: z.object({
+    name: z.string().nullable(),
+    address: z.string().nullable(),
+  }),
+  notes: z.string().nullable(),
+});
+
 export const EXTRACTION_SCHEMAS = {
   turbopass: turbopassSchema,
   bank_statement: bankStatementSchema,
   credit_report: creditReportSchema,
   credit_app: creditAppSchema,
   autocheck: autocheckSchema,
+  insurance: insuranceSchema,
 } as const;
 
 export type ExtractableCategory = keyof typeof EXTRACTION_SCHEMAS;

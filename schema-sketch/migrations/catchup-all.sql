@@ -424,3 +424,8 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN null; END $$;
 CREATE INDEX IF NOT EXISTS "marketing_posts_vehicle_idx" ON "marketing_posts" USING btree ("vehicle_id");
 CREATE UNIQUE INDEX IF NOT EXISTS "marketing_posts_vehicle_platform_lang_idx" ON "marketing_posts" USING btree ("vehicle_id","platform","language");
+
+-- --- 0017 ---
+ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "lienholder_name" text;
+ALTER TABLE "lenders" ADD COLUMN IF NOT EXISTS "address" text;
+ALTER TABLE "lenders" ADD COLUMN IF NOT EXISTS "max_deductible_cents" integer DEFAULT 100000 NOT NULL;

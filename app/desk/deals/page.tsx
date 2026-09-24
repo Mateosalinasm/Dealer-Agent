@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ProgressRing } from "@/components/progress-ring";
 import { CreditGradeBadge } from "@/components/credit-grade-modal";
 import { IncomeReportBadge } from "@/components/income-report-badge";
+import { InsuranceBadge } from "@/components/insurance-badge";
 import { BoardChecklistPreview } from "@/components/board-checklist-preview";
 import { SortMenu, type SortKey } from "@/components/sort-menu";
 import { formatCents } from "@/lib/utils";
@@ -70,6 +71,13 @@ export default async function DealsPage({
     const list = incomeDocsByDeal.get(doc.dealId);
     if (list) list.push(doc);
     else incomeDocsByDeal.set(doc.dealId, [doc]);
+  }
+  const insuranceDocsByDeal = new Map<string, DocumentRow[]>();
+  for (const doc of documents) {
+    if (!doc.dealId || doc.category !== "insurance") continue;
+    const list = insuranceDocsByDeal.get(doc.dealId);
+    if (list) list.push(doc);
+    else insuranceDocsByDeal.set(doc.dealId, [doc]);
   }
 
   const today = new Date();
@@ -207,6 +215,7 @@ export default async function DealsPage({
             const lenderName = deal.lenderId ? (lenderById.get(deal.lenderId)?.name ?? "Lender") : null;
             const snapshot = snapshotByDeal.get(deal.id) ?? { monthlyIncomeCents: null, incomeSource: null };
             const incomeDocs = incomeDocsByDeal.get(deal.id) ?? [];
+            const insuranceDocs = insuranceDocsByDeal.get(deal.id) ?? [];
 
             return (
               <Card key={deal.id} className="relative flex flex-col gap-3">
@@ -238,6 +247,14 @@ export default async function DealsPage({
                             incomeSource={snapshot.incomeSource}
                             monthlyIncomeCents={snapshot.monthlyIncomeCents}
                             documents={incomeDocs}
+                          />
+                          <InsuranceBadge
+                            dealId={deal.id}
+                            customerName={deal.customerName ?? ""}
+                            lienholderName={deal.lienholderName}
+                            vehicleVin={vehicle?.vin ?? null}
+                            lenders={lenders}
+                            documents={insuranceDocs}
                           />
                         </span>
                         {vehicle && (

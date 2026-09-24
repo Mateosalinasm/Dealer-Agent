@@ -80,6 +80,12 @@ export const lenders = pgTable('lenders', {
   repPhone: text('rep_phone'),
   notes: text('notes'),
   active: boolean('active').notNull().default(true),
+  // Insurance verification (lib/insurance-verification.ts) matches an
+  // uploaded declaration page's lienholder address against this, and caps
+  // the deductible at this unless the deal's lender overrides it (Veros ->
+  // $1,500 instead of the $1,000 default) — set per lender, never guessed.
+  address: text('address'),
+  maxDeductibleCents: integer('max_deductible_cents').notNull().default(100_000),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -193,6 +199,11 @@ export const deals = pgTable('deals', {
   // Application facts used by dealHealth/nextAction/ptiCalc (lib/deal-facts.ts).
   statedAddress: text('stated_address'),
   idType: text('id_type'),
+  // What insurance verification (lib/insurance-verification.ts) matches an
+  // uploaded declaration page's lienholder against — entered by hand since
+  // it's whichever bank actually funds the deal, not necessarily the
+  // dealer's own `lenderId` pick (a deal can be submitted to several).
+  lienholderName: text('lienholder_name'),
   statedIncome: integer('stated_income'),
   verifiedIncome: integer('verified_income'),
   // Credit report facts — manual entry until document extraction is

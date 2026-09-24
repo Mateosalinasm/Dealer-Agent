@@ -37,6 +37,8 @@ interface LenderRow {
   name: string;
   contact: string | null;
   repPhone: string | null;
+  address: string | null;
+  maxDeductibleCents: number;
   notes: string | null;
   active: boolean;
 }
@@ -60,6 +62,8 @@ export function LenderCard({ lender, programs, guidelinesDocs }: { lender: Lende
               {lender.repPhone}
             </a>
           )}
+          {lender.address && <div className="mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">{lender.address}</div>}
+          <div className="mt-0.5 text-[11px] text-[var(--color-text-placeholder)]">Max deductible: ${(lender.maxDeductibleCents / 100).toFixed(0)}</div>
         </div>
         <div className="flex flex-none items-center gap-1.5">
           <form action={setLenderActive.bind(null, lender.id, !lender.active)}>
@@ -99,6 +103,22 @@ export function LenderCard({ lender, programs, guidelinesDocs }: { lender: Lende
           <div>
             <Label htmlFor={`rep-phone-${lender.id}`}>Rep phone</Label>
             <Input id={`rep-phone-${lender.id}`} name="repPhone" type="tel" placeholder="(555) 555-0123" defaultValue={lender.repPhone ?? ""} />
+          </div>
+          <div>
+            <Label htmlFor={`address-${lender.id}`}>Address</Label>
+            <Input id={`address-${lender.id}`} name="address" placeholder="Where this lender's lien releases/payoffs go" defaultValue={lender.address ?? ""} />
+          </div>
+          <div>
+            <Label htmlFor={`deductible-${lender.id}`}>Max insurance deductible ($)</Label>
+            <Input
+              id={`deductible-${lender.id}`}
+              name="maxDeductibleDollars"
+              type="number"
+              step="1"
+              min={0}
+              defaultValue={lender.maxDeductibleCents / 100}
+            />
+            <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">Used by insurance verification — comprehensive/collision deductible can&apos;t exceed this.</p>
           </div>
           <div>
             <Label htmlFor={`lnotes-${lender.id}`}>Notes</Label>

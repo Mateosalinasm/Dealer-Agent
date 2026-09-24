@@ -112,6 +112,16 @@ it to inventory — see "Done this session" for the full rundown, and
 **this one also needs `catchup-all.sql` run against Supabase** (new
 `marketing_posts` table plus three new `vehicles` columns).
 
+**Round 9**: removed the "All this month" tab (redundant with the month
+strip above it), added a standalone PTI calculator, redesigned the stage
+checklist to match a mockup you sent (numbered badges, circular
+checkmarks, per-stage "Check all" pills), and built insurance
+verification — see "Done this session" for the full rundown. **Needs the
+same Supabase step as the last two rounds**: `catchup-all.sql` now also
+adds `lenders.address`, `lenders.max_deductible_cents`, and
+`deals.lienholder_name` — insurance verification won't work in
+production until that runs.
+
 ## How to read this file
 
 - **Needs your call** — genuine business/product decisions I set aside instead
@@ -494,6 +504,65 @@ it to inventory — see "Done this session" for the full rundown, and
      `vehicles` columns (`fuel_type`, `is_three_row_suv`,
      `marketing_status`) — nothing here works in production until that
      runs.
+- **Round 9:**
+  1. Removed the "All this month" tab from both the nav flyout and the
+     deals board — it duplicated the month strip already sitting above
+     the board (‹ Month › with its own total), so it was one more tab
+     that didn't add anything.
+  2. **Standalone PTI calculator** (nav: Tools, next to the out-of-state
+     calculator) — same payment-to-income formula the deal page already
+     used, refactored into `ptiCalc()` taking plain inputs instead of a
+     full deal row, so it works with or without a deal attached.
+     Confirmed the existing deal-bound caller behaves identically after
+     the refactor.
+  3. **Stage checklist redesign** to match a mockup you sent: numbered
+     circular badges per stage, a "Next: <step>" subtitle, circular
+     checkmark icons instead of square checkboxes, and pill-shaped
+     "Check all" buttons — same underlying data, purely a visual rebuild
+     of the existing `AccordionSection` primitive (extended with
+     optional badge/trailing slots rather than forked, so its other 5
+     callers elsewhere in the app are untouched).
+  4. **Auto-check on document upload** — uploading a credit report now
+     checks "Pull credit" and uploading a TurboPass now checks "Verify
+     income" immediately, without waiting on (or needing) AI extraction
+     to succeed — getting the document is what the step means, whether
+     or not extraction is configured. Never un-checks a step that's
+     already done.
+  5. **Insurance verification** — new shield-icon badge next to the
+     credit-grade and income badges, both on the board cards and inside
+     a deal, gray until a declarations page is uploaded and analyzed,
+     green once it checks out, red the moment something doesn't match
+     (click it for exactly what's wrong). Everything it checks is a
+     fixed rule from you, never left to the AI to judge — the AI only
+     transcribes what's on the page (`lib/extraction.ts`'s insurance
+     prompt); `lib/insurance-verification.ts` does the actual matching:
+     - Lienholder name on the declaration has to match the lienholder
+       name you enter on the deal (new field, right in the badge), and
+       that lienholder's address (pulled from its matching row in
+       Lenders) has to match too.
+     - Comprehensive and collision deductibles each have to be at or
+       under that lender's max-deductible figure — new field on each
+       Lenders row, defaults to $1,000, raise it per-lender for anyone
+       who allows more (e.g. Veros at $1,500, per what you said).
+     - The deal's customer has to be listed as a driver on the policy.
+     - The vehicle being financed has to be on the policy, matched by
+       VIN.
+     Verified end to end against a real Postgres and a real `next start`
+     build: seeded a matching declaration (all 4 checks pass) — badge
+     green on both the board and the deal page, dialog shows "Verified,"
+     lienholder field pre-filled; then seeded a mismatched one (deductible
+     over Veros's $1,500 limit, wrong lienholder address, driver not
+     listed) — badge red in both places, dialog lists all three issues
+     with the exact numbers/names that didn't match. Also confirmed the
+     credit/income auto-check (item 4 above) via a real upload through
+     the UI, not just reading the code. All test data cleaned up after.
+     **Couldn't test the live AI reading a real declarations page** — no
+     `ANTHROPIC_API_KEY` in this sandbox, same limitation as Deal Copilot,
+     marketing copy, and every other AI-extraction feature this session;
+     the matching logic itself (the part that actually decides pass/fail)
+     is fully verified against seeded extraction data shaped exactly like
+     what the AI returns for every other document category. **Needs the
+     Supabase migration** — see the Round 9 note at the top of this file.
 
 ---
 

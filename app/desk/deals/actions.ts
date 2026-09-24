@@ -224,6 +224,15 @@ export async function setVerifiedIncome(dealId: string, cents: number) {
   revalidatePath("/desk/deals");
 }
 
+// What insurance verification (lib/insurance-verification.ts) matches an
+// uploaded declaration page's lienholder against — see that module for why
+// it's a plain typed-in field rather than always the deal's own lenderId.
+export async function updateLienholder(dealId: string, name: string) {
+  await db.update(schema.deals).set({ lienholderName: name.trim() || null }).where(eq(schema.deals.id, dealId));
+  revalidatePath(`/desk/deals/${dealId}`);
+  revalidatePath("/desk/deals");
+}
+
 // Money & trade — backEndGross is recomputed here (warranty + gapIns -
 // backEndCost) so app/desk/analytics, which reads that column directly,
 // doesn't need to change.
@@ -437,11 +446,22 @@ export async function toggleStip(dealId: string, index: number) {
 // so the pre-existing inventory-sold-sync and buy-scorecard turn-time
 // code (which read those columns, not `done`) keep working unchanged.
 export async function toggleDealStep(dealId: string, stepId: string) {
+  await setDealStep(dealId, stepId, null);
+}
+
+// Shared by the manual toggle above and the auto-check-on-upload callers
+// below — `value` null means "flip whatever it is now" (the manual
+// checkbox), a boolean forces it one way regardless of current state
+// (auto-checking a step never un-checks it if it's already done, e.g. a
+// second document upload). Every other side effect (funded automation,
+// vehicle sold sync, log) stays identical for both call shapes.
+async function setDealStep(dealId: string, stepId: string, value: boolean | null) {
   const today = todayInTimezone(await getDealershipTimezone());
   const [deal] = await db.select().from(schema.deals).where(eq(schema.deals.id, dealId)).limit(1);
   if (!deal) return;
 
-  const nowDone = !deal.done[stepId];
+  const nowDone = value ?? !deal.done[stepId];
+  if (value != null && deal.done[stepId] === value) return; // already in the target state, nothing to do
   const done = { ...deal.done, [stepId]: nowDone };
   const { stageIdx } = dealStageInfo(done);
   const funded = !!done.funded;
@@ -520,6 +540,14 @@ export async function uploadDocument(dealId: string, formData: FormData) {
     mimeType: file.type || null,
     fileSize,
   });
+
+  // The file itself, not a successful AI read of it, is what the checklist
+  // step means — pulling credit or verifying income is something the
+  // finance manager already did by getting the document, whether or not
+  // extraction is configured/succeeds. Never unchecks (setDealStep(...,
+  // true) is a no-op if it's already done).
+  if (category === "credit_report") await setDealStep(dealId, "credit", true);
+  if (category === "turbopass") await setDealStep(dealId, "income", true);
 
   revalidatePath(`/desk/deals/${dealId}`);
 }

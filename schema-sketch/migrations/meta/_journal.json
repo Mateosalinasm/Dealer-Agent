@@ -120,6 +120,13 @@
       "when": 1790232029744,
       "tag": "0016_odd_lady_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790235934715,
+      "tag": "0017_nappy_gauntlet",
+      "breakpoints": true
     }
   ]
 }

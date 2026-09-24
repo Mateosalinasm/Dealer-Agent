@@ -28,12 +28,16 @@ export async function createLender(formData: FormData) {
     name: formData.get("name"),
     contact: formData.get("contact") ?? "",
     repPhone: formData.get("repPhone") ?? "",
+    address: formData.get("address") ?? "",
+    maxDeductibleDollars: formData.get("maxDeductibleDollars") || 1000,
     notes: formData.get("notes") ?? "",
   });
   await db.insert(schema.lenders).values({
     name: parsed.name,
     contact: parsed.contact || null,
     repPhone: parsed.repPhone || null,
+    address: parsed.address || null,
+    maxDeductibleCents: Math.round(parsed.maxDeductibleDollars * 100),
     notes: parsed.notes || null,
   });
   revalidatePath("/lenders");
@@ -44,11 +48,20 @@ export async function updateLender(lenderId: string, formData: FormData) {
     name: formData.get("name"),
     contact: formData.get("contact") ?? "",
     repPhone: formData.get("repPhone") ?? "",
+    address: formData.get("address") ?? "",
+    maxDeductibleDollars: formData.get("maxDeductibleDollars") || 1000,
     notes: formData.get("notes") ?? "",
   });
   await db
     .update(schema.lenders)
-    .set({ name: parsed.name, contact: parsed.contact || null, repPhone: parsed.repPhone || null, notes: parsed.notes || null })
+    .set({
+      name: parsed.name,
+      contact: parsed.contact || null,
+      repPhone: parsed.repPhone || null,
+      address: parsed.address || null,
+      maxDeductibleCents: Math.round(parsed.maxDeductibleDollars * 100),
+      notes: parsed.notes || null,
+    })
     .where(eq(schema.lenders.id, lenderId));
   revalidatePath("/lenders");
 }

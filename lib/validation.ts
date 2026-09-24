@@ -116,6 +116,8 @@ export const lenderSchema = z.object({
   name: z.string().trim().min(1, "Name is required"),
   contact: z.string().optional(),
   repPhone: z.string().optional(),
+  address: z.string().optional(),
+  maxDeductibleDollars: z.coerce.number().min(0).default(1000),
   notes: z.string().optional(),
 });
 

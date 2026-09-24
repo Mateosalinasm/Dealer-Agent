@@ -20,6 +20,7 @@ import { PtiSection } from "@/components/pti-section";
 import { CustomerSection } from "@/components/customer-section";
 import { CreditGradeBadge } from "@/components/credit-grade-modal";
 import { IncomeReportBadge } from "@/components/income-report-badge";
+import { InsuranceBadge } from "@/components/insurance-badge";
 import { getUnderwritingSnapshot } from "@/lib/deal-underwriting";
 import { dealFacts, dealApr, dealTerm, ptiCalc, PTI_TARGETS } from "@/lib/deal-facts";
 import { dealHealth, nextAction, bucketOf } from "@/lib/deal-health";
@@ -123,6 +124,7 @@ export async function DealDetailView({ id }: { id: string }) {
 
   const creditReportDocs = documents.filter((d) => d.category === "credit_report");
   const incomeDocs = documents.filter((d) => d.category === "turbopass" || d.category === "bank_statement");
+  const insuranceDocs = documents.filter((d) => d.category === "insurance");
 
   return (
     <div>
@@ -137,6 +139,14 @@ export async function DealDetailView({ id }: { id: string }) {
               incomeSource={snapshot.incomeSource}
               monthlyIncomeCents={snapshot.monthlyIncomeCents}
               documents={incomeDocs}
+            />
+            <InsuranceBadge
+              dealId={id}
+              customerName={deal.customerName ?? ""}
+              lienholderName={deal.lienholderName}
+              vehicleVin={vehicle?.vin ?? null}
+              lenders={lenders}
+              documents={insuranceDocs}
             />
           </div>
           <div className="mt-1 flex items-center gap-2 text-[12.5px] text-[var(--color-text-muted)]">

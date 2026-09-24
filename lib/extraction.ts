@@ -73,6 +73,15 @@ const CATEGORY_INSTRUCTIONS: Record<ExtractableCategory, string> = {
     "trim, current mileage, title brand, owner count, and reported accident count. List every " +
     "odometer reading in the report with its date and source, in the order the report gives them, " +
     "and set odometerConsistent to false if any later reading is lower than an earlier one.",
+  insurance:
+    "This is an auto insurance declarations page. Extract the insured's name, policy number, and " +
+    "effective/expiration dates. List EVERY driver named on the policy in `drivers` — not just the " +
+    "primary insured. List EVERY vehicle covered in `vehicles`, each with its VIN, year/make/model, " +
+    "and its comprehensive and collision deductibles as separate cents figures (if the page shows " +
+    "one combined deductible for both, use that same figure for both fields). Extract the " +
+    "lienholder/loss-payee's name and full mailing address exactly as printed, usually in a " +
+    "'Lienholder' or 'Loss Payee' section — leave both null if there's no lienholder listed on the " +
+    "page at all.",
 };
 
 export interface ExtractionResult<C extends ExtractableCategory> {

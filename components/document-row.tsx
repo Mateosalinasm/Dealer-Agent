@@ -205,5 +205,21 @@ function ExtractedSummary({ category, data }: { category: ExtractableCategory; d
     );
   }
 
+  if (category === "insurance") {
+    const d = parsed.data as (typeof EXTRACTION_SCHEMAS)["insurance"]["_output"];
+    return (
+      <div className="mt-2 rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)] p-3">
+        {row("Insured", d.insuredName)}
+        {row("Policy #", d.policyNumber)}
+        {row("Effective", d.effectiveDate)}
+        {row("Lienholder", d.lienholder.name)}
+        {row("Drivers", d.drivers.length || null)}
+        {row("Vehicles covered", d.vehicles.length || null)}
+        {d.notes && <p className="mt-1.5 text-[11px] italic text-[var(--color-text-muted)]">{d.notes}</p>}
+        <p className="mt-1.5 text-[10.5px] text-[var(--color-text-placeholder)]">Full match results are above, in the insurance verification card.</p>
+      </div>
+    );
+  }
+
   return null;
 }
