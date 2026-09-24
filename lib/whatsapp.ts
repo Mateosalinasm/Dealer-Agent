@@ -24,6 +24,23 @@ export interface SendResult {
   error?: string;
 }
 
+// WhatsApp Business (via Twilio) only allows free-form text as a *reply*
+// within 24 hours of the customer's last inbound message — that's Meta's
+// own anti-spam policy, not something this app controls. Starting a new
+// conversation, or messaging someone again after that 24-hour window
+// closes, requires a pre-approved Message Template (a "ContentSid" in
+// Twilio's terms), which this integration doesn't send yet. Twilio's own
+// error for this ("ContentSid Required" / error 63016) is accurate but
+// meaningless without that context, so translate it into something
+// actionable instead of showing it raw.
+function explainTwilioError(data: { message?: string; code?: number }): string {
+  const raw = data?.message ?? "";
+  if (data?.code === 63016 || /contentsid/i.test(raw)) {
+    return "WhatsApp needs an approved message template to start a new conversation or reply after 24 hours of silence — free text only works as a reply within 24 hours of their last message to you. Set up an approved template in the Twilio Console to send outside that window.";
+  }
+  return raw || "Twilio couldn't send this message.";
+}
+
 export async function sendWhatsAppMessage(toE164: string, body: string): Promise<SendResult> {
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
@@ -49,7 +66,7 @@ export async function sendWhatsAppMessage(toE164: string, body: string): Promise
     });
     const data = await res.json();
     if (!res.ok) {
-      return { ok: false, error: data?.message ?? `Twilio returned ${res.status}` };
+      return { ok: false, error: explainTwilioError(data) };
     }
     return { ok: true, providerMessageId: data.sid };
   } catch (err) {

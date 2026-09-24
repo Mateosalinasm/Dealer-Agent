@@ -446,6 +446,21 @@ Built with plain `fetch()` against Twilio's REST API, not the `twilio` npm
 package — didn't want to add a dependency I couldn't exercise without your
 credentials. Easy to swap in the SDK later if the raw HTTP feels thin.
 
+**"WhatsApp needs an approved message template..." error when sending**:
+this isn't a bug — it's Meta's own policy for WhatsApp Business, not
+something this app controls or can work around. Free-form text (what
+`/messages` sends today) only works as a *reply*, within 24 hours of the
+other person's last message to you. Starting a brand-new conversation, or
+messaging someone again after 24 hours of silence, requires a pre-approved
+Message Template — Twilio calls it a "ContentSid." To send outside that
+window: Twilio Console → Messaging → Content Template Builder, create a
+template, submit it to Meta for approval (usually fast, sometimes up to a
+day), then this app would need the approved template's SID wired in
+(not built yet — ask if you want it). Until then, this app's outbound
+WhatsApp (sold automation, referral message, daily desk brief, post-sale
+check-ins) works reliably for anyone who's messaged you within the last 24
+hours, and will hit this same error for anyone who hasn't.
+
 ### Google Calendar
 1. In [console.cloud.google.com](https://console.cloud.google.com), create
    a project (or use an existing one), enable the "Google Calendar API",
