@@ -21,7 +21,7 @@ export const dynamic = "force-dynamic";
 const HEALTH_ORDER: Record<"red" | "yellow" | "green", number> = { red: 0, yellow: 1, green: 2 };
 
 const TAB_LABEL: Record<PipelineTab | "all", string> = {
-  working: "Dashboard",
+  working: "Working",
   funding: "In funding",
   booked: "Booked",
   funded: "Funded",

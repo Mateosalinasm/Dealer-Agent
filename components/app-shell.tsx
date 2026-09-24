@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
-import { ChevronDown, Menu, X } from "lucide-react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { Calculator, Car, ClipboardList, Gavel, Home, Kanban, Landmark, Megaphone, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -14,14 +14,18 @@ interface NavItem {
 
 interface NavGroup {
   label: string;
+  icon: React.ComponentType<{ size?: number }>;
   items: NavItem[];
 }
 
-// Six top-level sections, each collapsed to its subcategories until opened
-// — fewer things on screen at once than a flat, always-expanded list.
+// One rail icon per section — click opens a flyout with that section's
+// links, like DealerCenter's sidebar. Kept flat (no third nesting level):
+// every group here already has few enough items that a flyout list reads
+// fine without its own sub-groups.
 const NAV: NavGroup[] = [
   {
-    label: "Dashboard",
+    label: "Deals",
+    icon: Kanban,
     items: [
       { label: "Working", href: "/desk/deals?tab=working" },
       { label: "In funding", href: "/desk/deals?tab=funding" },
@@ -33,10 +37,12 @@ const NAV: NavGroup[] = [
   },
   {
     label: "Inventory",
+    icon: Car,
     items: [{ label: "Inventory", href: "/inventory" }],
   },
   {
     label: "Sourcing",
+    icon: Gavel,
     items: [
       { label: "Auction watch-list", href: "/sourcing/watch-list" },
       { label: "Run list", href: "/sourcing/run-list" },
@@ -48,6 +54,7 @@ const NAV: NavGroup[] = [
   },
   {
     label: "Desk",
+    icon: ClipboardList,
     items: [
       { label: "Priority queue", href: "/desk/priority-queue" },
       { label: "Tasks", href: "/desk/tasks" },
@@ -57,6 +64,7 @@ const NAV: NavGroup[] = [
   },
   {
     label: "Marketing",
+    icon: Megaphone,
     items: [
       { label: "Marketing", href: "/marketing" },
       { label: "Leads", href: "/leads" },
@@ -64,19 +72,18 @@ const NAV: NavGroup[] = [
   },
   {
     label: "Tools",
+    icon: Calculator,
     items: [{ label: "Out-of-state calculator", href: "/out-of-state-calculator" }],
   },
   {
     label: "Lenders",
+    icon: Landmark,
     items: [
       { label: "All lenders", href: "/lenders" },
       { label: "Warranty & F&I products", href: "/warranty" },
     ],
   },
 ];
-
-// Not part of the six main sections — always visible, one line, no toggle.
-const UTILITY_ITEMS: NavItem[] = [{ label: "Integrations", href: "/settings" }];
 
 function navLinkClasses(active: boolean) {
   return cn(
@@ -85,95 +92,100 @@ function navLinkClasses(active: boolean) {
   );
 }
 
-// Reads the query string to highlight the active Deals tab, so it needs a
-// Suspense boundary — this renders inside the root layout on every route,
-// and without one Next.js can't statically prerender any page (e.g. 404).
-function NavLinks({ onNavigate }: { onNavigate: () => void }) {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const currentPath = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
-  const activeGroup = NAV.find((g) => g.items.some((i) => i.href.split("?")[0] === pathname))?.label ?? NAV[0].label;
-  const [openGroups, setOpenGroups] = useState<Set<string>>(() => new Set([activeGroup]));
-
-  function toggleGroup(label: string) {
-    setOpenGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(label)) next.delete(label);
-      else next.add(label);
-      return next;
-    });
-  }
-
-  return (
-    <>
-      {NAV.map((group) => {
-        const isOpen = openGroups.has(group.label);
-        return (
-          <div key={group.label}>
-            <button
-              type="button"
-              onClick={() => toggleGroup(group.label)}
-              className="flex w-full items-center justify-between rounded-[var(--radius-panel)] px-2 py-1.5 text-[10.5px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)] hover:bg-[var(--color-fill-subtle)] hover:text-[var(--color-text-muted)]"
-              aria-expanded={isOpen}
-            >
-              {group.label}
-              <ChevronDown size={13} className={cn("transition-transform duration-200", isOpen && "rotate-180")} />
-            </button>
-            <div className="grid transition-[grid-template-rows] duration-200 ease-out" style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}>
-              <div className="overflow-hidden">
-                <div className="flex flex-col gap-0.5 pb-1">
-                  {group.items.map((item) => (
-                    <Link key={item.href} href={item.href} onClick={onNavigate} className={navLinkClasses(currentPath === item.href)}>
-                      {item.label}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-      <div className="mt-1 flex flex-col gap-0.5 border-t border-[var(--color-hairline)] pt-2">
-        {UTILITY_ITEMS.map((item) => (
-          <Link key={item.href} href={item.href} onClick={onNavigate} className={navLinkClasses(currentPath === item.href)}>
-            {item.label}
-          </Link>
-        ))}
-      </div>
-    </>
+function railButtonClasses(active: boolean) {
+  return cn(
+    "relative flex h-11 w-11 flex-none items-center justify-center rounded-[var(--radius-panel)] text-[var(--color-text-muted)] transition-colors after:absolute after:-inset-1 after:content-['']",
+    active ? "bg-[var(--color-info-bg)] text-[var(--color-info-text)]" : "hover:bg-[var(--color-fill-subtle)] hover:text-[var(--color-text)]",
   );
 }
 
-function NavLinksFallback() {
+// Reads the query string to highlight the active Deals tab, so it needs a
+// Suspense boundary — this renders inside the root layout on every route,
+// and without one Next.js can't statically prerender any page (e.g. 404).
+function RailNav() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentPath = searchParams.toString() ? `${pathname}?${searchParams.toString()}` : pathname;
+  const activeGroupLabel = NAV.find((g) => g.items.some((i) => i.href.split("?")[0] === pathname))?.label ?? null;
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const railRef = useRef<HTMLDivElement>(null);
+
+  // Close the flyout on outside click / Escape — same dismissal pattern as
+  // the app's dialogs, just without Radix since this isn't a modal.
+  useEffect(() => {
+    if (!openGroup) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpenGroup(null);
+    }
+    function onPointerDown(e: PointerEvent) {
+      if (railRef.current && !railRef.current.contains(e.target as Node)) setOpenGroup(null);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [openGroup]);
+
+  const openGroupData = NAV.find((g) => g.label === openGroup);
+
   return (
-    <>
-      {NAV.map((group) => (
-        <div key={group.label}>
-          <div className="px-2 pb-1.5 text-[10.5px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">
-            {group.label}
+    <div ref={railRef} className="relative flex flex-col items-center gap-1 pt-1">
+      {NAV.map((group) => {
+        const Icon = group.icon;
+        const isActiveGroup = group.label === activeGroupLabel;
+        const isOpen = group.label === openGroup;
+        return (
+          <button
+            key={group.label}
+            type="button"
+            title={group.label}
+            aria-expanded={isOpen}
+            onClick={() => setOpenGroup((prev) => (prev === group.label ? null : group.label))}
+            className={railButtonClasses(isActiveGroup || isOpen)}
+          >
+            <Icon size={19} />
+          </button>
+        );
+      })}
+
+      {openGroupData && (
+        <div
+          className="absolute left-full top-0 z-30 ml-2 w-60 rounded-[var(--radius-card)] border border-[var(--color-hairline)] bg-[var(--color-surface)] p-2 shadow-[var(--shadow-card)] [animation:dialog-content-in_150ms_cubic-bezier(0.16,1,0.3,1)]"
+        >
+          <div className="px-2 pb-1.5 pt-1 text-[10.5px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">
+            {openGroupData.label}
           </div>
           <div className="flex flex-col gap-0.5">
-            {group.items.map((item) => (
-              <Link key={item.href} href={item.href} className={navLinkClasses(false)}>
+            {openGroupData.items.map((item) => (
+              <Link key={item.href} href={item.href} onClick={() => setOpenGroup(null)} className={navLinkClasses(currentPath === item.href)}>
                 {item.label}
               </Link>
             ))}
           </div>
         </div>
-      ))}
-      <div className="mt-1 flex flex-col gap-0.5 border-t border-[var(--color-hairline)] pt-2">
-        {UTILITY_ITEMS.map((item) => (
-          <Link key={item.href} href={item.href} className={navLinkClasses(false)}>
-            {item.label}
-          </Link>
-        ))}
-      </div>
-    </>
+      )}
+    </div>
+  );
+}
+
+function RailNavFallback() {
+  return (
+    <div className="flex flex-col items-center gap-1 pt-1">
+      {NAV.map((group) => {
+        const Icon = group.icon;
+        return (
+          <div key={group.label} title={group.label} className={railButtonClasses(false)}>
+            <Icon size={19} />
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
   const pathname = usePathname();
   // "New deal" belongs to the board you create deals from, not every
   // screen in the app.
@@ -181,52 +193,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      {open && (
-        <button
-          aria-label="Close menu"
-          onClick={() => setOpen(false)}
-          className="fixed inset-0 z-20 bg-black/20"
-        />
-      )}
+      <aside className="flex w-16 flex-none flex-col items-center border-r border-[var(--color-hairline)] bg-[var(--color-surface)] py-3">
+        <Link
+          href="/"
+          title="Home"
+          className={railButtonClasses(pathname === "/")}
+        >
+          <Home size={20} />
+        </Link>
 
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-30 flex w-64 -translate-x-full flex-col border-r border-[var(--color-hairline)] bg-[var(--color-surface)] transition-transform duration-200 ease-out",
-          open && "translate-x-0",
-        )}
-      >
-        <div className="flex flex-none items-center justify-between px-5 py-4">
-          <span className="text-[13.5px] font-semibold tracking-tight text-[var(--color-text)]">
-            Deal Desk
-          </span>
-          <button
-            aria-label="Close menu"
-            onClick={() => setOpen(false)}
-            className="relative rounded-full p-1.5 text-[var(--color-text-muted)] transition-colors after:absolute after:-inset-3 after:content-[''] hover:bg-[var(--color-fill-subtle)] active:bg-[var(--color-fill-subtle)] active:scale-90"
-          >
-            <X size={18} />
-          </button>
-        </div>
-        {/* min-h-0 lets this shrink below its content size inside the flex
-            column above, which is what makes overflow-y-auto actually
-            scroll instead of letting content run past the aside's bottom
-            edge uncontrolled. */}
-        <nav className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-3 pb-6">
-          <Suspense fallback={<NavLinksFallback />}>
-            <NavLinks onNavigate={() => setOpen(false)} />
+        <div className="my-2 h-px w-6 flex-none bg-[var(--color-hairline)]" />
+
+        <nav className="min-h-0 flex-1 overflow-visible">
+          <Suspense fallback={<RailNavFallback />}>
+            <RailNav />
           </Suspense>
         </nav>
+
+        <div className="my-2 h-px w-6 flex-none bg-[var(--color-hairline)]" />
+
+        <Link href="/settings" title="Settings" className={railButtonClasses(pathname === "/settings")}>
+          <Settings size={20} />
+        </Link>
       </aside>
 
       <div className="flex min-h-screen flex-1 flex-col">
         <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-[var(--color-header-rule)] bg-[var(--color-surface)] px-5 py-3">
-          <button
-            aria-label="Open menu"
-            onClick={() => setOpen(true)}
-            className="relative rounded-full p-1.5 text-[var(--color-text)] transition-colors after:absolute after:-inset-3 after:content-[''] hover:bg-[var(--color-fill-subtle)] active:bg-[var(--color-fill-subtle)] active:scale-90"
-          >
-            <Menu size={20} />
-          </button>
           <span className="text-[13.5px] font-semibold tracking-tight">Deal Desk</span>
           {showNewDeal && (
             <Link href="/desk/deals/new" className="ml-auto">
