@@ -1,17 +1,76 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { Check } from "lucide-react";
+import { AccordionSection } from "@/components/accordion-section";
 import { toggleDealStep, toggleStip } from "@/app/desk/deals/actions";
 import { STAGES } from "@/lib/deal-stage";
 import { cn } from "@/lib/utils";
 
 type Stip = { label: string; done: boolean };
 
-// The full Application/Approval/Funding checklist, with the deal's stips
-// itemized inside the Funding stage's "Collect stips & insurance" step
-// instead of living as a separate list — that step checks itself off once
-// every stip below it is done. Each stage also gets its own "Check all"
-// that only touches steps (and, for Funding, stips) in that stage.
+function StageBadge({ index, state }: { index: number; state: "done" | "current" | "upcoming" }) {
+  if (state === "done") {
+    return (
+      <span className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-[var(--color-positive)] text-white">
+        <Check size={13} strokeWidth={3} />
+      </span>
+    );
+  }
+  return (
+    <span
+      className={cn(
+        "flex h-6 w-6 flex-none items-center justify-center rounded-full text-[12px] font-bold",
+        state === "current" ? "bg-[var(--color-primary)] text-white" : "bg-[var(--color-fill-subtle)] text-[var(--color-text-muted)]",
+      )}
+    >
+      {index + 1}
+    </span>
+  );
+}
+
+function CheckAllButton({ onClick, disabled }: { onClick: () => void; disabled: boolean }) {
+  return (
+    <div className="mt-1.5 flex justify-end">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className="rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-surface)] px-3 py-1.5 text-[12px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-fill-subtle)] disabled:cursor-default disabled:opacity-40 disabled:hover:bg-[var(--color-surface)]"
+      >
+        Check all
+      </button>
+    </div>
+  );
+}
+
+function StepRow({ label, done, onToggle }: { label: string; done: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex w-full items-center gap-2.5 rounded-[var(--radius-panel)] px-2 py-1.5 text-left transition-colors hover:bg-[var(--color-fill-subtle)]"
+    >
+      <span
+        className={cn(
+          "flex h-5 w-5 flex-none items-center justify-center rounded-full border-2 transition-colors",
+          done ? "border-[var(--color-positive)] bg-[var(--color-positive)]" : "border-[var(--color-hairline)]",
+        )}
+      >
+        {done && <Check size={12} strokeWidth={3} className="text-white" />}
+      </span>
+      <span className={cn("text-[13px] text-[var(--color-text)]", done && "text-[var(--color-text-muted)] line-through")}>{label}</span>
+    </button>
+  );
+}
+
+// The full Application/Approval/Funding checklist — one AccordionSection per
+// stage (numbered badge, "Next: <step>" summary, x/y count, its own
+// collapse), matching the reference design. The deal's stips stay itemized
+// inside the Funding stage's "Collect stips & insurance" step rather than
+// living as a separate list — that step checks itself off once every stip
+// below it is done. Each stage gets its own "Check all" that only touches
+// steps (and, for Funding, stips) in that stage.
 export function StageChecklist({ dealId, done, stips }: { dealId: string; done: Record<string, boolean>; stips: Stip[] }) {
   const [localDone, setLocalDone] = useState(done);
   const [syncedDone, setSyncedDone] = useState(done);
@@ -58,85 +117,57 @@ export function StageChecklist({ dealId, done, stips }: { dealId: string; done: 
 
   const stipsDone = localStips.filter((s) => s.done).length;
 
+  // The first stage with an incomplete step is "current" — every stage
+  // before it is done, every stage after it hasn't been started, since a
+  // deal only ever moves forward through these in order.
+  const currentStageIdx = STAGES.findIndex((stage) => stage.steps.some((s) => !localDone[s.id]));
+
   return (
-    <div className="flex flex-col gap-4">
-      {STAGES.map((stage) => {
+    <>
+      {STAGES.map((stage, stageIdx) => {
         const doneCount = stage.steps.filter((s) => localDone[s.id]).length;
-        const allDone = doneCount === stage.steps.length && (stage.name !== "Funding" || stipsDone === localStips.length);
+        const stageAllDone = doneCount === stage.steps.length && (stage.name !== "Funding" || stipsDone === localStips.length);
+        const nextStep = stage.steps.find((s) => !localDone[s.id]);
+        const badgeState = currentStageIdx === -1 || stageIdx < currentStageIdx ? "done" : stageIdx === currentStageIdx ? "current" : "upcoming";
+
         return (
-          <div key={stage.name}>
-            <div className="mb-1.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">
-              {stage.name}
-              <span className="tabular-nums opacity-70">
+          <AccordionSection
+            key={stage.name}
+            title={stage.name}
+            summary={nextStep ? `Next: ${nextStep.label}` : undefined}
+            badge={<StageBadge index={stageIdx} state={badgeState} />}
+            trailing={
+              <span className="ml-1 flex-none tabular-nums text-[12px] text-[var(--color-text-muted)]">
                 {doneCount}/{stage.steps.length}
               </span>
-              <button
-                type="button"
-                onClick={() => checkAll(stage.name, stage.steps)}
-                disabled={allDone}
-                className="ml-auto rounded-[var(--radius-pill)] px-2 py-0.5 text-[10.5px] font-semibold normal-case tracking-normal text-[var(--color-primary)] hover:bg-[var(--color-info-bg)] disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent"
-              >
-                Check all
-              </button>
-            </div>
-            <div className="flex flex-col gap-1">
+            }
+            defaultOpen={badgeState !== "done"}
+          >
+            <div className="flex flex-col gap-0.5">
               {stage.steps.map((step) =>
                 step.id === "stips" ? (
-                  <div key={step.id} className="rounded-[var(--radius-panel)] px-2 py-1.5">
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className={cn(
-                          "h-4 w-4 flex-none rounded-[4px] border-2",
-                          localDone.stips ? "border-[var(--color-primary)] bg-[var(--color-primary)]" : "border-[var(--color-hairline)]",
-                        )}
-                      />
-                      <span className={cn("text-[13px] text-[var(--color-text)]", localDone.stips && "text-[var(--color-text-muted)] line-through")}>
-                        {step.label}
-                      </span>
-                      <span className="ml-auto tabular-nums text-[11px] text-[var(--color-text-muted)]">
-                        {stipsDone}/{localStips.length}
-                      </span>
-                    </div>
-                    <div className="ml-6 mt-1 flex flex-col gap-0.5">
+                  <div key={step.id} className="rounded-[var(--radius-panel)] px-2 py-1">
+                    <StepRow label={step.label} done={!!localDone.stips} onToggle={() => toggle(step.id)} />
+                    <div className="ml-8 mt-0.5 flex flex-col gap-0.5">
                       {localStips.map((stip, i) => (
-                        <label
-                          key={`${stip.label}-${i}`}
-                          className="flex cursor-pointer items-center gap-2.5 rounded-[var(--radius-panel)] px-2 py-1 hover:bg-[var(--color-fill-subtle)]"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={stip.done}
-                            onChange={() => toggleStipRow(i)}
-                            className="h-3.5 w-3.5 rounded accent-[var(--color-primary)]"
-                          />
-                          <span className={cn("text-[12.5px] text-[var(--color-text)]", stip.done && "text-[var(--color-text-muted)] line-through")}>
-                            {stip.label}
-                          </span>
-                        </label>
+                        <StepRow key={`${stip.label}-${i}`} label={stip.label} done={stip.done} onToggle={() => toggleStipRow(i)} />
                       ))}
+                      {localStips.length > 0 && (
+                        <div className="px-2 text-[11px] text-[var(--color-text-muted)]">
+                          {stipsDone}/{localStips.length} stips cleared
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : (
-                  <label
-                    key={step.id}
-                    className="flex cursor-pointer items-center gap-2.5 rounded-[var(--radius-panel)] px-2 py-1.5 hover:bg-[var(--color-fill-subtle)]"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={!!localDone[step.id]}
-                      onChange={() => toggle(step.id)}
-                      className="h-4 w-4 rounded accent-[var(--color-primary)]"
-                    />
-                    <span className={cn("text-[13px] text-[var(--color-text)]", localDone[step.id] && "text-[var(--color-text-muted)] line-through")}>
-                      {step.label}
-                    </span>
-                  </label>
+                  <StepRow key={step.id} label={step.label} done={!!localDone[step.id]} onToggle={() => toggle(step.id)} />
                 ),
               )}
             </div>
-          </div>
+            <CheckAllButton onClick={() => checkAll(stage.name, stage.steps)} disabled={stageAllDone} />
+          </AccordionSection>
         );
       })}
-    </div>
+    </>
   );
 }

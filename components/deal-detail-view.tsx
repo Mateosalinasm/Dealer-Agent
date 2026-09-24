@@ -23,7 +23,7 @@ import { IncomeReportBadge } from "@/components/income-report-badge";
 import { getUnderwritingSnapshot } from "@/lib/deal-underwriting";
 import { dealFacts, dealApr, dealTerm, ptiCalc, PTI_TARGETS } from "@/lib/deal-facts";
 import { dealHealth, nextAction, bucketOf } from "@/lib/deal-health";
-import { dealStageInfo, STAGES } from "@/lib/deal-stage";
+import { dealStageInfo } from "@/lib/deal-stage";
 import { matchProgram } from "@/lib/lender-match";
 import { analyzeDocument, deleteDocument, setDealArchived, updateDealInfo, uploadDocument } from "@/app/desk/deals/actions";
 import type { ProgramForMatch, TitleStatus, VehicleCandidate } from "@/lib/lender-match";
@@ -240,12 +240,7 @@ export async function DealDetailView({ id }: { id: string }) {
           <PtiSection dealId={id} facts={facts} pti={pti} ptiPriceOverride={deal.ptiPrice} openAutoTradeIn={deal.openAutoTradeIn} />
         </AccordionSection>
 
-        <AccordionSection
-          title="Stage checklist"
-          summary={`${stageInfo.doneCount}/${stageInfo.total} steps · ${STAGES[Math.min(stageInfo.stageIdx, 2)].name}${openStips ? ` · ${openStips} stip${openStips === 1 ? "" : "s"} open` : ""}`}
-        >
-          <StageChecklist dealId={id} done={deal.done} stips={deal.stips} />
-        </AccordionSection>
+        <StageChecklist dealId={id} done={deal.done} stips={deal.stips} />
 
         <AccordionSection title="Tasks" summary={tasks.filter((t) => !t.done).length ? `${tasks.filter((t) => !t.done).length} open` : undefined}>
           <DealTasksSection dealId={id} tasks={tasks} />
