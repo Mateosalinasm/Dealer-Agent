@@ -154,6 +154,8 @@ export const warrantyProductSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const fuelTypeValues = ["gas", "diesel", "hybrid", "electric"] as const;
+
 export const manualVehicleSchema = z.object({
   stockNumber: z.string().optional(),
   vin: z.string().optional(),
@@ -170,6 +172,10 @@ export const manualVehicleSchema = z.object({
   lot: z.string().optional(),
   daysOnLot: z.coerce.number().int().min(0).default(0),
   autocheckDocumentId: z.string().uuid().optional().or(z.literal("")),
+  // Feed lib/marketing-copy.ts's down-payment tiers — see that file for why
+  // these are set explicitly here rather than inferred from trim/model text.
+  fuelType: z.enum(fuelTypeValues).default("gas"),
+  isThreeRowSuv: z.coerce.boolean().default(false),
 });
 
 export const vehicleImportRowSchema = z.object({

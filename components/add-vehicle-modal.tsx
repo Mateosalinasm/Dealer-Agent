@@ -25,6 +25,8 @@ interface AutocheckData {
   notes: string | null;
 }
 
+type FuelType = "gas" | "diesel" | "hybrid" | "electric";
+
 const emptyForm = {
   stockNumber: "",
   vin: "",
@@ -40,6 +42,8 @@ const emptyForm = {
   cost: "",
   lot: "",
   daysOnLot: "0",
+  fuelType: "gas" as FuelType,
+  isThreeRowSuv: false,
 };
 
 export function AddVehicleModal() {
@@ -218,6 +222,30 @@ export function AddVehicleModal() {
               <Label htmlFor="av-trim">Trim</Label>
               <Input id="av-trim" name="trim" value={form.trim} onChange={(e) => set("trim", e.target.value)} />
             </div>
+            <div>
+              <Label htmlFor="av-fuel">Fuel</Label>
+              <Select id="av-fuel" name="fuelType" value={form.fuelType} onChange={(e) => set("fuelType", e.target.value as FuelType)}>
+                <option value="gas">Gas</option>
+                <option value="diesel">Diesel</option>
+                <option value="hybrid">Hybrid</option>
+                <option value="electric">Electric</option>
+              </Select>
+              <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">Drives the marketing down-payment tier for trucks.</p>
+            </div>
+            {form.bodyType === "suv" && (
+              <div className="flex items-end pb-2">
+                <label className="flex cursor-pointer items-center gap-2 text-[12.5px] text-[var(--color-text)]">
+                  <input
+                    type="checkbox"
+                    name="isThreeRowSuv"
+                    checked={form.isThreeRowSuv}
+                    onChange={(e) => set("isThreeRowSuv", e.target.checked)}
+                    className="h-4 w-4 rounded border-[var(--color-hairline)] accent-[var(--color-primary)]"
+                  />
+                  Big 3-row SUV (Tahoe, Suburban, etc.)
+                </label>
+              </div>
+            )}
             <div>
               <Label htmlFor="av-cost">Cost</Label>
               <Input id="av-cost" name="costDollars" type="number" step="0.01" value={form.cost} onChange={(e) => set("cost", e.target.value)} />

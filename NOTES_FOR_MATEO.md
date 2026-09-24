@@ -92,6 +92,26 @@ phone field to Lenders and laid that page out as a grid instead of one
 stacked column — **needs `catchup-all.sql` run against Supabase** (see
 below) before rep phone will actually save in production.
 
+**Round 8**: found and fixed a bug in my own Round 7 performance fix —
+I'd shrunk the DB connection pool to 5, but a deal modal fires 8 queries
+at once, so 3 of them were queuing behind the other 5 instead of running
+in parallel (measured: 253ms vs. 125ms for the same 8 queries at pool
+size 5 vs. 15 — fixed by raising it back up). Also made the whole deal
+card clickable instead of just the customer-name area, added a Louisiana
+out-of-state tax/fee calculator (nav: Tools, above Lenders — formula and
+every fee transcribed from two real ATC quotes, not estimated; grows
+parish by parish as you send me new quotes), explained the WhatsApp
+"ContentSid Required" error instead of showing it raw (it's Meta's own
+24-hour-window policy, not a bug — see the WhatsApp section below), and
+rebuilt the whole nav as a DealerCenter-style icon rail with flyout
+subcategories plus a real Home dashboard (quicklinks + Customers/
+Inventory/Appointments summary cards) — Integrations moved to its own
+gear-icon Settings tab. Biggest build this round: **AI-generated
+marketing listings**, one per vehicle, auto-populated the moment you add
+it to inventory — see "Done this session" for the full rundown, and
+**this one also needs `catchup-all.sql` run against Supabase** (new
+`marketing_posts` table plus three new `vehicles` columns).
+
 ## How to read this file
 
 - **Needs your call** — genuine business/product decisions I set aside instead
@@ -400,6 +420,80 @@ below) before rep phone will actually save in production.
      into the Supabase SQL Editor and run it (same one-time step as past
      rounds; safe to re-run, every statement skips what's already there)
      before rep phone will save without erroring in production.
+- **Round 8:**
+  1. Fixed the Round 7 pool-size regression (see the Round 8 summary
+     above) and made the whole deal card clickable, not just the
+     customer-name block.
+  2. Louisiana out-of-state calculator (nav: Tools, above Lenders) —
+     `lib/louisiana-out-of-state-tax.ts` has the formula and every default
+     fee, each one transcribed from a real ATC quote (comments in that
+     file cite which quote). Lafayette and Jefferson parish rates are
+     built in; any other parish needs its real rate entered by hand — it
+     deliberately never guesses one. Tell me the parish + rate whenever
+     you get a new ATC quote and I'll add it as a preset.
+  3. WhatsApp's "ContentSid Required" error now explains itself instead
+     of showing raw Twilio text — see the WhatsApp section below for what
+     it actually means (a Meta policy, not a bug) and what fixes it.
+  4. **Nav + Home dashboard rebuild.** The sidebar is now an always-on
+     icon rail (Deals/Inventory/Sourcing/Desk/Marketing/Tools/Lenders,
+     plus Home and a gear-icon Settings) instead of a hamburger-toggle
+     drawer — click an icon and its subcategories flyout next to it, like
+     DealerCenter. The app now opens to a real Home dashboard: a
+     Quicklinks card (new deal, add a vehicle, new lead, out-of-state
+     calculator, schedule appointment, settings) plus Customers/
+     Inventory/Appointments summary cards with real numbers. Integrations
+     moved off the old menu onto its own Settings tab. The deals board
+     (your old landing page) still exists at its own "Deals" icon —
+     nothing there changed except its top tab, which used to confusingly
+     say "Dashboard" and now says "Working."
+  5. **AI-generated marketing listings, one per vehicle.** New tab on
+     Marketing (the old channel-performance report moved to a second tab
+     alongside it) — every vehicle in inventory shows up automatically,
+     no separate "add to marketing" step. Pick a platform (Facebook
+     Marketplace / Facebook post / Instagram caption / TikTok caption)
+     and a language, hit "Write the listing," edit before you post, mark
+     it posted, or log a lead straight from that vehicle (creates a real
+     lead, pre-filled with the vehicle's make/model). A few hard rules
+     are baked into every generated listing, not left to the AI's
+     judgment:
+     - Down payment is a fixed formula
+       (`lib/marketing-copy.ts:downPaymentCentsFor`), never left to the
+       AI to guess: sedans start at $2,000 ($2,500 if 2023+), SUVs at
+       $2,500 ($3,000 for a big 3-row like a Tahoe/Suburban — new
+       `vehicles.is_three_row_suv` field), trucks at $3,500 ($5,000 for a
+       diesel truck 2021+ — new `vehicles.fuel_type` field, since
+       guessing "diesel" from the model name was too risky for a number
+       that goes straight into a customer-facing ad). Vehicles need a
+       body type set before a listing can be written — the panel prompts
+       for it inline if it's missing (covers vehicles added before this
+       feature, or bulk-imported via CSV, where fuel type/3-row status
+       default to gas/no and may need a manual fix).
+     - Always states that exact figure, always phrased "starting from" /
+       "desde" — never a flat amount.
+     - Never mentions title status or condition history (salvage, flood,
+       insurance-loss, etc.) and never mentions mileage, in any language.
+     - Requirements are always exactly: ID (passport explicitly
+       accepted — worded so passport-only leads aren't told they don't
+       qualify, per your call on that), proof of income, the down
+       payment, and an open bank account. Doesn't claim SSN, credit, or a
+       license are or aren't required — dropped "sin licencia" from your
+       old template on purpose, given the new Texas registration law you
+       mentioned.
+     Verified the down-payment formula against all 9 combinations
+     (sedan/suv/3-row-suv/truck/diesel-truck × the year cutoffs) and the
+     full flow end to end against a real Postgres — add vehicle → shows
+     up in Marketing immediately → body-type prompt → manual edit →
+     persists on reload → copy → mark posted → status pill → log a lead
+     (confirmed the real lead row) → sold vehicle's status pills lock.
+     Couldn't test the actual AI writing here — no `ANTHROPIC_API_KEY` in
+     this sandbox, same limitation as Deal Copilot and document
+     extraction — confirmed it fails gracefully with a clear message
+     instead of crashing; the real output only gets exercised once the
+     key is live. **Needs the same Supabase step as rep phone above**:
+     `catchup-all.sql` adds the new `marketing_posts` table and three
+     `vehicles` columns (`fuel_type`, `is_three_row_suv`,
+     `marketing_status`) — nothing here works in production until that
+     runs.
 
 ---
 

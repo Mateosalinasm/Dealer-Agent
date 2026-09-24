@@ -133,6 +133,8 @@ export async function createVehicleManually(formData: FormData) {
     lot: formData.get("lot") ?? "",
     daysOnLot: formData.get("daysOnLot") || 0,
     autocheckDocumentId: formData.get("autocheckDocumentId") ?? "",
+    fuelType: formData.get("fuelType") || "gas",
+    isThreeRowSuv: formData.get("isThreeRowSuv"),
   });
 
   const today = todayInTimezone(await getDealershipTimezone());
@@ -157,6 +159,8 @@ export async function createVehicleManually(formData: FormData) {
       hammer: parsed.costDollars != null ? Math.round(parsed.costDollars * 100) : null,
       lot: parsed.lot || null,
       acquiredOn,
+      fuelType: parsed.fuelType,
+      isThreeRowSuv: parsed.isThreeRowSuv,
     })
     .returning();
 

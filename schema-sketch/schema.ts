@@ -50,6 +50,10 @@ export const settings = pgTable('settings', {
 export const auctionHouse = ['manheim', 'americas', 'iaa'] as const;
 export const titleStatus = ['clean', 'salvage', 'rebuilt', 'flood', 'lemon', 'branded'] as const;
 export const bodyType = ['truck', 'sedan', 'suv'] as const;
+export const fuelType = ['gas', 'diesel', 'hybrid', 'electric'] as const;
+export const marketingStatus = ['not_marketed', 'ready_to_post', 'posted', 'needs_new_post', 'lead_generated'] as const;
+export const marketingPlatform = ['facebook_marketplace', 'facebook_post', 'instagram_caption', 'tiktok_caption'] as const;
+export const marketingLanguage = ['es', 'en'] as const;
 
 // One customer identity shared across every intake channel (WhatsApp, a
 // lead form, a walk-in). `leads`/`deals`/`appointments` keep their own
@@ -127,8 +131,33 @@ export const vehicles = pgTable('vehicles', {
   sold: boolean('sold').notNull().default(false),
   soldOn: date('sold_on'),                            // drives turn velocity + buy scorecard
   notes: text('notes'),
+  // Feed lib/marketing-copy.ts's down-payment tiers — never inferred from
+  // model/trim text (too unreliable for a figure that goes straight into a
+  // customer-facing ad), always set explicitly. isThreeRowSuv only matters
+  // when bodyType is 'suv'.
+  fuelType: text('fuel_type').$type<(typeof fuelType)[number]>().notNull().default('gas'),
+  isThreeRowSuv: boolean('is_three_row_suv').notNull().default(false),
+  marketingStatus: text('marketing_status').$type<(typeof marketingStatus)[number]>().notNull().default('not_marketed'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => ({ vinIdx: index('vehicles_vin_idx').on(t.vin) }));
+
+// One row per (vehicle, platform, language) — the current draft/last-posted
+// copy for that combination, editable in place rather than an append-only
+// log. "Post history" on the Marketing page is read off postedAt across
+// these rows rather than a separate events table.
+export const marketingPosts = pgTable('marketing_posts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  vehicleId: uuid('vehicle_id').notNull().references(() => vehicles.id, { onDelete: 'cascade' }),
+  platform: text('platform').$type<(typeof marketingPlatform)[number]>().notNull(),
+  language: text('language').$type<(typeof marketingLanguage)[number]>().notNull(),
+  body: text('body'),
+  postedAt: timestamp('posted_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => ({
+  vehicleIdx: index('marketing_posts_vehicle_idx').on(t.vehicleId),
+  comboIdx: uniqueIndex('marketing_posts_vehicle_platform_lang_idx').on(t.vehicleId, t.platform, t.language),
+}));
 
 export const deals = pgTable('deals', {
   id: uuid('id').primaryKey().defaultRandom(),
