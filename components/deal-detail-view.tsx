@@ -21,7 +21,7 @@ import { CustomerSection } from "@/components/customer-section";
 import { CreditGradeBadge } from "@/components/credit-grade-modal";
 import { IncomeReportBadge } from "@/components/income-report-badge";
 import { getUnderwritingSnapshot } from "@/lib/deal-underwriting";
-import { dealFacts, ptiCalc } from "@/lib/deal-facts";
+import { dealFacts, dealApr, dealTerm, ptiCalc, PTI_TARGETS } from "@/lib/deal-facts";
 import { dealHealth, nextAction, bucketOf } from "@/lib/deal-health";
 import { dealStageInfo, STAGES } from "@/lib/deal-stage";
 import { matchProgram } from "@/lib/lender-match";
@@ -108,7 +108,15 @@ export async function DealDetailView({ id }: { id: string }) {
   const next = nextAction(deal, facts, health);
   const bucket = bucketOf(next.bucket);
   const stageInfo = dealStageInfo(deal.done);
-  const pti = ptiCalc(deal, facts);
+  const pti = ptiCalc({
+    income: facts.income,
+    price: deal.ptiPrice ?? facts.sellPrice,
+    pct: deal.ptiPct || PTI_TARGETS[0],
+    apr: dealApr(deal),
+    term: dealTerm(deal),
+    existing: facts.openAutoPayment ?? 0,
+    down: facts.down,
+  });
 
   const openStips = deal.stips.filter((s) => !s.done).length;
   const activeSub = deal.subs.find((s) => s.id === deal.primarySubId) ?? deal.subs.find((s) => s.status === "approved") ?? null;

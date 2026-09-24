@@ -72,7 +72,10 @@ const NAV: NavGroup[] = [
   {
     label: "Tools",
     icon: Calculator,
-    items: [{ label: "Out-of-state calculator", href: "/out-of-state-calculator" }],
+    items: [
+      { label: "PTI calculator", href: "/pti-calculator" },
+      { label: "Out-of-state calculator", href: "/out-of-state-calculator" },
+    ],
   },
   {
     label: "Lenders",

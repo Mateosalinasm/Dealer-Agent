@@ -166,15 +166,24 @@ export interface PtiResult {
   noRoom?: boolean;
 }
 
-export function ptiCalc(deal: Deal, facts: DealFacts): PtiResult {
-  const income = facts.income;
-  const price = deal.ptiPrice ?? facts.sellPrice;
-  const pct = deal.ptiPct || PTI_TARGETS[0];
-  const apr = dealApr(deal);
-  const term = dealTerm(deal);
-  const existing = facts.openAutoPayment ?? 0;
-  const down = facts.down;
+export interface PtiInputs {
+  income: number | null; // cents/mo
+  price: number | null; // cents
+  pct: number; // one of PTI_TARGETS, or a custom override
+  apr: number | null; // basis points
+  term: number | null; // months
+  existing: number; // cents/mo already committed to an open auto payment
+  down: number | null; // cents actually on file, null if not yet entered
+}
 
+/**
+ * Pure — takes plain inputs instead of a Deal row so it can be called both
+ * from a real deal (components/pti-section.tsx, via deal-detail-view.tsx,
+ * which derives these from the deal/facts) and from the standalone PTI
+ * calculator (app/pti-calculator). Never reimplement this math at either
+ * call site.
+ */
+export function ptiCalc({ income, price, pct, apr, term, existing, down }: PtiInputs): PtiResult {
   if (!income) return { blocked: "No income yet. Enter a stated or verified income.", pct, apr, term };
   if (price == null) return { blocked: "No price yet. Link the deal to a unit in inventory or enter a price.", pct, apr, term };
   if (apr == null || term == null) return { blocked: "Enter an APR and term (or pick an approved submission) to estimate the payment.", pct, apr, term };
