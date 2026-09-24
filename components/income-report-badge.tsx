@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label, Select } from "@/components/ui/input";
@@ -37,6 +37,7 @@ export interface IncomeReportBadgeProps {
 export function IncomeReportBadge({ dealId, customerName, incomeSource, monthlyIncomeCents, documents }: IncomeReportBadgeProps) {
   const verified = incomeSource === "TurboPass" || !!incomeSource?.startsWith("Bank statement");
   const [isPending, startTransition] = useTransition();
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Most-recently-extracted TurboPass doc drives the rich breakdown below
   // the summary card — parsed defensively, same as everywhere else this
@@ -56,7 +57,11 @@ export function IncomeReportBadge({ dealId, customerName, incomeSource, monthlyI
   // upload through startTransition (same pattern as the credit-grade
   // modal's main form) keeps the Dialog mounted cleanly.
   function upload(formData: FormData) {
-    startTransition(() => uploadDocument(dealId, formData));
+    setUploadError(null);
+    startTransition(async () => {
+      const result = await uploadDocument(dealId, formData);
+      if (!result.ok) setUploadError(result.error ?? "Upload failed — try again.");
+    });
   }
 
   return (
@@ -136,6 +141,7 @@ export function IncomeReportBadge({ dealId, customerName, incomeSource, monthlyI
               {isPending ? "Uploading…" : "Upload"}
             </Button>
           </form>
+          {uploadError && <p className="mt-1.5 text-[12px] text-[var(--color-negative-text)]">{uploadError}</p>}
         </div>
       </DialogContent>
     </Dialog>

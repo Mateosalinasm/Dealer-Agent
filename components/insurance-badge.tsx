@@ -56,6 +56,7 @@ const STATUS_LABEL: Record<InsuranceStatus, string> = {
 export function InsuranceBadge({ dealId, customerName, lienholderName, vehicleVin, lenders, documents }: InsuranceBadgeProps) {
   const [isPending, startTransition] = useTransition();
   const [lienholderDraft, setLienholderDraft] = useState(lienholderName ?? "");
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const result = useMemo(() => {
     const latestDoc = [...documents].reverse().find((d) => d.category === "insurance" && d.extractionStatus === "success");
@@ -73,7 +74,11 @@ export function InsuranceBadge({ dealId, customerName, lienholderName, vehicleVi
   }, [documents, lienholderName, lenders, customerName, vehicleVin]);
 
   function upload(formData: FormData) {
-    startTransition(() => uploadDocument(dealId, formData));
+    setUploadError(null);
+    startTransition(async () => {
+      const result = await uploadDocument(dealId, formData);
+      if (!result.ok) setUploadError(result.error ?? "Upload failed — try again.");
+    });
   }
 
   function saveLienholder(formData: FormData) {
@@ -169,6 +174,7 @@ export function InsuranceBadge({ dealId, customerName, lienholderName, vehicleVi
               {isPending ? "Uploading…" : "Upload"}
             </Button>
           </form>
+          {uploadError && <p className="mt-1.5 text-[12px] text-[var(--color-negative-text)]">{uploadError}</p>}
         </div>
       </DialogContent>
     </Dialog>

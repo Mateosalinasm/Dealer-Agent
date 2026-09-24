@@ -524,14 +524,28 @@ export async function setDealArchived(dealId: string, archived: boolean) {
   revalidatePath("/desk/deals");
 }
 
-export async function uploadDocument(dealId: string, formData: FormData) {
+// Returns a result object instead of throwing — Next.js redacts a thrown
+// Server Action error's message in production (only a debug digest reaches
+// the client, by design, same as a render error), which meant a real
+// failure here (most commonly Supabase Storage rejecting the upload) showed
+// up client-side as an opaque generic error instead of something the
+// finance manager could act on. Same shape as extractDocument's
+// ExtractionResult, for the same reason.
+export async function uploadDocument(dealId: string, formData: FormData): Promise<{ ok: boolean; error?: string }> {
   const category = documentUploadSchema.parse({ category: formData.get("category") }).category;
   const file = formData.get("file") as File | null;
   if (!file || file.size === 0) {
-    throw new Error("No file selected");
+    return { ok: false, error: "No file selected." };
   }
 
-  const { storagePath, fileSize } = await saveFile(file);
+  let storagePath: string;
+  let fileSize: number;
+  try {
+    ({ storagePath, fileSize } = await saveFile(file));
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Upload failed — try again." };
+  }
+
   await db.insert(schema.documents).values({
     dealId,
     category,
@@ -550,6 +564,7 @@ export async function uploadDocument(dealId: string, formData: FormData) {
   if (category === "turbopass") await setDealStep(dealId, "income", true);
 
   revalidatePath(`/desk/deals/${dealId}`);
+  return { ok: true };
 }
 
 // dealId first (not documentId) so callers can pass a bound reference —

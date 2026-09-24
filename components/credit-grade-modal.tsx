@@ -43,6 +43,7 @@ export function CreditGradeBadge({ dealId, customerName, vehicleLabel, facts, cr
   const [fields, setFields] = useState(facts);
   const [, startTransition] = useTransition();
   const [uploadPending, startUpload] = useTransition();
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const result = gradeCredit(fields);
   const hasScore = !!facts.fico;
 
@@ -55,7 +56,11 @@ export function CreditGradeBadge({ dealId, customerName, vehicleLabel, facts, cr
   }
 
   function upload(formData: FormData) {
-    startUpload(() => uploadDocument(dealId, formData));
+    setUploadError(null);
+    startUpload(async () => {
+      const result = await uploadDocument(dealId, formData);
+      if (!result.ok) setUploadError(result.error ?? "Upload failed — try again.");
+    });
   }
 
   return (
@@ -222,6 +227,7 @@ export function CreditGradeBadge({ dealId, customerName, vehicleLabel, facts, cr
               {uploadPending ? "Uploading…" : "Upload"}
             </Button>
           </form>
+          {uploadError && <p className="mt-1.5 text-[12px] text-[var(--color-negative-text)]">{uploadError}</p>}
         </div>
       </DialogContent>
     </Dialog>

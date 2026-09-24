@@ -21,12 +21,13 @@ import { CustomerSection } from "@/components/customer-section";
 import { CreditGradeBadge } from "@/components/credit-grade-modal";
 import { IncomeReportBadge } from "@/components/income-report-badge";
 import { InsuranceBadge } from "@/components/insurance-badge";
+import { DocumentUploadForm } from "@/components/document-upload-form";
 import { getUnderwritingSnapshot } from "@/lib/deal-underwriting";
 import { dealFacts, dealApr, dealTerm, ptiCalc, PTI_TARGETS } from "@/lib/deal-facts";
 import { dealHealth, nextAction, bucketOf } from "@/lib/deal-health";
 import { dealStageInfo } from "@/lib/deal-stage";
 import { matchProgram } from "@/lib/lender-match";
-import { analyzeDocument, deleteDocument, setDealArchived, updateDealInfo, uploadDocument } from "@/app/desk/deals/actions";
+import { analyzeDocument, deleteDocument, setDealArchived, updateDealInfo } from "@/app/desk/deals/actions";
 import type { ProgramForMatch, TitleStatus, VehicleCandidate } from "@/lib/lender-match";
 
 // The full deal-detail screen. Rendered both as a real page
@@ -344,27 +345,7 @@ export async function DealDetailView({ id }: { id: string }) {
             </div>
           )}
 
-          <form action={uploadDocument.bind(null, id)} className="flex flex-wrap items-end gap-3 border-t border-[var(--color-hairline)] pt-3">
-            <div className="w-40">
-              <div className="mb-1 text-[11px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">Type</div>
-              <Select name="category" defaultValue="insurance">
-                <option value="insurance">Insurance</option>
-                <option value="other">Other</option>
-              </Select>
-            </div>
-            <div className="flex-1">
-              <div className="mb-1 text-[11px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">File</div>
-              <input
-                name="file"
-                type="file"
-                required
-                className="block w-full text-[12.5px] text-[var(--color-text-muted)] file:mr-3 file:rounded-[var(--radius-pill)] file:border-0 file:bg-[var(--color-fill-subtle)] file:px-3 file:py-1.5 file:text-[12px] file:font-semibold"
-              />
-            </div>
-            <Button type="submit" variant="secondary">
-              Upload
-            </Button>
-          </form>
+          <DocumentUploadForm dealId={id} />
         </Card>
       </div>
     </div>
