@@ -141,3 +141,18 @@ button:not(:disabled) {
   from { opacity: 0; transform: translateY(8px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+/* Upload-in-flight feedback (components/credit-app-upload-field.tsx and
+   anywhere else a file is uploading/being AI-analyzed) — the arrow glyph
+   bounces to read as "sending up, checking," and the pill's background
+   pulses toward the info tone and back so it reads as active work, not a
+   stuck button. Colors stay on the design system's own tokens, just
+   cross-fading between two of them rather than introducing a new hue. */
+@keyframes upload-arrow-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+@keyframes upload-pulse-tone {
+  0%, 100% { background-color: var(--color-info-bg); }
+  50% { background-color: var(--color-surface); }
+}

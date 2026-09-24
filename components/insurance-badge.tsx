@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { DocumentRow } from "@/components/document-row";
+import { UploadingLabel } from "@/components/uploading-indicator";
 import { analyzeDocument, deleteDocument, updateLienholder, uploadDocument } from "@/app/desk/deals/actions";
 import { EXTRACTION_SCHEMAS } from "@/lib/extraction-schemas";
 import { verifyInsurance, findMatchingLender, type InsuranceStatus } from "@/lib/insurance-verification";
@@ -170,8 +171,13 @@ export function InsuranceBadge({ dealId, customerName, lienholderName, vehicleVi
               required
               className="block flex-1 text-[12.5px] text-[var(--color-text-muted)] file:mr-3 file:rounded-[var(--radius-pill)] file:border-0 file:bg-[var(--color-fill-subtle)] file:px-3 file:py-1.5 file:text-[12px] file:font-semibold"
             />
-            <Button type="submit" variant="secondary" disabled={isPending}>
-              {isPending ? "Uploading & analyzing…" : "Upload"}
+            <Button
+              type="submit"
+              variant="secondary"
+              disabled={isPending}
+              className={isPending ? "[animation:upload-pulse-tone_1.1s_ease-in-out_infinite]" : undefined}
+            >
+              {isPending ? <UploadingLabel /> : "Upload"}
             </Button>
           </form>
           {uploadError && <p className="mt-1.5 text-[12px] text-[var(--color-negative-text)]">{uploadError}</p>}

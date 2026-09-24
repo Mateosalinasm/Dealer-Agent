@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DocumentRow } from "@/components/document-row";
+import { UploadingLabel } from "@/components/uploading-indicator";
 import { analyzeDocument, deleteDocument, updateCredit, uploadDocument } from "@/app/desk/deals/actions";
 import { gradeCredit, type CreditFacts } from "@/lib/credit-grade";
 import { cn } from "@/lib/utils";
@@ -224,8 +225,13 @@ export function CreditGradeBadge({ dealId, customerName, vehicleLabel, facts, cr
               required
               className="block flex-1 text-[12.5px] text-[var(--color-text-muted)] file:mr-3 file:rounded-[var(--radius-pill)] file:border-0 file:bg-[var(--color-fill-subtle)] file:px-3 file:py-1.5 file:text-[12px] file:font-semibold"
             />
-            <Button type="submit" variant="secondary" disabled={uploadPending}>
-              {uploadPending ? "Uploading & analyzing…" : "Upload"}
+            <Button
+              type="submit"
+              variant="secondary"
+              disabled={uploadPending}
+              className={uploadPending ? "[animation:upload-pulse-tone_1.1s_ease-in-out_infinite]" : undefined}
+            >
+              {uploadPending ? <UploadingLabel /> : "Upload"}
             </Button>
           </form>
           {uploadError && <p className="mt-1.5 text-[12px] text-[var(--color-negative-text)]">{uploadError}</p>}
