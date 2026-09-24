@@ -7,6 +7,8 @@ import { db, schema } from "@/lib/db";
 import { saveFile, readStoredFile } from "@/lib/storage";
 import { extractDocument } from "@/lib/extraction";
 import { isExtractable } from "@/lib/extraction-schemas";
+import { creditAppFillPatch, type CreditAppExtracted } from "@/lib/credit-app-merge";
+import { buyerApplicationFieldsFromFormData, buyerApplicationPatch } from "@/lib/buyer-application";
 import { getDealershipTimezone, todayInTimezone } from "@/lib/dealership-time";
 import { normalizePhone } from "@/lib/phone";
 import { dealStageInfo, STAGES, appendLog } from "@/lib/deal-stage";
@@ -40,7 +42,13 @@ export async function createDeal(formData: FormData) {
     dealDate: formData.get("dealDate") || undefined,
     lot: formData.get("lot") ?? "",
     notes: formData.get("notes") ?? "",
+    idType: formData.get("idType") ?? "",
+    cashDownDollars: formData.get("cashDownDollars") || undefined,
+    statedIncomeDollars: formData.get("statedIncomeDollars") || undefined,
+    ...buyerApplicationFieldsFromFormData(formData),
   });
+
+  const application = buyerApplicationPatch(parsed);
 
   const [deal] = await db
     .insert(schema.deals)
@@ -54,24 +62,33 @@ export async function createDeal(formData: FormData) {
       notes: parsed.notes || null,
       dealDate: parsed.dealDate || todayInTimezone(await getDealershipTimezone()),
       stips: DEFAULT_STIPS,
+      idType: parsed.idType || null,
+      cashDown: parsed.cashDownDollars != null ? Math.round(parsed.cashDownDollars * 100) : null,
+      statedIncome: parsed.statedIncomeDollars != null ? Math.round(parsed.statedIncomeDollars * 100) : null,
+      ...application,
     })
     .returning();
 
   // Credit app upload (see components/credit-app-upload-field.tsx) — stored
-  // for the record now. Auto-filling name/address from it, and cross-
-  // referencing against the TurboPass address, needs AI extraction
-  // (ANTHROPIC_API_KEY), which isn't wired up yet.
+  // and analyzed right away (same as any other upload, see
+  // uploadDocument), then merged into whatever buyer-info fields are still
+  // blank on the deal we just created (creditAppFillPatch never overwrites
+  // something typed into the New Deal form itself).
   const creditApp = formData.get("creditApp") as File | null;
   if (creditApp && creditApp.size > 0) {
     const { storagePath, fileSize } = await saveFile(creditApp);
-    await db.insert(schema.documents).values({
-      dealId: deal.id,
-      category: "credit_app",
-      fileName: creditApp.name,
-      storagePath,
-      mimeType: creditApp.type || null,
-      fileSize,
-    });
+    const [doc] = await db
+      .insert(schema.documents)
+      .values({
+        dealId: deal.id,
+        category: "credit_app",
+        fileName: creditApp.name,
+        storagePath,
+        mimeType: creditApp.type || null,
+        fileSize,
+      })
+      .returning({ id: schema.documents.id });
+    await analyzeDocument(deal.id, doc.id);
   }
 
   revalidatePath("/desk/priority-queue");
@@ -121,7 +138,10 @@ export async function updateCustomerFacts(dealId: string, formData: FormData) {
     openAutoPaymentDollars: formData.get("openAutoPaymentDollars") || undefined,
     statedAddress: formData.get("statedAddress") ?? "",
     idType: formData.get("idType") ?? "",
+    ...buyerApplicationFieldsFromFormData(formData),
   });
+
+  const application = buyerApplicationPatch(parsed);
 
   await db
     .update(schema.deals)
@@ -139,6 +159,7 @@ export async function updateCustomerFacts(dealId: string, formData: FormData) {
       openAutoPayment: parsed.openAutoPaymentDollars != null ? Math.round(parsed.openAutoPaymentDollars * 100) : null,
       statedAddress: parsed.statedAddress || null,
       idType: parsed.idType || null,
+      ...application,
     })
     .where(eq(schema.deals.id, dealId));
 
@@ -531,37 +552,58 @@ export async function setDealArchived(dealId: string, archived: boolean) {
 // up client-side as an opaque generic error instead of something the
 // finance manager could act on. Same shape as extractDocument's
 // ExtractionResult, for the same reason.
+// Takes every value under the "file" key — a plain single-file input
+// still works (one value), and a multi-file input (bank statements, so
+// several months can be cross-referenced in one go — see
+// lib/bank-statement-analysis.ts) uploads and analyzes each as its own
+// document, sequentially, so parallel writes never race on setDealStep or
+// hammer the extraction API at once.
 export async function uploadDocument(dealId: string, formData: FormData): Promise<{ ok: boolean; error?: string }> {
   const category = documentUploadSchema.parse({ category: formData.get("category") }).category;
-  const file = formData.get("file") as File | null;
-  if (!file || file.size === 0) {
+  const files = formData.getAll("file").filter((f): f is File => f instanceof File && f.size > 0);
+  if (files.length === 0) {
     return { ok: false, error: "No file selected." };
   }
 
-  let storagePath: string;
-  let fileSize: number;
-  try {
-    ({ storagePath, fileSize } = await saveFile(file));
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Upload failed — try again." };
+  for (const file of files) {
+    let storagePath: string;
+    let fileSize: number;
+    try {
+      ({ storagePath, fileSize } = await saveFile(file));
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : "Upload failed — try again." };
+    }
+
+    const [inserted] = await db
+      .insert(schema.documents)
+      .values({
+        dealId,
+        category,
+        fileName: file.name,
+        storagePath,
+        mimeType: file.type || null,
+        fileSize,
+      })
+      .returning({ id: schema.documents.id });
+
+    // The file itself, not a successful AI read of it, is what the checklist
+    // step means — pulling credit or verifying income is something the
+    // finance manager already did by getting the document, whether or not
+    // extraction is configured/succeeds. Never unchecks (setDealStep(...,
+    // true) is a no-op if it's already done).
+    if (category === "credit_report") await setDealStep(dealId, "credit", true);
+    if (category === "turbopass") await setDealStep(dealId, "income", true);
+
+    // Analyze immediately — no separate "Analyze with AI" click needed for
+    // the first pass. analyzeDocument itself no-ops cleanly (marks the doc
+    // "failed" with a clear reason) if extraction isn't set up or the file
+    // type isn't supported, so this never blocks the upload from having
+    // succeeded. The Re-analyze button in DocumentRow still exists for a
+    // retry.
+    if (isExtractable(category)) {
+      await analyzeDocument(dealId, inserted.id);
+    }
   }
-
-  await db.insert(schema.documents).values({
-    dealId,
-    category,
-    fileName: file.name,
-    storagePath,
-    mimeType: file.type || null,
-    fileSize,
-  });
-
-  // The file itself, not a successful AI read of it, is what the checklist
-  // step means — pulling credit or verifying income is something the
-  // finance manager already did by getting the document, whether or not
-  // extraction is configured/succeeds. Never unchecks (setDealStep(...,
-  // true) is a no-op if it's already done).
-  if (category === "credit_report") await setDealStep(dealId, "credit", true);
-  if (category === "turbopass") await setDealStep(dealId, "income", true);
 
   revalidatePath(`/desk/deals/${dealId}`);
   return { ok: true };
@@ -606,6 +648,10 @@ export async function analyzeDocument(dealId: string, documentId: string) {
         extractionError: null,
       })
       .where(eq(schema.documents.id, documentId));
+
+    if (doc.category === "credit_app") {
+      await applyCreditAppExtraction(dealId, result.data as CreditAppExtracted);
+    }
   } else {
     await db
       .update(schema.documents)
@@ -618,6 +664,21 @@ export async function analyzeDocument(dealId: string, documentId: string) {
   }
 
   revalidatePath(`/desk/deals/${dealId}`);
+}
+
+// Fills in whatever's still blank on the deal from a successful credit-app
+// extraction — see creditAppFillPatch for exactly what's filled and why it
+// never overwrites. Called right after analyzeDocument succeeds for a
+// credit_app, and again from createDeal when a credit app is attached at
+// New Deal time.
+async function applyCreditAppExtraction(dealId: string, extracted: CreditAppExtracted) {
+  const [deal] = await db.select().from(schema.deals).where(eq(schema.deals.id, dealId)).limit(1);
+  if (!deal) return;
+
+  const patch = creditAppFillPatch(deal, extracted);
+  if (Object.keys(patch).length === 0) return;
+
+  await db.update(schema.deals).set(patch).where(eq(schema.deals.id, dealId));
 }
 
 export async function deleteDocument(dealId: string, documentId: string) {

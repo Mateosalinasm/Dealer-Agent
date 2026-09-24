@@ -1,5 +1,6 @@
 import { Input, Label, Select } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { BuyerApplicationFields } from "@/components/buyer-application-fields";
 import { updateCustomerFacts } from "@/app/desk/deals/actions";
 import type { schema } from "@/lib/db";
 
@@ -96,6 +97,7 @@ export function CustomerSection({
         <Label>ID type</Label>
         <Select name="idType" defaultValue={deal.idType ?? "US ID"}>
           <option value="US ID">US ID</option>
+          <option value="US Driver's License">US Driver&apos;s License</option>
           <option value="ITIN">ITIN</option>
           <option value="Foreign passport">Foreign passport</option>
         </Select>
@@ -104,6 +106,29 @@ export function CustomerSection({
         <Label>Address on the application</Label>
         <Input name="statedAddress" defaultValue={deal.statedAddress ?? ""} placeholder="123 Main Street" />
       </div>
+
+      <div className="col-span-2">
+        <BuyerApplicationFields
+          defaults={{
+            gender: deal.gender,
+            dob: deal.dob,
+            ssn: deal.ssn,
+            homePhone: deal.homePhone,
+            workPhone: deal.workPhone,
+            email: deal.email,
+            idState: deal.idState,
+            idNumber: deal.idNumber,
+            idIssuedDate: deal.idIssuedDate,
+            idExpirationDate: deal.idExpirationDate,
+            currentAddress: deal.currentAddress,
+            previousAddress: deal.previousAddress,
+            currentEmployment: deal.currentEmployment,
+            previousEmployment: deal.previousEmployment,
+            otherIncome: deal.otherIncome,
+          }}
+        />
+      </div>
+
       <Button type="submit" className="col-span-2 self-end">
         Save
       </Button>

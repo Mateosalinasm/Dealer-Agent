@@ -194,13 +194,15 @@ function ExtractedSummary({ category, data }: { category: ExtractableCategory; d
       <div className="mt-2 rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)] p-3">
         {row("Applicant", d.applicantName)}
         {row("Co-applicant", d.coApplicantName)}
-        {row("Employer", d.employer)}
-        {row("Job title", d.jobTitle)}
+        {row("SSN", d.ssnLast4 ? `•••-••-${d.ssnLast4}` : null)}
+        {row("Employer", d.currentEmployment?.employerName ?? null)}
+        {row("Occupation", d.currentEmployment?.occupation ?? null)}
         {row("Stated monthly income", d.monthlyIncomeStatedCents != null ? formatCents(d.monthlyIncomeStatedCents) : null)}
-        {row("Years at job", d.yearsAtJob)}
-        {row("Residence", d.residenceType)}
-        {row("Monthly housing payment", d.monthlyHousingPaymentCents != null ? formatCents(d.monthlyHousingPaymentCents) : null)}
+        {row("Years at job", d.currentEmployment?.yearsAtJob ?? null)}
+        {row("Address type", d.currentAddress?.addressType ?? null)}
+        {row("Rent/mortgage", d.currentAddress?.rentMortCents != null ? formatCents(d.currentAddress.rentMortCents) : null)}
         {d.notes && <p className="mt-1.5 text-[11px] italic text-[var(--color-text-muted)]">{d.notes}</p>}
+        <p className="mt-1.5 text-[10.5px] text-[var(--color-text-placeholder)]">Blank fields on the customer&apos;s record were filled in from this application automatically — anything you&apos;d already typed was left alone.</p>
       </div>
     );
   }

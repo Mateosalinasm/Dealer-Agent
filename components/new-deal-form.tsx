@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Car, CarFront, Truck } from "lucide-react";
 import { Input, Label, Select, Textarea } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { BuyerApplicationFields } from "@/components/buyer-application-fields";
 import { formatCents } from "@/lib/utils";
 import { createDeal } from "@/app/desk/deals/actions";
 import type { bodyType } from "@/schema-sketch/schema";
@@ -59,9 +60,30 @@ export function NewDealForm({ vehicles, lenders }: { vehicles: VehicleOption[]; 
             <Input id="customerName" name="customerName" required placeholder="First Last" />
           </div>
           <div>
-            <Label htmlFor="phone">Phone (WhatsApp)</Label>
+            <Label htmlFor="phone">Cell phone (WhatsApp)</Label>
             <Input id="phone" name="phone" type="tel" placeholder="(555) 123-4567" />
           </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <Label htmlFor="idType">ID type</Label>
+            <Select id="idType" name="idType" defaultValue="US ID">
+              <option value="US ID">US ID</option>
+              <option value="US Driver's License">US Driver&apos;s License</option>
+              <option value="ITIN">ITIN</option>
+              <option value="Foreign passport">Foreign passport</option>
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="cashDownDollars">Cash down ($)</Label>
+            <Input id="cashDownDollars" name="cashDownDollars" type="number" step="1" min={0} placeholder="2500" />
+          </div>
+        </div>
+
+        <div>
+          <Label htmlFor="statedIncomeDollars">Monthly income ($)</Label>
+          <Input id="statedIncomeDollars" name="statedIncomeDollars" type="number" step="1" min={0} placeholder="3800" />
         </div>
 
         <div>
@@ -130,10 +152,6 @@ export function NewDealForm({ vehicles, lenders }: { vehicles: VehicleOption[]; 
           <Label htmlFor="notes">Notes (optional)</Label>
           <Textarea id="notes" name="notes" rows={2} placeholder="How they found us, what they want, etc." />
         </div>
-
-        <div className="mt-1 flex justify-end gap-2">
-          <Button type="submit">Add deal</Button>
-        </div>
       </div>
 
       <div className="rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)] p-4">
@@ -163,6 +181,14 @@ export function NewDealForm({ vehicles, lenders }: { vehicles: VehicleOption[]; 
             ))}
           </div>
         )}
+      </div>
+
+      <div className="md:col-span-2">
+        <BuyerApplicationFields />
+      </div>
+
+      <div className="mt-1 flex justify-end gap-2 md:col-span-2">
+        <Button type="submit">Add deal</Button>
       </div>
     </form>
   );

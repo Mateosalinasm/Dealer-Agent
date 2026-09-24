@@ -171,7 +171,7 @@ export function InsuranceBadge({ dealId, customerName, lienholderName, vehicleVi
               className="block flex-1 text-[12.5px] text-[var(--color-text-muted)] file:mr-3 file:rounded-[var(--radius-pill)] file:border-0 file:bg-[var(--color-fill-subtle)] file:px-3 file:py-1.5 file:text-[12px] file:font-semibold"
             />
             <Button type="submit" variant="secondary" disabled={isPending}>
-              {isPending ? "Uploading…" : "Upload"}
+              {isPending ? "Uploading & analyzing…" : "Upload"}
             </Button>
           </form>
           {uploadError && <p className="mt-1.5 text-[12px] text-[var(--color-negative-text)]">{uploadError}</p>}

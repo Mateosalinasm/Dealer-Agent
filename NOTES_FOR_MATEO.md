@@ -122,6 +122,18 @@ adds `lenders.address`, `lenders.max_deductible_cents`, and
 `deals.lienholder_name` — insurance verification won't work in
 production until that runs.
 
+**Round 10**: fixed a real production crash (uploading a document could
+take down the whole deal page instead of just showing an error), then
+built the full buyer-application form you asked for — SSN/DOB/phones/ID
+detail, current + previous address, current + previous employer, other
+income — plus AI auto-fill from an uploaded credit app, every upload
+analyzing itself automatically (no more clicking "Analyze with AI"), and
+multi-file bank statement upload that cross-references several months
+into one income baseline. See "Done this session" for the full
+rundown. **Needs the same Supabase step as the last three rounds**:
+`catchup-all.sql` now also adds 15 new `deals` columns for all of this —
+none of it works in production until that runs.
+
 ## How to read this file
 
 - **Needs your call** — genuine business/product decisions I set aside instead
@@ -563,6 +575,92 @@ production until that runs.
      is fully verified against seeded extraction data shaped exactly like
      what the AI returns for every other document category. **Needs the
      Supabase migration** — see the Round 9 note at the top of this file.
+- **Round 10:**
+  1. **Fixed a real production crash**: you hit "This page couldn't
+     load" uploading a TurboPass — traced it to `uploadDocument`
+     throwing when the file save failed (most likely Supabase Storage
+     rejecting it), which nothing caught, so React took down the whole
+     page instead of just the upload. Two-part fix: `uploadDocument` now
+     returns `{ok, error}` instead of throwing — this matters beyond
+     just catching it, since Next.js redacts a thrown Server Action's
+     message in production by design, so even a try/catch would only
+     ever have seen a generic error, never the real reason. The credit,
+     income, and insurance badges (and a new small
+     `DocumentUploadForm` component for the deal page's generic
+     uploader) now show that real message inline instead of crashing.
+     Also added `error.tsx` boundaries to the deals board, deal detail
+     page, and its modal route, so any other uncaught error in these
+     routes lands on a recoverable "Try again" screen instead of a dead
+     end. Verified by deliberately breaking Supabase Storage creds and
+     confirming the exact real error ("Supabase Storage upload failed:
+     ...") now shows in the dialog with the page fully usable, then
+     re-verified the normal upload path still works exactly as before.
+  2. **Full buyer-application form** — Buyer Info (gender, DOB, SSN,
+     home/work phone, email, ID state/number/issued/expiration), current
+     + previous Address (street through rent-or-own and years/months at
+     it), current + previous Employment (employer, occupation, status,
+     income type, years/months, employer address), and Other Income —
+     all now on the New Deal form and editable afterward from Customer
+     facts (one shared `BuyerApplicationFields` component so the ~50
+     fields aren't hand-duplicated across both forms). Stored as a
+     handful of structured columns on `deals` (mostly grouped as jsonb —
+     `currentAddress`/`previousAddress`/`currentEmployment`/
+     `previousEmployment`/`otherIncome` — rather than ~50 flat columns),
+     not a separate table, matching how `done`/`stips`/`log` already
+     work on that row.
+  3. **SSN stays manual-entry only, on purpose** — per your call: an
+     uploaded credit app's AI extraction only ever surfaces the last 4
+     digits (`ssnLast4`, shown in the document's own summary), same rule
+     already used for every other document type here. The full 9-digit
+     SSN is a field you type by hand; it's structurally impossible for
+     the auto-fill logic to write it, since the type it merges from
+     doesn't even have an `ssn` field on it. Same treatment for DOB —
+     never AI-extracted, manual only.
+  4. **AI auto-fills blank fields from an uploaded credit app** —
+     whether attached at New Deal time or uploaded later to an existing
+     deal, a successful extraction fills in whatever's still blank
+     (name, phones, email, ID detail, both addresses, both employers,
+     stated income, other income) and **never overwrites something
+     you've already typed**, whether you typed it before or after the
+     upload. Verified the merge logic itself directly (blank fields
+     fill, already-set fields are preserved byte-for-byte, running it
+     twice in a row is a no-op) — the actual AI call can't be tested
+     without `ANTHROPIC_API_KEY`, same limitation as everything else
+     AI-extracted this session.
+  5. **Every upload now analyzes itself immediately** — credit report,
+     credit app, TurboPass, bank statements, AutoCheck, insurance: no
+     more clicking "Analyze with AI" for the first pass, it just
+     happens on upload (the button still says "Uploading &
+     analyzing…" while it does). The Re-analyze button still exists for
+     a retry. Verified this actually fires (not just the checklist) by
+     confirming a fresh upload's status goes straight to a real
+     extraction attempt with no manual click in between.
+  6. **Multi-file bank statement upload + cross-referencing** — select
+     several months' statements at once (the file picker now allows
+     multiple when "Bank statement" is chosen) and each becomes its own
+     analyzed document; a new `lib/bank-statement-analysis.ts` then
+     matches recurring deposits by description **across every
+     statement uploaded for the deal**, so a paycheck that shows up in
+     all 3 months reads very differently from a one-off transfer that
+     only hit one — shown as "Seen in 3 of 3 statements" per line, with
+     a combined monthly baseline you can check/uncheck lines from and
+     save as verified income, same pattern as the existing TurboPass
+     breakdown. The income badge's underlying snapshot (what shows
+     green/gray on the board) was also updated to use this same combined
+     figure instead of just whichever statement happened to be uploaded
+     first. Verified end to end with 3 seeded months (a recurring
+     payroll deposit plus one one-off transfer) — the dialog showed the
+     right per-line "seen in X of Y" counts and the correct combined
+     baseline, and "Use this total" correctly saved it as verified
+     income.
+  7. Full verification pass: `tsc`/`eslint`/`next build` clean, plus a
+     real Playwright run against `next start` and local Postgres — New
+     Deal form round-tripped every new field correctly (including
+     dollars→cents conversion and the nested address/employment jsonb),
+     Customer facts saved an edit without disturbing other already-set
+     fields, and the crash-fix scenarios above. Test data cleaned up
+     after. **Needs the Supabase migration** — see the Round 10 note at
+     the top of this file (15 new `deals` columns).
 
 ---
 

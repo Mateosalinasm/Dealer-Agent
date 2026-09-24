@@ -114,16 +114,67 @@ export const creditReportSchema = z.object({
   notes: z.string().nullable(),
 });
 
+// Shared by currentAddress/previousAddress below — mirrors
+// schema-sketch/schema.ts's AddressDetail, minus rentMortCents/years/
+// months naming quirks (kept aligned so applyCreditAppExtraction in
+// app/desk/deals/actions.ts can copy this straight across).
+const addressExtractionSchema = z.object({
+  street: z.string().nullable(),
+  aptUnit: z.string().nullable(),
+  city: z.string().nullable(),
+  state: z.string().nullable(),
+  zip: z.string().nullable(),
+  county: z.string().nullable(),
+  addressType: z.string().nullable().describe("rent, own, live with family, etc., as marked on the form"),
+  rentMortCents: z.number().int().nullable(),
+  years: z.number().nullable(),
+  months: z.number().nullable(),
+});
+
+// Shared by currentEmployment/previousEmployment below. Monthly income
+// itself is NOT in here — it's the top-level monthlyIncomeStatedCents
+// field, same one deal-underwriting.ts already reads for the income-
+// source fallback.
+const employmentExtractionSchema = z.object({
+  employerName: z.string().nullable(),
+  occupation: z.string().nullable(),
+  employerPhone: z.string().nullable(),
+  employmentStatus: z.string().nullable().describe("employed full time, part time, self-employed, retired, etc."),
+  incomeType: z.string().nullable().describe("how income is verified/paid, e.g. TurboPass, pay stub, self-employed, as labeled on the form"),
+  yearsAtJob: z.number().nullable(),
+  monthsAtJob: z.number().nullable(),
+  street: z.string().nullable(),
+  aptUnit: z.string().nullable(),
+  city: z.string().nullable(),
+  state: z.string().nullable(),
+  zip: z.string().nullable(),
+  county: z.string().nullable(),
+});
+
 export const creditAppSchema = z.object({
   applicantName: z.string().nullable(),
   coApplicantName: z.string().nullable(),
-  address: z.string().nullable(),
-  employer: z.string().nullable(),
-  jobTitle: z.string().nullable(),
+  gender: z.string().nullable(),
+  // Last 4 only — same rule as every other document type here. A full
+  // SSN never goes through the extraction pipeline; the finance manager
+  // types the full number by hand into the deal's own ssn field.
+  ssnLast4: z.string().nullable(),
+  cellPhone: z.string().nullable(),
+  homePhone: z.string().nullable(),
+  workPhone: z.string().nullable(),
+  email: z.string().nullable(),
+  idType: z.string().nullable(),
+  idState: z.string().nullable(),
+  idNumber: z.string().nullable(),
+  idIssuedDate: z.string().nullable().describe("ISO date if present"),
+  idExpirationDate: z.string().nullable().describe("ISO date if present"),
+  currentAddress: addressExtractionSchema.nullable(),
+  previousAddress: addressExtractionSchema.nullable(),
+  currentEmployment: employmentExtractionSchema.nullable(),
+  previousEmployment: employmentExtractionSchema.nullable(),
   monthlyIncomeStatedCents: z.number().int().nullable(),
-  yearsAtJob: z.number().nullable(),
-  monthlyHousingPaymentCents: z.number().int().nullable(),
-  residenceType: z.string().nullable().describe("own, rent, live with family, etc."),
+  otherIncomeAmountCents: z.number().int().nullable(),
+  otherIncomeSource: z.string().nullable(),
   notes: z.string().nullable(),
 });
 

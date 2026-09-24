@@ -43,7 +43,7 @@ export function DocumentUploadForm({ dealId }: { dealId: string }) {
           />
         </div>
         <Button type="submit" variant="secondary" disabled={isPending}>
-          {isPending ? "Uploading…" : "Upload"}
+          {isPending ? "Uploading & analyzing…" : "Upload"}
         </Button>
       </form>
       {uploadError && <p className="mt-1.5 text-[12px] text-[var(--color-negative-text)]">{uploadError}</p>}

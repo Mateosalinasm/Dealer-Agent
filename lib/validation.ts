@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { buyerApplicationSchema } from "@/lib/buyer-application";
 
 // Query-string params on GET /api/inventory/search — every field arrives as
 // a string, coerce/validate here rather than trusting the caller.
@@ -16,16 +17,21 @@ export const inventorySearchParamsSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).optional(),
 });
 
-export const newDealSchema = z.object({
-  customerName: z.string().trim().min(1, "Customer name is required"),
-  phone: z.string().optional(),
-  vehicleId: z.string().uuid().optional().or(z.literal("")),
-  wantBodyType: z.enum(["truck", "sedan", "suv"]).optional().or(z.literal("")),
-  lenderId: z.string().uuid().optional().or(z.literal("")),
-  dealDate: z.string().optional(),
-  lot: z.string().optional(),
-  notes: z.string().optional(),
-});
+export const newDealSchema = z
+  .object({
+    customerName: z.string().trim().min(1, "Customer name is required"),
+    phone: z.string().optional(),
+    vehicleId: z.string().uuid().optional().or(z.literal("")),
+    wantBodyType: z.enum(["truck", "sedan", "suv"]).optional().or(z.literal("")),
+    lenderId: z.string().uuid().optional().or(z.literal("")),
+    dealDate: z.string().optional(),
+    lot: z.string().optional(),
+    notes: z.string().optional(),
+    idType: z.string().optional(),
+    cashDownDollars: z.coerce.number().min(0).optional(),
+    statedIncomeDollars: z.coerce.number().min(0).optional(),
+  })
+  .extend(buyerApplicationSchema.shape);
 
 export const dealInfoSchema = z.object({
   programId: z.string().uuid().optional().or(z.literal("")),
@@ -47,21 +53,23 @@ export const moneyTradeSchema = z.object({
   tradePayoffDollars: z.coerce.number().min(0).optional(),
 });
 
-export const customerFactsSchema = z.object({
-  vehicleId: z.string().uuid().optional().or(z.literal("")),
-  wantBodyType: z.enum(["truck", "sedan", "suv"]).optional().or(z.literal("")),
-  lenderId: z.string().uuid().optional().or(z.literal("")),
-  phone: z.string().optional(),
-  firstPaymentDate: z.string().optional(),
-  lot: z.string().optional(),
-  cashDownDollars: z.coerce.number().min(0).optional(),
-  statedIncomeDollars: z.coerce.number().min(0).optional(),
-  verifiedIncomeDollars: z.coerce.number().min(0).optional(),
-  paymentDollars: z.coerce.number().min(0).optional(),
-  openAutoPaymentDollars: z.coerce.number().min(0).optional(),
-  statedAddress: z.string().optional(),
-  idType: z.string().optional(),
-});
+export const customerFactsSchema = z
+  .object({
+    vehicleId: z.string().uuid().optional().or(z.literal("")),
+    wantBodyType: z.enum(["truck", "sedan", "suv"]).optional().or(z.literal("")),
+    lenderId: z.string().uuid().optional().or(z.literal("")),
+    phone: z.string().optional(),
+    firstPaymentDate: z.string().optional(),
+    lot: z.string().optional(),
+    cashDownDollars: z.coerce.number().min(0).optional(),
+    statedIncomeDollars: z.coerce.number().min(0).optional(),
+    verifiedIncomeDollars: z.coerce.number().min(0).optional(),
+    paymentDollars: z.coerce.number().min(0).optional(),
+    openAutoPaymentDollars: z.coerce.number().min(0).optional(),
+    statedAddress: z.string().optional(),
+    idType: z.string().optional(),
+  })
+  .extend(buyerApplicationSchema.shape);
 
 export const creditSchema = z.object({
   fico: z.coerce.number().int().min(300).max(900).optional(),

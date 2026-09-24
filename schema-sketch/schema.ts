@@ -20,6 +20,48 @@ export const messageStatus = ['queued', 'sent', 'delivered', 'read', 'failed'] a
 
 export const warrantyProductType = ['vsc', 'gap', 'tire_wheel', 'key_replacement', 'maintenance', 'other'] as const;
 
+// Buyer application detail — mirrors a standard DealerCenter-style credit
+// application (Buyer Info / Address / Employment / Other Income). Grouped
+// as jsonb per section instead of ~50 flat columns, same pattern already
+// used for done/stips/log/subs above. Money fields inside stay integer
+// cents like everywhere else in this file.
+export interface AddressDetail {
+  street: string | null;
+  aptUnit: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  county: string | null;
+  addressType: string | null; // 'rent' | 'own' | etc, as typed
+  rentMortCents: number | null;
+  years: number | null;
+  months: number | null;
+}
+
+// Monthly income itself is NOT in here — it lives on deals.statedIncome,
+// the single figure dealHealth/ptiCalc/credit-grade already read. This
+// just carries the employer/job detail around it.
+export interface EmploymentDetail {
+  employerName: string | null;
+  occupation: string | null;
+  employerPhone: string | null;
+  employmentStatus: string | null;
+  incomeType: string | null; // 'turbopass' | 'paystub' | 'self_employed' | etc, as typed
+  yearsAtJob: number | null;
+  monthsAtJob: number | null;
+  street: string | null;
+  aptUnit: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  county: string | null;
+}
+
+export interface OtherIncomeDetail {
+  amountCents: number | null;
+  source: string | null;
+}
+
 // All money is integer CENTS. No floats anywhere in this file.
 
 export const settings = pgTable('settings', {
@@ -297,6 +339,33 @@ export const deals = pgTable('deals', {
   // sending so the daily cron never double-texts a customer if it runs
   // more than once on the same day the window opens.
   checkinsSent: jsonb('checkins_sent').$type<string[]>().notNull().default([]),
+
+  // --- Buyer application (Buyer Info / Address / Employment / Other
+  // Income) — set at New deal or filled in later from Customer facts.
+  // Auto-populated from an uploaded credit app once it's AI-extracted
+  // (see applyCreditAppExtraction in app/desk/deals/actions.ts), but only
+  // ever into a field that's still blank — never overwrites something
+  // the finance manager already typed. `phone` above doubles as cell
+  // phone; these add the other two lines from the application. `ssn` is
+  // full and manual-entry only — the AI extraction pipeline only ever
+  // surfaces ssnLast4 (same last-4-only rule as every other document
+  // type in lib/extraction.ts), so a full SSN never goes through the
+  // Anthropic API.
+  gender: text('gender'),
+  dob: date('dob'),
+  ssn: text('ssn'),
+  homePhone: text('home_phone'),
+  workPhone: text('work_phone'),
+  email: text('email'),
+  idState: text('id_state'),
+  idNumber: text('id_number'),
+  idIssuedDate: date('id_issued_date'),
+  idExpirationDate: date('id_expiration_date'),
+  currentAddress: jsonb('current_address').$type<AddressDetail>(),
+  previousAddress: jsonb('previous_address').$type<AddressDetail>(),
+  currentEmployment: jsonb('current_employment').$type<EmploymentDetail>(),
+  previousEmployment: jsonb('previous_employment').$type<EmploymentDetail>(),
+  otherIncome: jsonb('other_income').$type<OtherIncomeDetail>(),
 });
 
 export const leads = pgTable('leads', {

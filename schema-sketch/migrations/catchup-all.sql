@@ -429,3 +429,20 @@ CREATE UNIQUE INDEX IF NOT EXISTS "marketing_posts_vehicle_platform_lang_idx" ON
 ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "lienholder_name" text;
 ALTER TABLE "lenders" ADD COLUMN IF NOT EXISTS "address" text;
 ALTER TABLE "lenders" ADD COLUMN IF NOT EXISTS "max_deductible_cents" integer DEFAULT 100000 NOT NULL;
+
+-- --- 0018 ---
+ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "gender" text;
+ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "dob" date;
+ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "ssn" text;
+ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "home_phone" text;
+ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "work_phone" text;
+ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "email" text;
+ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "id_state" text;
+ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "id_number" text;
+ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "id_issued_date" date;
+ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "id_expiration_date" date;
+ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "current_address" jsonb;
+ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "previous_address" jsonb;
+ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "current_employment" jsonb;
+ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "previous_employment" jsonb;
+ALTER TABLE "deals" ADD COLUMN IF NOT EXISTS "other_income" jsonb;

@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Label, Select } from "@/components/ui/input";
 import { DocumentRow } from "@/components/document-row";
 import { TurboPassBreakdown } from "@/components/turbopass-breakdown";
+import { BankStatementBreakdown } from "@/components/bank-statement-breakdown";
 import { analyzeDocument, deleteDocument, uploadDocument } from "@/app/desk/deals/actions";
 import { EXTRACTION_SCHEMAS } from "@/lib/extraction-schemas";
 import { analyzeTurboPass } from "@/lib/turbopass-analysis";
+import { analyzeBankStatements } from "@/lib/bank-statement-analysis";
 import { formatCents, cn } from "@/lib/utils";
 
 interface IncomeDoc {
@@ -38,6 +40,7 @@ export function IncomeReportBadge({ dealId, customerName, incomeSource, monthlyI
   const verified = incomeSource === "TurboPass" || !!incomeSource?.startsWith("Bank statement");
   const [isPending, startTransition] = useTransition();
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadCategory, setUploadCategory] = useState<"turbopass" | "bank_statement">("turbopass");
 
   // Most-recently-extracted TurboPass doc drives the rich breakdown below
   // the summary card — parsed defensively, same as everywhere else this
@@ -49,6 +52,19 @@ export function IncomeReportBadge({ dealId, customerName, incomeSource, monthlyI
     const parsed = EXTRACTION_SCHEMAS.turbopass.safeParse(turbopassDoc.extractedData);
     if (!parsed.success || parsed.data.transactions.length === 0) return null;
     return analyzeTurboPass(parsed.data);
+  }, [documents]);
+
+  // Every successful bank_statement extraction (several months, uploaded
+  // together or across separate visits), cross-referenced into one
+  // baseline — see lib/bank-statement-analysis.ts.
+  const bankStatementAnalysis = useMemo(() => {
+    const successful = documents
+      .filter((d) => d.category === "bank_statement" && d.extractionStatus === "success")
+      .map((d) => EXTRACTION_SCHEMAS.bank_statement.safeParse(d.extractedData))
+      .filter((p): p is { success: true; data: (typeof EXTRACTION_SCHEMAS)["bank_statement"]["_output"] } => p.success)
+      .map((p) => p.data);
+    if (successful.length === 0) return null;
+    return analyzeBankStatements(successful);
   }, [documents]);
 
   // A bound server-action reference passed directly as a form's `action`
@@ -102,12 +118,14 @@ export function IncomeReportBadge({ dealId, customerName, incomeSource, monthlyI
         </div>
 
         {turbopassAnalysis && <TurboPassBreakdown dealId={dealId} analysis={turbopassAnalysis} />}
+        {bankStatementAnalysis && <BankStatementBreakdown dealId={dealId} analysis={bankStatementAnalysis} />}
 
         <div className="mt-4">
           <p className="mb-2 text-[11px] text-[var(--color-text-muted)]">
-            Upload a TurboPass or a bank statement below. &ldquo;Analyze with AI&rdquo; reads the recurring
-            deposits off it once ANTHROPIC_API_KEY is configured — until then it&apos;ll upload and store the file,
-            but income stays unverified. Stated/verified income can still be entered by hand in Customer.
+            Upload a TurboPass or bank statements below — each upload is analyzed automatically, no separate step
+            needed. Select multiple bank statement files at once (e.g. the last 3 months) and they&apos;re
+            cross-referenced into one combined baseline above. Stated/verified income can still be entered by hand
+            in Customer.
           </p>
 
           {documents.length > 0 && (
@@ -126,7 +144,7 @@ export function IncomeReportBadge({ dealId, customerName, incomeSource, monthlyI
           <form action={upload} className="flex items-end gap-2">
             <div className="w-40">
               <Label>Type</Label>
-              <Select name="category" defaultValue="turbopass">
+              <Select name="category" value={uploadCategory} onChange={(e) => setUploadCategory(e.target.value as "turbopass" | "bank_statement")}>
                 <option value="turbopass">TurboPass</option>
                 <option value="bank_statement">Bank statement</option>
               </Select>
@@ -135,10 +153,11 @@ export function IncomeReportBadge({ dealId, customerName, incomeSource, monthlyI
               name="file"
               type="file"
               required
+              multiple={uploadCategory === "bank_statement"}
               className="block flex-1 text-[12.5px] text-[var(--color-text-muted)] file:mr-3 file:rounded-[var(--radius-pill)] file:border-0 file:bg-[var(--color-fill-subtle)] file:px-3 file:py-1.5 file:text-[12px] file:font-semibold"
             />
             <Button type="submit" variant="secondary" disabled={isPending}>
-              {isPending ? "Uploading…" : "Upload"}
+              {isPending ? "Uploading & analyzing…" : "Upload"}
             </Button>
           </form>
           {uploadError && <p className="mt-1.5 text-[12px] text-[var(--color-negative-text)]">{uploadError}</p>}

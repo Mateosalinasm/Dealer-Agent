@@ -64,10 +64,23 @@ const CATEGORY_INSTRUCTIONS: Record<ExtractableCategory, string> = {
     "obligation if the report totals it, and derogatory item counts (bankruptcies, collections, " +
     "repossessions, 30+ day late payments) and inquiries in the last 6 months.",
   credit_app:
-    "This is the dealership's own credit application filled out by the customer. Extract the " +
-    "applicant (and co-applicant if any), stated employer/income, time at job, residence type, " +
-    "and stated monthly housing payment, exactly as written on the form — this is self-reported, " +
-    "not verified.",
+    "This is the dealership's own credit application filled out by the customer — everything on " +
+    "it is self-reported, not verified. Extract the applicant's name, co-applicant name if any, " +
+    "gender, phone numbers (cell/home/work — leave any not listed null), and email. For the ID " +
+    "section extract idType (driver's license, state ID, passport, etc.), idState, idNumber, and " +
+    "the issued/expiration dates if shown. Extract only the LAST 4 DIGITS of the SSN into " +
+    "ssnLast4 — never output the full 9-digit SSN even though it's on the form, same rule as " +
+    "every other document type. For the current address and, if a previous-address section is " +
+    "filled in, the previous address too, extract street/apt-unit/city/state/zip/county, whether " +
+    "it's marked rent or own (addressType), the rent/mortgage amount, and years+months at that " +
+    "address. For current employment and, if filled in, previous employment, extract the " +
+    "employer's name, occupation, employer phone, employment status, how income is verified " +
+    "(incomeType — e.g. TurboPass, pay stub, self-employed, whatever's marked), years+months at " +
+    "the job, and the employer's address fields. Extract the stated monthly income as " +
+    "monthlyIncomeStatedCents, and any \"Other Income\" section as otherIncomeAmountCents + " +
+    "otherIncomeSource. Leave an entire address/employment section null if the form doesn't have " +
+    "one filled in (e.g. no previous address listed) rather than guessing at it from the current " +
+    "one.",
   autocheck:
     "This is an AutoCheck (or similar) vehicle history report. Extract the VIN, year, make, model, " +
     "trim, current mileage, title brand, owner count, and reported accident count. List every " +

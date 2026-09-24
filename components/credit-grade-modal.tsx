@@ -88,6 +88,7 @@ export function CreditGradeBadge({ dealId, customerName, vehicleLabel, facts, cr
               <Label>Identification</Label>
               <Select name="idType" defaultValue="US ID">
                 <option value="US ID">US ID</option>
+                <option value="US Driver's License">US Driver&apos;s License</option>
                 <option value="ITIN">ITIN</option>
                 <option value="Foreign passport">Foreign passport</option>
               </Select>
@@ -224,7 +225,7 @@ export function CreditGradeBadge({ dealId, customerName, vehicleLabel, facts, cr
               className="block flex-1 text-[12.5px] text-[var(--color-text-muted)] file:mr-3 file:rounded-[var(--radius-pill)] file:border-0 file:bg-[var(--color-fill-subtle)] file:px-3 file:py-1.5 file:text-[12px] file:font-semibold"
             />
             <Button type="submit" variant="secondary" disabled={uploadPending}>
-              {uploadPending ? "Uploading…" : "Upload"}
+              {uploadPending ? "Uploading & analyzing…" : "Upload"}
             </Button>
           </form>
           {uploadError && <p className="mt-1.5 text-[12px] text-[var(--color-negative-text)]">{uploadError}</p>}

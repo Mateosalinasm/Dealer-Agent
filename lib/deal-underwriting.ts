@@ -3,6 +3,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { EXTRACTION_SCHEMAS } from "@/lib/extraction-schemas";
 import { analyzeTurboPass } from "@/lib/turbopass-analysis";
+import { analyzeBankStatements } from "@/lib/bank-statement-analysis";
 
 export interface UnderwritingSnapshot {
   creditScore: number | null;
@@ -94,15 +95,20 @@ function snapshotFromDocs(docs: DocumentRow[]): UnderwritingSnapshot {
   }
 
   if (monthlyIncomeCents == null) {
-    const bankDoc = docs.find((d) => d.category === "bank_statement");
-    if (bankDoc) {
-      const parsed = EXTRACTION_SCHEMAS.bank_statement.safeParse(bankDoc.extractedData);
-      if (parsed.success && parsed.data.recurringDeposits.length > 0) {
-        const sum = parsed.data.recurringDeposits.reduce((total, dep) => total + (dep.amountCents ?? 0), 0);
-        if (sum > 0) {
-          monthlyIncomeCents = sum;
-          incomeSource = "Bank statement (recurring deposits)";
-        }
+    // Every successful bank_statement extraction for this deal, cross-
+    // referenced together (lib/bank-statement-analysis.ts) — several
+    // months' statements combine into one baseline instead of just
+    // reading whichever one happened to be uploaded first.
+    const bankStatementData = docs
+      .filter((d) => d.category === "bank_statement")
+      .map((d) => EXTRACTION_SCHEMAS.bank_statement.safeParse(d.extractedData))
+      .filter((p): p is { success: true; data: (typeof EXTRACTION_SCHEMAS)["bank_statement"]["_output"] } => p.success)
+      .map((p) => p.data);
+    if (bankStatementData.length > 0) {
+      const combined = analyzeBankStatements(bankStatementData).combinedBaselineCents;
+      if (combined > 0) {
+        monthlyIncomeCents = combined;
+        incomeSource = `Bank statement${bankStatementData.length > 1 ? "s" : ""} (recurring deposits)`;
       }
     }
   }
