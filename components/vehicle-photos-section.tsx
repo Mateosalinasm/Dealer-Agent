@@ -2,13 +2,13 @@
 
 import { useRef, useState, useTransition } from "react";
 import type { DragEvent } from "react";
-import { Download, ImagePlus } from "lucide-react";
+import { Download, ImagePlus, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UploadingLabel } from "@/components/uploading-indicator";
 import { VehiclePhotoCard, type VehiclePhotoDTO } from "@/components/vehicle-photo-card";
 import { VehicleEditAllButton } from "@/components/vehicle-edit-all-button";
-import { uploadVehiclePhotos, reorderVehiclePhotos } from "@/app/inventory/photo-actions";
+import { uploadVehiclePhotos, reorderVehiclePhotos, deleteVehiclePhoto } from "@/app/inventory/photo-actions";
 import { resizeImageForUpload } from "@/lib/client-image-resize";
 import { downloadPhotosAsZip } from "@/lib/download-zip";
 import { MAX_VEHICLE_PHOTOS } from "@/lib/vehicle-photo-settings";
@@ -40,6 +40,7 @@ export function VehiclePhotosSection({ vehicleId, vehicleLabel, photos }: { vehi
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isZipping, startZip] = useTransition();
+  const [isDeletingSelected, startDeleteSelected] = useTransition();
 
   function handleDragHandleStart(index: number) {
     dragFromIndex.current = index;
@@ -136,6 +137,15 @@ export function VehiclePhotosSection({ vehicleId, vehicleLabel, photos }: { vehi
     );
   }
 
+  function deleteSelected() {
+    const ids = [...selected];
+    startDeleteSelected(async () => {
+      await Promise.all(ids.map((id) => deleteVehiclePhoto(id)));
+      setSelectMode(false);
+      setSelected(new Set());
+    });
+  }
+
   const atCap = order.length >= MAX_VEHICLE_PHOTOS;
 
   return (
@@ -164,11 +174,6 @@ export function VehiclePhotosSection({ vehicleId, vehicleLabel, photos }: { vehi
               </Button>
             )}
             {photos.length >= 2 && <VehicleEditAllButton photoIds={photos.map((p) => p.id)} />}
-            {photos.length > 1 && (
-              <Button type="button" variant="ghost" onClick={toggleSelectMode} className="px-3 py-1.5 text-[12px]">
-                Select
-              </Button>
-            )}
             <Button
               type="button"
               variant="secondary"
@@ -183,6 +188,11 @@ export function VehiclePhotosSection({ vehicleId, vehicleLabel, photos }: { vehi
                 </>
               )}
             </Button>
+            {photos.length > 1 && (
+              <Button type="button" variant="ghost" onClick={toggleSelectMode} className="px-3 py-1.5 text-[12px]">
+                Select
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -215,6 +225,15 @@ export function VehiclePhotosSection({ vehicleId, vehicleLabel, photos }: { vehi
                 }}
               />
             )}
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={selected.size === 0 || isDeletingSelected}
+              onClick={deleteSelected}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[12px]"
+            >
+              <Trash2 size={13} /> {isDeletingSelected ? "Deleting…" : `Delete ${selected.size || ""}`}
+            </Button>
             <Button type="button" variant="ghost" onClick={toggleSelectMode} className="px-3 py-1.5 text-[12px]">
               Cancel
             </Button>
@@ -240,7 +259,7 @@ export function VehiclePhotosSection({ vehicleId, vehicleLabel, photos }: { vehi
           <p className="mb-2 text-[11px] text-[var(--color-text-muted)]">
             Drag the grip on a photo to reorder — the first one is the cover shown on the inventory list. Drag &amp; drop new photos anywhere on this card, or use Upload photos above.
           </p>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {order.map((photo, index) => (
               <VehiclePhotoCard
                 key={photo.id}

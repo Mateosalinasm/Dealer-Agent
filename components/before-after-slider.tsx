@@ -53,20 +53,20 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, alt, className }: { bef
       <div className="absolute bottom-2 left-1/2 z-10 flex -translate-x-1/2 items-center gap-0.5 rounded-[var(--radius-pill)] bg-black/60 p-0.5">
         <button
           type="button"
-          onClick={() => setPercent(0)}
+          onClick={() => setPercent(100)}
           className={cn(
             "rounded-[var(--radius-pill)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[.04em] transition-colors",
-            percent === 0 ? "bg-white text-[var(--color-text)]" : "text-white",
+            percent === 100 ? "bg-white text-[var(--color-text)]" : "text-white",
           )}
         >
           Original
         </button>
         <button
           type="button"
-          onClick={() => setPercent(100)}
+          onClick={() => setPercent(0)}
           className={cn(
             "rounded-[var(--radius-pill)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[.04em] transition-colors",
-            percent === 100 ? "bg-white text-[var(--color-text)]" : "text-white",
+            percent === 0 ? "bg-white text-[var(--color-text)]" : "text-white",
           )}
         >
           Edited

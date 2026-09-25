@@ -3,14 +3,13 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { Car, Fuel, LayoutGrid, List as ListIcon, OctagonAlert, Search, Trash2, TriangleAlert, Users } from "lucide-react";
+import { IconCar, IconCarSuv } from "@tabler/icons-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { VehicleGalleryButton, type GalleryPhoto } from "@/components/vehicle-gallery-button";
 import { PickupTruckIcon } from "@/components/icons/pickup-truck-icon";
-import { SedanIcon } from "@/components/icons/sedan-icon";
-import { SuvIcon } from "@/components/icons/suv-icon";
 import { deleteVehicles, markVehicleSold } from "@/app/inventory/actions";
 import { formatCents, cn } from "@/lib/utils";
 
@@ -42,9 +41,10 @@ export interface InventoryVehicleCard {
 type ViewMode = "grid" | "list";
 type Category = "all" | BodyType;
 type SortOrder = "none" | "lotNewest" | "lotOldest" | "yearNewest" | "yearOldest";
+type StockTab = "stock" | "sold";
 
 type IconComponent = React.ComponentType<{ size?: number; className?: string }>;
-const CATEGORY_ICONS: Record<BodyType, IconComponent> = { sedan: SedanIcon, truck: PickupTruckIcon, suv: SuvIcon };
+const CATEGORY_ICONS: Record<BodyType, IconComponent> = { sedan: IconCar, truck: PickupTruckIcon, suv: IconCarSuv };
 const CATEGORY_LABELS: Record<BodyType, string> = { sedan: "Sedans", truck: "Trucks", suv: "SUVs" };
 
 // Only 'salvage' gets the red danger treatment, matching the explicit ask.
@@ -61,6 +61,7 @@ function titleBadge(title: TitleStatus): { Icon: IconComponent; className: strin
 }
 
 export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }) {
+  const [tab, setTab] = useState<StockTab>("stock");
   const [view, setView] = useState<ViewMode>("grid");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<Category>("all");
@@ -72,9 +73,12 @@ export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [isDeleting, startDelete] = useTransition();
 
+  const stockCount = useMemo(() => vehicles.filter((v) => !v.sold).length, [vehicles]);
+  const soldCount = vehicles.length - stockCount;
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let list = vehicles;
+    let list = vehicles.filter((v) => (tab === "sold" ? v.sold : !v.sold));
     if (category !== "all") list = list.filter((v) => v.bodyType === category);
     if (dieselOnly) list = list.filter((v) => v.fuelType === "diesel");
     if (threeRowOnly) list = list.filter((v) => v.isThreeRowSuv);
@@ -95,7 +99,7 @@ export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }
       });
     }
     return list;
-  }, [vehicles, query, category, dieselOnly, threeRowOnly, sort]);
+  }, [vehicles, tab, query, category, dieselOnly, threeRowOnly, sort]);
 
   function toggleSelectMode() {
     setSelectMode((v) => !v);
@@ -127,10 +131,37 @@ export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }
     });
   }
 
+  function switchTab(next: StockTab) {
+    setTab(next);
+    setSelectMode(false);
+    setSelected(new Set());
+  }
+
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="text-[13.5px] font-semibold text-[var(--color-text)]">Current stock · {filtered.length}</div>
+        <div className="flex flex-none items-center gap-0.5 rounded-[var(--radius-pill)] bg-[var(--color-fill-subtle)] p-0.5">
+          <button
+            type="button"
+            onClick={() => switchTab("stock")}
+            className={cn(
+              "rounded-[var(--radius-pill)] px-2.5 py-1 text-[11px] font-semibold transition-colors",
+              tab === "stock" ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-[var(--shadow-card)]" : "text-[var(--color-text-muted)]",
+            )}
+          >
+            In stock · {stockCount}
+          </button>
+          <button
+            type="button"
+            onClick={() => switchTab("sold")}
+            className={cn(
+              "rounded-[var(--radius-pill)] px-2.5 py-1 text-[11px] font-semibold transition-colors",
+              tab === "sold" ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-[var(--shadow-card)]" : "text-[var(--color-text-muted)]",
+            )}
+          >
+            Sold · {soldCount}
+          </button>
+        </div>
         <div className="flex flex-none items-center gap-1 rounded-[var(--radius-pill)] bg-[var(--color-fill-subtle)] p-0.5">
           <button
             type="button"
@@ -280,11 +311,13 @@ export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }
           <p className="text-[12.5px] text-[var(--color-text-muted)]">
             {query || category !== "all" || dieselOnly || threeRowOnly
               ? "No vehicles match these filters."
-              : "Nothing in inventory yet — import a stock list above."}
+              : tab === "sold"
+                ? "No sold vehicles yet."
+                : "Nothing in inventory yet — import a stock list above."}
           </p>
         </Card>
       ) : view === "grid" ? (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        <div className="grid grid-cols-2 items-start gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {filtered.map((v) => (
             <GridCard key={v.id} v={v} selectMode={selectMode} selected={selected.has(v.id)} onToggle={toggleOne} />
           ))}
