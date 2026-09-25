@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { saveFile, readStoredFile } from "@/lib/storage";
@@ -175,6 +175,23 @@ export async function updateVehicle(vehicleId: string, formData: FormData) {
     .where(eq(schema.vehicles.id, vehicleId));
 
   revalidatePath(`/inventory/${vehicleId}`);
+  revalidatePath("/inventory");
+  revalidatePath("/desk/deals/new");
+  revalidatePath("/sourcing/what-to-buy");
+  revalidatePath("/sourcing/buy-scorecard");
+}
+
+// Deleting a vehicle cascades its photos and documents (both reference
+// vehicleId with onDelete: 'cascade') — that's the point, those only ever
+// exist because the vehicle does. Any deal or appointment that pointed at
+// it uses onDelete: 'set null' instead, so a delete never fails on a
+// foreign-key error and never removes deal history — it just leaves that
+// deal showing "Vehicle TBD" the same way a deal with no vehicle picked
+// yet already renders. The client warns before calling this if any
+// selected vehicle has a deal on file.
+export async function deleteVehicles(vehicleIds: string[]) {
+  if (vehicleIds.length === 0) return;
+  await db.delete(schema.vehicles).where(inArray(schema.vehicles.id, vehicleIds));
   revalidatePath("/inventory");
   revalidatePath("/desk/deals/new");
   revalidatePath("/sourcing/what-to-buy");

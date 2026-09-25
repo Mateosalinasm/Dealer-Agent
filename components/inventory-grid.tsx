@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Car, LayoutGrid, List as ListIcon, Search } from "lucide-react";
+import { Car, LayoutGrid, List as ListIcon, Search, Trash2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { VehicleGalleryButton, type GalleryPhoto } from "@/components/vehicle-gallery-button";
-import { markVehicleSold } from "@/app/inventory/actions";
+import { deleteVehicles, markVehicleSold } from "@/app/inventory/actions";
 import { formatCents, cn } from "@/lib/utils";
 
 export interface InventoryVehicleCard {
@@ -23,6 +24,7 @@ export interface InventoryVehicleCard {
   sold: boolean;
   coverUrl: string | null;
   photos: GalleryPhoto[];
+  hasDeal: boolean;
 }
 
 type ViewMode = "grid" | "list";
@@ -30,12 +32,46 @@ type ViewMode = "grid" | "list";
 export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }) {
   const [view, setView] = useState<ViewMode>("grid");
   const [query, setQuery] = useState("");
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [isDeleting, startDelete] = useTransition();
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return vehicles;
     return vehicles.filter((v) => [v.label, v.stockNumber, v.vin, v.color].filter(Boolean).some((f) => f!.toLowerCase().includes(q)));
   }, [vehicles, query]);
+
+  function toggleSelectMode() {
+    setSelectMode((v) => !v);
+    setSelected(new Set());
+  }
+
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setSelected((prev) => (prev.size === filtered.length ? new Set() : new Set(filtered.map((v) => v.id))));
+  }
+
+  const selectedVehicles = vehicles.filter((v) => selected.has(v.id));
+  const selectedWithDeal = selectedVehicles.filter((v) => v.hasDeal).length;
+
+  function confirmDelete() {
+    startDelete(async () => {
+      await deleteVehicles([...selected]);
+      setConfirmOpen(false);
+      setSelectMode(false);
+      setSelected(new Set());
+    });
+  }
 
   return (
     <div>
@@ -73,7 +109,50 @@ export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }
             <ListIcon size={14} />
           </button>
         </div>
+        <Button type="button" variant={selectMode ? "secondary" : "ghost"} onClick={toggleSelectMode} className="flex-none px-3 py-1.5 text-[12px]">
+          {selectMode ? "Cancel" : "Select"}
+        </Button>
       </div>
+
+      {selectMode && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)] px-3 py-2">
+          <label className="flex cursor-pointer items-center gap-1.5 text-[12px] font-medium text-[var(--color-text)]">
+            <input
+              type="checkbox"
+              checked={filtered.length > 0 && selected.size === filtered.length}
+              onChange={toggleAll}
+              className="h-3.5 w-3.5 rounded accent-[var(--color-primary)]"
+            />
+            Select all {filtered.length > 0 ? `(${filtered.length})` : ""}
+          </label>
+          <span className="text-[12px] text-[var(--color-text-muted)]">{selected.size} selected</span>
+          <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+            <DialogTrigger asChild>
+              <Button type="button" variant="destructive" disabled={selected.size === 0} className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-[12px]">
+                <Trash2 size={13} /> Delete {selected.size > 0 ? selected.size : ""}
+              </Button>
+            </DialogTrigger>
+            <DialogContent title="Delete vehicles" className="max-w-sm">
+              <p className="text-[13px] text-[var(--color-text)]">
+                Delete {selected.size} vehicle{selected.size === 1 ? "" : "s"}? This removes their photos too, and can&rsquo;t be undone.
+              </p>
+              {selectedWithDeal > 0 && (
+                <p className="mt-2 rounded-[var(--radius-panel)] bg-[var(--color-caution-bg)] p-2.5 text-[11.5px] text-[var(--color-caution-text)]">
+                  {selectedWithDeal} of these {selectedWithDeal === 1 ? "has" : "have"} a deal on file. The deal itself won&rsquo;t be deleted — it&rsquo;ll just lose its vehicle link.
+                </p>
+              )}
+              <div className="mt-4 flex justify-end gap-2">
+                <Button type="button" variant="secondary" onClick={() => setConfirmOpen(false)} disabled={isDeleting}>
+                  Cancel
+                </Button>
+                <Button type="button" variant="destructive" onClick={confirmDelete} disabled={isDeleting} className="bg-[var(--color-negative-bg)] text-[var(--color-negative-text)]">
+                  {isDeleting ? "Deleting…" : `Delete ${selected.size}`}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <Card>
@@ -84,7 +163,7 @@ export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }
       ) : view === "grid" ? (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
           {filtered.map((v) => (
-            <GridCard key={v.id} v={v} />
+            <GridCard key={v.id} v={v} selectMode={selectMode} selected={selected.has(v.id)} onToggle={toggleOne} />
           ))}
         </div>
       ) : (
@@ -93,6 +172,7 @@ export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }
             <table className="w-full min-w-[760px] border-collapse text-[12.5px]">
               <thead>
                 <tr className="border-b border-[var(--color-header-rule)] text-left text-[10.5px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">
+                  {selectMode && <th className="w-8 px-2 py-2"></th>}
                   <th className="w-14 px-2 py-2"></th>
                   <th className="px-2 py-2">Vehicle</th>
                   <th className="px-2 py-2">Color</th>
@@ -106,7 +186,7 @@ export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }
               </thead>
               <tbody>
                 {filtered.map((v) => (
-                  <ListRow key={v.id} v={v} />
+                  <ListRow key={v.id} v={v} selectMode={selectMode} selected={selected.has(v.id)} onToggle={toggleOne} />
                 ))}
               </tbody>
             </table>
@@ -117,10 +197,14 @@ export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }
   );
 }
 
-function GridCard({ v }: { v: InventoryVehicleCard }) {
+function GridCard({ v, selectMode, selected, onToggle }: { v: InventoryVehicleCard; selectMode: boolean; selected: boolean; onToggle: (id: string) => void }) {
   return (
-    <Card className="relative flex flex-col overflow-hidden p-0">
-      <Link href={`/inventory/${v.id}`} className="absolute inset-0 z-0" aria-label={`Open ${v.label || "vehicle"}`} />
+    <Card className={cn("relative flex flex-col overflow-hidden p-0", selected && "ring-2 ring-[var(--color-primary)]")}>
+      {selectMode ? (
+        <button type="button" onClick={() => onToggle(v.id)} className="absolute inset-0 z-0" aria-label={`Select ${v.label || "vehicle"}`} />
+      ) : (
+        <Link href={`/inventory/${v.id}`} className="absolute inset-0 z-0" aria-label={`Open ${v.label || "vehicle"}`} />
+      )}
 
       <div className="relative aspect-[4/3] w-full bg-[var(--color-fill-subtle)]">
         {v.coverUrl ? (
@@ -131,9 +215,19 @@ function GridCard({ v }: { v: InventoryVehicleCard }) {
             <Car size={18} className="text-[var(--color-text-placeholder)]" />
           </div>
         )}
-        <div className="absolute right-1.5 top-1.5">
-          <VehicleGalleryButton photos={v.photos} label={v.label || "Vehicle"} />
-        </div>
+        {selectMode ? (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={() => onToggle(v.id)}
+            onClick={(e) => e.stopPropagation()}
+            className="absolute right-1.5 top-1.5 z-10 h-4 w-4 rounded accent-[var(--color-primary)]"
+          />
+        ) : (
+          <div className="absolute right-1.5 top-1.5">
+            <VehicleGalleryButton photos={v.photos} label={v.label || "Vehicle"} />
+          </div>
+        )}
         <div className="absolute left-1.5 top-1.5">
           <Badge tone={v.sold ? "neutral" : "positive"} className="px-1.5 py-0.5 text-[9px]">
             {v.sold ? "Sold" : "In stock"}
@@ -171,35 +265,65 @@ function GridCard({ v }: { v: InventoryVehicleCard }) {
           <span className="tabular-nums font-semibold text-[var(--color-text)]">{formatCents(v.askingCents)}</span>
         </div>
 
-        <form action={markVehicleSold.bind(null, v.id, !v.sold)} className="relative z-10 mt-auto">
-          <Button type="submit" variant="secondary" className="w-full px-2 py-1 text-[10.5px]">
-            {v.sold ? "Mark in stock" : "Mark sold"}
-          </Button>
-        </form>
+        {!selectMode && (
+          <form action={markVehicleSold.bind(null, v.id, !v.sold)} className="relative z-10 mt-auto">
+            <Button type="submit" variant="secondary" className="w-full px-2 py-1 text-[10.5px]">
+              {v.sold ? "Mark in stock" : "Mark sold"}
+            </Button>
+          </form>
+        )}
       </div>
     </Card>
   );
 }
 
-function ListRow({ v }: { v: InventoryVehicleCard }) {
+function ListRow({ v, selectMode, selected, onToggle }: { v: InventoryVehicleCard; selectMode: boolean; selected: boolean; onToggle: (id: string) => void }) {
   return (
-    <tr className="border-b border-[var(--color-hairline)] hover:bg-[var(--color-row-hover)]">
+    <tr className={cn("border-b border-[var(--color-hairline)] hover:bg-[var(--color-row-hover)]", selected && "bg-[var(--color-info-bg)]")}>
+      {selectMode && (
+        <td className="px-2 py-1.5">
+          <input type="checkbox" checked={selected} onChange={() => onToggle(v.id)} className="h-3.5 w-3.5 rounded accent-[var(--color-primary)]" />
+        </td>
+      )}
       <td className="px-2 py-1.5">
-        <Link href={`/inventory/${v.id}`} className="block h-10 w-10 overflow-hidden rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)]">
-          {v.coverUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={v.coverUrl} alt={v.label || "Vehicle"} className="h-full w-full object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <Car size={14} className="text-[var(--color-text-placeholder)]" />
-            </div>
-          )}
-        </Link>
+        {selectMode ? (
+          <button
+            type="button"
+            onClick={() => onToggle(v.id)}
+            className="block h-10 w-10 overflow-hidden rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)]"
+          >
+            {v.coverUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={v.coverUrl} alt={v.label || "Vehicle"} className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <Car size={14} className="text-[var(--color-text-placeholder)]" />
+              </div>
+            )}
+          </button>
+        ) : (
+          <Link href={`/inventory/${v.id}`} className="block h-10 w-10 overflow-hidden rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)]">
+            {v.coverUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={v.coverUrl} alt={v.label || "Vehicle"} className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <Car size={14} className="text-[var(--color-text-placeholder)]" />
+              </div>
+            )}
+          </Link>
+        )}
       </td>
       <td className="px-2 py-1.5">
-        <Link href={`/inventory/${v.id}`} className="font-medium text-[var(--color-text)] hover:underline">
-          {v.label || "Vehicle"}
-        </Link>
+        {selectMode ? (
+          <button type="button" onClick={() => onToggle(v.id)} className="text-left font-medium text-[var(--color-text)]">
+            {v.label || "Vehicle"}
+          </button>
+        ) : (
+          <Link href={`/inventory/${v.id}`} className="font-medium text-[var(--color-text)] hover:underline">
+            {v.label || "Vehicle"}
+          </Link>
+        )}
         <div className="text-[11px] text-[var(--color-text-muted)]">{v.stockNumber ? `#${v.stockNumber}` : v.vin ?? "—"}</div>
       </td>
       <td className="px-2 py-1.5 text-[var(--color-text-muted)]">{v.color ?? "—"}</td>
@@ -211,11 +335,13 @@ function ListRow({ v }: { v: InventoryVehicleCard }) {
         <Badge tone={v.sold ? "neutral" : "positive"}>{v.sold ? "Sold" : "In stock"}</Badge>
       </td>
       <td className="px-2 py-1.5">
-        <form action={markVehicleSold.bind(null, v.id, !v.sold)}>
-          <Button type="submit" variant="secondary" className="px-2 py-1 text-[11px]">
-            {v.sold ? "Mark in stock" : "Mark sold"}
-          </Button>
-        </form>
+        {!selectMode && (
+          <form action={markVehicleSold.bind(null, v.id, !v.sold)}>
+            <Button type="submit" variant="secondary" className="px-2 py-1 text-[11px]">
+              {v.sold ? "Mark in stock" : "Mark sold"}
+            </Button>
+          </form>
+        )}
       </td>
     </tr>
   );

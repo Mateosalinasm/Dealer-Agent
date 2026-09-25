@@ -14,10 +14,17 @@ function daysAtLot(acquiredOn: string | null): number | null {
 }
 
 export default async function InventoryPage() {
-  const [vehicles, photoRows] = await Promise.all([
+  const [vehicles, photoRows, dealVehicleRows] = await Promise.all([
     db.select().from(schema.vehicles).orderBy(desc(schema.vehicles.createdAt)),
     db.select().from(schema.vehiclePhotos).orderBy(asc(schema.vehiclePhotos.sortOrder)),
+    db.select({ vehicleId: schema.deals.vehicleId }).from(schema.deals),
   ]);
+
+  // Vehicles with a deal on file — the bulk-delete confirmation warns
+  // before deleting one of these, since the delete itself always succeeds
+  // (deals.vehicleId is onDelete: 'set null', never a hard FK failure) but
+  // silently orphans that deal's vehicle link.
+  const vehicleIdsWithDeal = new Set(dealVehicleRows.map((d) => d.vehicleId).filter((id): id is string => !!id));
 
   // First photo per vehicle (by sortOrder, i.e. upload order) is the cover
   // shown on the card — same "first in the gallery" photo the detail page
@@ -44,6 +51,7 @@ export default async function InventoryPage() {
       sold: v.sold,
       coverUrl: photos[0]?.url ?? null,
       photos,
+      hasDeal: vehicleIdsWithDeal.has(v.id),
     };
   });
 
