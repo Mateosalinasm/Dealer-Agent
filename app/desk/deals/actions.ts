@@ -8,6 +8,7 @@ import { saveFile, readStoredFile } from "@/lib/storage";
 import { extractDocument } from "@/lib/extraction";
 import { isExtractable } from "@/lib/extraction-schemas";
 import { creditAppFillPatch, type CreditAppExtracted } from "@/lib/credit-app-merge";
+import { creditReportFillPatch, type CreditReportExtracted } from "@/lib/credit-report-merge";
 import { buyerApplicationFieldsFromFormData, buyerApplicationPatch } from "@/lib/buyer-application";
 import { getDealershipTimezone, todayInTimezone } from "@/lib/dealership-time";
 import { normalizePhone } from "@/lib/phone";
@@ -667,6 +668,9 @@ export async function analyzeDocument(dealId: string, documentId: string) {
     if (doc.category === "credit_app") {
       await applyCreditAppExtraction(dealId, result.data as CreditAppExtracted);
     }
+    if (doc.category === "credit_report") {
+      await applyCreditReportExtraction(dealId, result.data as CreditReportExtracted);
+    }
   } else {
     await db
       .update(schema.documents)
@@ -691,6 +695,20 @@ async function applyCreditAppExtraction(dealId: string, extracted: CreditAppExtr
   if (!deal) return;
 
   const patch = creditAppFillPatch(deal, extracted);
+  if (Object.keys(patch).length === 0) return;
+
+  await db.update(schema.deals).set(patch).where(eq(schema.deals.id, dealId));
+}
+
+// Same idea for a credit report — fills in whatever's still blank among
+// the CreditFacts fields (fico, inquiries30d, repossessions,
+// collectionsAmount, openAutos, autoLates, bankruptcies, mortgages) so the
+// grade updates the moment the report is read, no manual re-entry needed.
+async function applyCreditReportExtraction(dealId: string, extracted: CreditReportExtracted) {
+  const [deal] = await db.select().from(schema.deals).where(eq(schema.deals.id, dealId)).limit(1);
+  if (!deal) return;
+
+  const patch = creditReportFillPatch(deal, extracted);
   if (Object.keys(patch).length === 0) return;
 
   await db.update(schema.deals).set(patch).where(eq(schema.deals.id, dealId));

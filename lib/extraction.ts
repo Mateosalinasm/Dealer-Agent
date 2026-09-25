@@ -60,9 +60,12 @@ const CATEGORY_INSTRUCTIONS: Record<ExtractableCategory, string> = {
     "(payroll, benefits, transfers-in that repeat). Count overdraft/NSF fees if shown.",
   credit_report:
     "This is a credit bureau report (Equifax/Experian/TransUnion or a tri-merge). Extract the " +
-    "credit score(s), counts of open tradelines and open auto loans, total monthly debt " +
-    "obligation if the report totals it, and derogatory item counts (bankruptcies, collections, " +
-    "repossessions, 30+ day late payments) and inquiries in the last 6 months.",
+    "credit score(s), counts of open tradelines, open auto loans, and open mortgage/real-estate " +
+    "tradelines (openMortgages), total monthly debt obligation if the report totals it, the total " +
+    "dollar balance across all collection accounts if the report totals it " +
+    "(collectionsBalanceCents — distinct from the collections count below), and derogatory item " +
+    "counts (bankruptcies, collections, repossessions, 30+ day late payments) and inquiries in " +
+    "the last 6 months.",
   credit_app:
     "This is the dealership's own credit application filled out by the customer — everything on " +
     "it is self-reported, not verified. Extract the applicant's name, co-applicant name if any, " +

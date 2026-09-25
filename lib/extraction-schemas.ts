@@ -139,7 +139,9 @@ export const creditReportSchema = z.object({
   scores: looseArray(z.object({ bureau: looseNullableString(), score: looseNullableNumber() })),
   openTradelines: looseNullableNumber(),
   openAutoLoans: looseNullableNumber(),
+  openMortgages: looseNullableNumber().describe("Count of open mortgage/real-estate tradelines, if the report has a tradeline type for that"),
   totalMonthlyDebtPaymentsCents: looseNullableNumber(),
+  collectionsBalanceCents: looseNullableNumber().describe("Total dollar balance across all collection accounts, if the report totals it — separate from the collections count below"),
   derogatory: z.preprocess(
     (val) => ({
       bankruptcies: null,

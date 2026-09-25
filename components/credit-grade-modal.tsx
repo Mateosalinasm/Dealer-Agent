@@ -41,10 +41,23 @@ export interface CreditGradeBadgeProps {
 }
 
 export function CreditGradeBadge({ dealId, customerName, vehicleLabel, facts, creditReportDocs = [] }: CreditGradeBadgeProps) {
+  const factsKey = [facts.fico, facts.inquiries30d, facts.repossessions, facts.collectionsAmount, facts.openAutos, facts.autoLates, facts.bankruptcies, facts.mortgages].join("|");
   const [fields, setFields] = useState(facts);
+  const [syncedKey, setSyncedKey] = useState(factsKey);
   const [, startTransition] = useTransition();
   const result = gradeCredit(fields);
   const hasScore = !!facts.fico;
+
+  // `fields` only seeds from `facts` at mount — the dialog's content stays
+  // mounted across open/close (only its visibility toggles), so a report
+  // uploaded and auto-analyzed while this badge is on screen wouldn't
+  // otherwise ever reach the form. Re-sync during render (not an effect)
+  // whenever the server sends a new `facts` value — revalidatePath after
+  // analysis lands here as a prop change, not a remount.
+  if (factsKey !== syncedKey) {
+    setSyncedKey(factsKey);
+    setFields(facts);
+  }
 
   function set<K extends keyof CreditFacts>(key: K, value: CreditFacts[K]) {
     setFields((prev) => ({ ...prev, [key]: value }));
