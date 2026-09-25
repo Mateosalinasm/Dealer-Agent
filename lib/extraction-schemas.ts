@@ -114,41 +114,50 @@ export const turbopassSchema = z.object({
 });
 
 export const bankStatementSchema = z.object({
-  accountHolderName: z.string().nullable(),
-  institution: z.string().nullable(),
-  accountLast4: z.string().nullable(),
-  statementPeriodStart: z.string().nullable(),
-  statementPeriodEnd: z.string().nullable(),
-  beginningBalanceCents: z.number().int().nullable(),
-  endingBalanceCents: z.number().int().nullable(),
-  averageDailyBalanceCents: z.number().int().nullable(),
+  accountHolderName: looseNullableString(),
+  institution: looseNullableString(),
+  accountLast4: looseNullableString(),
+  statementPeriodStart: looseNullableString(),
+  statementPeriodEnd: looseNullableString(),
+  beginningBalanceCents: looseNullableNumber(),
+  endingBalanceCents: looseNullableNumber(),
+  averageDailyBalanceCents: looseNullableNumber(),
   recurringDeposits: looseArray(
     z.object({
-      description: z.string().nullable(),
-      amountCents: z.number().int().nullable(),
-      frequency: z.string().nullable(),
+      description: looseNullableString(),
+      amountCents: looseNullableNumber(),
+      frequency: looseNullableString(),
     }),
   ),
-  overdraftCount: z.number().int().nullable(),
-  notes: z.string().nullable(),
+  overdraftCount: looseNullableNumber(),
+  notes: looseNullableString(),
 });
 
 export const creditReportSchema = z.object({
-  applicantName: z.string().nullable(),
-  bureau: z.string().nullable().describe("Equifax, Experian, TransUnion, or unknown"),
-  scores: looseArray(z.object({ bureau: z.string().nullable(), score: z.number().int().nullable() })),
-  openTradelines: z.number().int().nullable(),
-  openAutoLoans: z.number().int().nullable(),
-  totalMonthlyDebtPaymentsCents: z.number().int().nullable(),
-  derogatory: z.object({
-    bankruptcies: z.number().int().nullable(),
-    collections: z.number().int().nullable(),
-    repossessions: z.number().int().nullable(),
-    latePayments30Plus: z.number().int().nullable(),
-  }),
-  inquiriesLast6Months: z.number().int().nullable(),
-  reportDate: z.string().nullable(),
-  notes: z.string().nullable(),
+  applicantName: looseNullableString(),
+  bureau: looseNullableString().describe("Equifax, Experian, TransUnion, or unknown"),
+  scores: looseArray(z.object({ bureau: looseNullableString(), score: looseNullableNumber() })),
+  openTradelines: looseNullableNumber(),
+  openAutoLoans: looseNullableNumber(),
+  totalMonthlyDebtPaymentsCents: looseNullableNumber(),
+  derogatory: z.preprocess(
+    (val) => ({
+      bankruptcies: null,
+      collections: null,
+      repossessions: null,
+      latePayments30Plus: null,
+      ...(val && typeof val === "object" && !Array.isArray(val) ? val : {}),
+    }),
+    z.object({
+      bankruptcies: looseNullableNumber(),
+      collections: looseNullableNumber(),
+      repossessions: looseNullableNumber(),
+      latePayments30Plus: looseNullableNumber(),
+    }),
+  ),
+  inquiriesLast6Months: looseNullableNumber(),
+  reportDate: looseNullableString(),
+  notes: looseNullableString(),
 });
 
 // Shared by currentAddress/previousAddress below — mirrors

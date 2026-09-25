@@ -5,8 +5,8 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DocumentRow } from "@/components/document-row";
-import { UploadingLabel } from "@/components/uploading-indicator";
-import { analyzeDocument, deleteDocument, updateCredit, uploadDocument } from "@/app/desk/deals/actions";
+import { CreditReportUploadField } from "@/components/credit-report-upload-field";
+import { analyzeDocument, deleteDocument, updateCredit } from "@/app/desk/deals/actions";
 import { gradeCredit, type CreditFacts } from "@/lib/credit-grade";
 import { cn } from "@/lib/utils";
 
@@ -43,8 +43,6 @@ export interface CreditGradeBadgeProps {
 export function CreditGradeBadge({ dealId, customerName, vehicleLabel, facts, creditReportDocs = [] }: CreditGradeBadgeProps) {
   const [fields, setFields] = useState(facts);
   const [, startTransition] = useTransition();
-  const [uploadPending, startUpload] = useTransition();
-  const [uploadError, setUploadError] = useState<string | null>(null);
   const result = gradeCredit(fields);
   const hasScore = !!facts.fico;
 
@@ -54,14 +52,6 @@ export function CreditGradeBadge({ dealId, customerName, vehicleLabel, facts, cr
 
   function save(formData: FormData) {
     startTransition(() => updateCredit(dealId, formData));
-  }
-
-  function upload(formData: FormData) {
-    setUploadError(null);
-    startUpload(async () => {
-      const result = await uploadDocument(dealId, formData);
-      if (!result.ok) setUploadError(result.error ?? "Upload failed — try again.");
-    });
   }
 
   return (
@@ -78,7 +68,11 @@ export function CreditGradeBadge({ dealId, customerName, vehicleLabel, facts, cr
           {hasScore ? result.grade : "?"}
         </button>
       </DialogTrigger>
-      <DialogContent title={customerName} subtitle={`${vehicleLabel || "Vehicle TBD"} · credit grade`}>
+      <DialogContent
+        title={customerName}
+        subtitle={`${vehicleLabel || "Vehicle TBD"} · credit grade`}
+        headerExtra={<CreditReportUploadField dealId={dealId} />}
+      >
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <form action={save} className="flex flex-col gap-3">
             <div>
@@ -198,15 +192,14 @@ export function CreditGradeBadge({ dealId, customerName, vehicleLabel, facts, cr
           </div>
         </div>
 
-        <div className="mt-5 border-t border-[var(--color-hairline)] pt-4">
-          <div className="mb-1 text-[13px] font-semibold text-[var(--color-text)]">Credit report</div>
-          <p className="mb-2 text-[11px] text-[var(--color-text-muted)]">
-            Upload the pulled report here to keep it with the deal. &ldquo;Analyze with AI&rdquo; reads scores and
-            derogatory items off it automatically once it&rsquo;s uploaded — the numbers above still need to be
-            entered by hand for the grade to update until that&rsquo;s wired up with an API key.
-          </p>
-          {creditReportDocs.length > 0 && (
-            <div className="mb-2 flex flex-col">
+        {creditReportDocs.length > 0 && (
+          <div className="mt-5 border-t border-[var(--color-hairline)] pt-4">
+            <div className="mb-1 text-[13px] font-semibold text-[var(--color-text)]">Credit report</div>
+            <p className="mb-2 text-[11px] text-[var(--color-text-muted)]">
+              Reads the score and derogatory items automatically — the numbers above still need to be entered by
+              hand for the grade to update.
+            </p>
+            <div className="flex flex-col">
               {creditReportDocs.map((doc) => (
                 <DocumentRow
                   key={doc.id}
@@ -216,26 +209,8 @@ export function CreditGradeBadge({ dealId, customerName, vehicleLabel, facts, cr
                 />
               ))}
             </div>
-          )}
-          <form action={upload} className="flex items-end gap-2">
-            <input type="hidden" name="category" value="credit_report" />
-            <input
-              name="file"
-              type="file"
-              required
-              className="block flex-1 text-[12.5px] text-[var(--color-text-muted)] file:mr-3 file:rounded-[var(--radius-pill)] file:border-0 file:bg-[var(--color-fill-subtle)] file:px-3 file:py-1.5 file:text-[12px] file:font-semibold"
-            />
-            <Button
-              type="submit"
-              variant="secondary"
-              disabled={uploadPending}
-              className={uploadPending ? "[animation:upload-pulse-tone_1.1s_ease-in-out_infinite]" : undefined}
-            >
-              {uploadPending ? <UploadingLabel /> : "Upload"}
-            </Button>
-          </form>
-          {uploadError && <p className="mt-1.5 text-[12px] text-[var(--color-negative-text)]">{uploadError}</p>}
-        </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
