@@ -61,12 +61,13 @@ export default async function InventoryPage() {
         <h1 className="text-[19px] font-semibold tracking-[-.01em] text-[var(--color-text)]">
           Inventory
         </h1>
-        <AddVehicleModal />
+        <div className="flex items-center gap-2">
+          <InventoryImport />
+          <AddVehicleModal />
+        </div>
       </div>
 
-      <InventoryImport />
-
-      <div className="mt-4 mb-3 text-[13.5px] font-semibold text-[var(--color-text)]">
+      <div className="mb-3 text-[13.5px] font-semibold text-[var(--color-text)]">
         Current stock · {vehicles.length}
       </div>
 

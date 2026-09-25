@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { mapHeaders, parseCsv, parseVehicleInfo } from "@/lib/csv";
@@ -28,6 +28,7 @@ const FIELDS: Array<{ key: keyof VehicleImportRowInput; label: string }> = [
 
 export function InventoryImport() {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<DraftRow[] | null>(null);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
@@ -122,101 +123,115 @@ export function InventoryImport() {
     if (res.errors.length === 0) {
       setDraft(null);
       router.refresh();
+      setOpen(false);
+    }
+  }
+
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    if (!next) {
+      // Closed without a clean commit — don't leave a stale review table
+      // showing next time this opens.
+      setDraft(null);
+      setParseErrors([]);
+      setResult(null);
     }
   }
 
   return (
-    <Card>
-      <div className="mb-3 text-[13.5px] font-semibold text-[var(--color-text)]">
-        Import a stock list
-      </div>
-      <p className="mb-3 text-[12px] text-[var(--color-text-muted)]">
-        Upload a CSV with your current inventory. Columns are matched by name (stock #, year, make,
-        model, trim, color, body type, miles, price, cost, in stock since) — review and fix anything
-        below before committing. Nothing is saved until you click Import.
-      </p>
-      <p className="mb-3 text-[12px] text-[var(--color-text-muted)]">
-        Matched by VIN (or stock # if no VIN) against what&rsquo;s already in stock: a match updates
-        whatever changed — miles, cost, price, etc. — without touching its photos or anything else on
-        file. A vehicle that&rsquo;s currently in stock but missing from this list is assumed sold.
-        Anything that doesn&rsquo;t match is added as new.
-      </p>
-      <input
-        type="file"
-        accept=".csv,text/csv"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleFile(file);
-        }}
-        className="mb-3 block text-[12.5px] text-[var(--color-text-muted)] file:mr-3 file:rounded-[var(--radius-pill)] file:border-0 file:bg-[var(--color-fill-subtle)] file:px-3 file:py-1.5 file:text-[12px] file:font-semibold"
-      />
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button type="button" variant="secondary">Import stock list</Button>
+      </DialogTrigger>
+      <DialogContent title="Import a stock list" className="max-w-4xl">
+        <p className="mb-3 text-[12px] text-[var(--color-text-muted)]">
+          Upload a CSV with your current inventory. Columns are matched by name (stock #, year, make,
+          model, trim, color, body type, miles, price, cost, in stock since) — review and fix anything
+          below before committing. Nothing is saved until you click Import.
+        </p>
+        <p className="mb-3 text-[12px] text-[var(--color-text-muted)]">
+          Matched by VIN (or stock # if no VIN) against what&rsquo;s already in stock: a match updates
+          whatever changed — miles, cost, price, etc. — without touching its photos or anything else on
+          file. A vehicle that&rsquo;s currently in stock but missing from this list is assumed sold.
+          Anything that doesn&rsquo;t match is added as new.
+        </p>
+        <input
+          type="file"
+          accept=".csv,text/csv"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFile(file);
+          }}
+          className="mb-3 block text-[12.5px] text-[var(--color-text-muted)] file:mr-3 file:rounded-[var(--radius-pill)] file:border-0 file:bg-[var(--color-fill-subtle)] file:px-3 file:py-1.5 file:text-[12px] file:font-semibold"
+        />
 
-      {parseErrors.length > 0 && (
-        <div className="mb-3 rounded-[var(--radius-panel)] bg-[var(--color-caution-bg)] p-3 text-[11.5px] text-[var(--color-caution-text)]">
-          {parseErrors.map((e, i) => (
-            <div key={i}>{e}</div>
-          ))}
-        </div>
-      )}
-
-      {result && result.errors.length === 0 && (
-        <div className="mb-3 rounded-[var(--radius-panel)] bg-[var(--color-positive-bg)] p-3 text-[11.5px] text-[var(--color-positive-text)]">
-          {result.imported} new · {result.updated} updated · {result.markedSold} marked sold
-        </div>
-      )}
-
-      {result && result.errors.length > 0 && (
-        <div className="mb-3 rounded-[var(--radius-panel)] bg-[var(--color-negative-bg)] p-3 text-[11.5px] text-[var(--color-negative-text)]">
-          <div className="font-semibold">
-            {result.imported} new · {result.updated} updated · {result.markedSold} marked sold. These rows failed:
+        {parseErrors.length > 0 && (
+          <div className="mb-3 rounded-[var(--radius-panel)] bg-[var(--color-caution-bg)] p-3 text-[11.5px] text-[var(--color-caution-text)]">
+            {parseErrors.map((e, i) => (
+              <div key={i}>{e}</div>
+            ))}
           </div>
-          {result.errors.map((e, i) => (
-            <div key={i}>{e}</div>
-          ))}
-        </div>
-      )}
+        )}
 
-      {draft && draft.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] border-collapse text-[12px]">
-            <thead>
-              <tr className="border-b border-[var(--color-header-rule)] text-left text-[10.5px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">
-                {FIELDS.map((f) => (
-                  <th key={f.key} className="px-2 py-2">
-                    {f.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {draft.map((row) => (
-                <tr key={row._key} className="border-b border-[var(--color-hairline)]">
+        {result && result.errors.length === 0 && (
+          <div className="mb-3 rounded-[var(--radius-panel)] bg-[var(--color-positive-bg)] p-3 text-[11.5px] text-[var(--color-positive-text)]">
+            {result.imported} new · {result.updated} updated · {result.markedSold} marked sold
+          </div>
+        )}
+
+        {result && result.errors.length > 0 && (
+          <div className="mb-3 rounded-[var(--radius-panel)] bg-[var(--color-negative-bg)] p-3 text-[11.5px] text-[var(--color-negative-text)]">
+            <div className="font-semibold">
+              {result.imported} new · {result.updated} updated · {result.markedSold} marked sold. These rows failed:
+            </div>
+            {result.errors.map((e, i) => (
+              <div key={i}>{e}</div>
+            ))}
+          </div>
+        )}
+
+        {draft && draft.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] border-collapse text-[12px]">
+              <thead>
+                <tr className="border-b border-[var(--color-header-rule)] text-left text-[10.5px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">
                   {FIELDS.map((f) => (
-                    <td key={f.key} className="px-2 py-1.5">
-                      <Input
-                        value={row[f.key] ?? ""}
-                        onChange={(e) => updateCell(row._key, f.key, e.target.value)}
-                        className="min-w-[90px] px-2 py-1"
-                      />
-                    </td>
+                    <th key={f.key} className="px-2 py-2">
+                      {f.label}
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <div className="mt-3 flex items-center justify-between">
-            <span className="text-[12px] text-[var(--color-text-muted)]">{draft.length} row(s) ready</span>
-            <div className="flex gap-2">
-              <Button type="button" variant="secondary" onClick={() => setDraft(null)}>
-                Discard
-              </Button>
-              <Button type="button" onClick={commit} disabled={importing}>
-                {importing ? "Importing…" : `Import ${draft.length} vehicle${draft.length === 1 ? "" : "s"}`}
-              </Button>
+              </thead>
+              <tbody>
+                {draft.map((row) => (
+                  <tr key={row._key} className="border-b border-[var(--color-hairline)]">
+                    {FIELDS.map((f) => (
+                      <td key={f.key} className="px-2 py-1.5">
+                        <Input
+                          value={row[f.key] ?? ""}
+                          onChange={(e) => updateCell(row._key, f.key, e.target.value)}
+                          className="min-w-[90px] px-2 py-1"
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="mt-3 flex items-center justify-between">
+              <span className="text-[12px] text-[var(--color-text-muted)]">{draft.length} row(s) ready</span>
+              <div className="flex gap-2">
+                <Button type="button" variant="secondary" onClick={() => setDraft(null)}>
+                  Discard
+                </Button>
+                <Button type="button" onClick={commit} disabled={importing}>
+                  {importing ? "Importing…" : `Import ${draft.length} vehicle${draft.length === 1 ? "" : "s"}`}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </Card>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
