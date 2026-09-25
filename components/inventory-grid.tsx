@@ -340,12 +340,15 @@ function GridCard({ v, selectMode, selected, onToggle }: { v: InventoryVehicleCa
         <Link href={`/inventory/${v.id}`} className="absolute inset-0 z-0" aria-label={`Open ${v.label || "vehicle"}`} />
       )}
 
-      <div className="relative aspect-[3/4] w-full bg-[var(--color-fill-subtle)]">
+      <div className="relative w-full bg-[var(--color-fill-subtle)]">
         {v.coverUrl ? (
+          // Natural size, not a forced crop box — photos come in whatever
+          // shape they were shot/edited in, and cards are fine being
+          // different heights as a result.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={v.coverUrl} alt={v.label || "Vehicle photo"} className="h-full w-full object-cover" />
+          <img src={v.coverUrl} alt={v.label || "Vehicle photo"} className="block w-full h-auto" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center">
+          <div className="flex h-40 w-full items-center justify-center">
             <Car size={18} className="text-[var(--color-text-placeholder)]" />
           </div>
         )}

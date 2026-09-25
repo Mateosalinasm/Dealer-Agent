@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { saveBuffer, readStoredFile } from "@/lib/storage";
 import { editVehiclePhoto as runPhotoEdit } from "@/lib/photo-editor";
-import { normalizeToPhotoAspectRatio } from "@/lib/image-aspect";
 import { MAX_VEHICLE_PHOTOS } from "@/lib/vehicle-photo-settings";
 import type { VehiclePhotoEditSettings } from "@/schema-sketch/schema";
 
@@ -39,15 +38,11 @@ export async function uploadVehiclePhotos(vehicleId: string, formData: FormData)
     try {
       const rawMimeType = file.type || "image/jpeg";
       const rawBuffer = Buffer.from(await file.arrayBuffer());
-      // Normalize to the shared 3:4 canvas at upload time, not just for AI
-      // edits — a landscape phone photo left as-is would still get cropped
-      // unpredictably by the aspect-[3/4] display boxes everywhere else.
-      const normalized = await normalizeToPhotoAspectRatio(rawBuffer, rawMimeType);
-      const { storagePath } = await saveBuffer(normalized.buffer, normalized.mimeType, file.name || `photo.${extFor(normalized.mimeType)}`);
+      const { storagePath } = await saveBuffer(rawBuffer, rawMimeType, file.name || `photo.${extFor(rawMimeType)}`);
       await db.insert(schema.vehiclePhotos).values({
         vehicleId,
         originalStoragePath: storagePath,
-        originalMimeType: normalized.mimeType,
+        originalMimeType: rawMimeType,
         sortOrder: nextOrder++,
       });
     } catch (err) {
@@ -80,17 +75,13 @@ export async function editVehiclePhotoAction(photoId: string, settings: VehicleP
   const result = await runPhotoEdit(buffer, photo.originalMimeType, settings);
 
   if (result.ok && result.imageBuffer && result.mimeType) {
-    // Gemini doesn't reliably return a given aspect ratio, so normalize its
-    // output to the same 4:3 canvas as everything else rather than trusting
-    // whatever shape it produced this time.
-    const normalized = await normalizeToPhotoAspectRatio(result.imageBuffer, result.mimeType);
-    const { storagePath } = await saveBuffer(normalized.buffer, normalized.mimeType, `edited.${extFor(normalized.mimeType)}`);
+    const { storagePath } = await saveBuffer(result.imageBuffer, result.mimeType, `edited.${extFor(result.mimeType)}`);
     await db
       .update(schema.vehiclePhotos)
       .set({
         status: "edited",
         editedStoragePath: storagePath,
-        editedMimeType: normalized.mimeType,
+        editedMimeType: result.mimeType,
         editSettings: settings,
         editError: null,
         editedAt: new Date(),

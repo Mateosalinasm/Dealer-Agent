@@ -14,9 +14,13 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, alt, className }: { bef
   const [percent, setPercent] = useState(50);
 
   return (
-    <div className={cn("relative aspect-[3/4] w-full select-none overflow-hidden rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)]", className)}>
+    <div className={cn("relative w-full select-none overflow-hidden rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)]", className)}>
+      {/* The "after" image is a normal (non-absolute) element so it sets
+          the box's size to its own natural dimensions — nothing here
+          forces a crop or a particular aspect ratio. The "before" overlay
+          then matches whatever box that produced. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={afterSrc} alt={`${alt} — after`} className="pointer-events-none absolute inset-0 h-full w-full object-cover" draggable={false} />
+      <img src={afterSrc} alt={`${alt} — after`} className="pointer-events-none block w-full h-auto" draggable={false} />
       <div className="pointer-events-none absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 ${100 - percent}% 0 0)` }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={beforeSrc} alt={`${alt} — before`} className="absolute inset-0 h-full w-full object-cover" draggable={false} />

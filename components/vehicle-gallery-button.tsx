@@ -37,7 +37,7 @@ export function VehicleGalleryButton({ photos, label }: { photos: GalleryPhoto[]
           <img
             src={photos[index].url}
             alt={`${label} — photo ${index + 1} of ${photos.length}`}
-            className="aspect-[3/4] w-full rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)] object-cover"
+            className="max-h-[70vh] w-full rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)] object-contain"
           />
           {photos.length > 1 && (
             <>
