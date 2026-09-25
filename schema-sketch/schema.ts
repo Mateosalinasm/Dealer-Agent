@@ -38,15 +38,17 @@ export interface AddressDetail {
   months: number | null;
 }
 
-// Monthly income itself is NOT in here — it lives on deals.statedIncome,
-// the single figure dealHealth/ptiCalc/credit-grade already read. This
-// just carries the employer/job detail around it.
+// Monthly income (statedIncome, elsewhere on deals) is the figure
+// dealHealth/ptiCalc/credit-grade read — grossSalaryCents here is the
+// employer's own stated gross salary off the application, a separate
+// self-reported figure, not derived from or feeding into statedIncome.
 export interface EmploymentDetail {
   employerName: string | null;
   occupation: string | null;
   employerPhone: string | null;
   employmentStatus: string | null;
   incomeType: string | null; // 'turbopass' | 'paystub' | 'self_employed' | etc, as typed
+  grossSalaryCents: number | null;
   yearsAtJob: number | null;
   monthsAtJob: number | null;
   street: string | null;

@@ -6,6 +6,7 @@ export type CreditAppExtracted = (typeof EXTRACTION_SCHEMAS)["credit_app"]["_out
 export interface DealCreditAppFields {
   customerName: string | null;
   gender: string | null;
+  dob: string | null;
   homePhone: string | null;
   workPhone: string | null;
   email: string | null;
@@ -26,15 +27,18 @@ export interface DealCreditAppFields {
  * What a successful credit-app extraction should write onto the deal —
  * only ever into a field that's currently blank. Never overwrites
  * something the finance manager already typed, whether that happened
- * before or after this credit app was uploaded, and never touches
- * deals.ssn or deals.dob: the extraction only ever surfaces ssnLast4 (see
- * lib/extraction-schemas.ts), and the full SSN/DOB stay manual-entry only.
+ * before or after this credit app was uploaded. Never touches deals.ssn:
+ * the extraction only ever surfaces ssnLast4 (see lib/extraction-
+ * schemas.ts), and the full SSN stays manual-entry only. DOB *is* filled
+ * from here — unlike SSN, that was an explicit ask, not a privacy
+ * default.
  */
 export function creditAppFillPatch(current: DealCreditAppFields, extracted: CreditAppExtracted): Partial<DealCreditAppFields> {
   const patch: Partial<DealCreditAppFields> = {};
 
   if (!current.customerName && extracted.applicantName) patch.customerName = extracted.applicantName;
   if (!current.gender && extracted.gender) patch.gender = extracted.gender;
+  if (!current.dob && extracted.dob) patch.dob = extracted.dob;
   if (!current.homePhone && extracted.homePhone) patch.homePhone = extracted.homePhone;
   if (!current.workPhone && extracted.workPhone) patch.workPhone = extracted.workPhone;
   if (!current.email && extracted.email) patch.email = extracted.email;

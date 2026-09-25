@@ -208,6 +208,7 @@ export function BuyerApplicationFields({
               <option value="Other">Other</option>
             </Select>
           </div>
+          <TextField name="grossSalaryDollars" label="Gross salary ($)" type="number" defaultValue={centsToDollarsStr(d.currentEmployment?.grossSalaryCents)} />
           <TextField name="employmentYears" label="Years at job" type="number" defaultValue={d.currentEmployment?.yearsAtJob} />
           <TextField name="employmentMonths" label="Months" type="number" defaultValue={d.currentEmployment?.monthsAtJob} />
           <div className="col-span-2">
@@ -238,6 +239,7 @@ export function BuyerApplicationFields({
                   <option value="Self-employed">Self-employed</option>
                 </Select>
               </div>
+              <TextField name="prevGrossSalaryDollars" label="Gross salary ($)" type="number" defaultValue={centsToDollarsStr(d.previousEmployment?.grossSalaryCents)} />
               <TextField name="prevEmploymentYears" label="Years at job" type="number" defaultValue={d.previousEmployment?.yearsAtJob} />
               <TextField name="prevEmploymentMonths" label="Months" type="number" defaultValue={d.previousEmployment?.monthsAtJob} />
             </div>

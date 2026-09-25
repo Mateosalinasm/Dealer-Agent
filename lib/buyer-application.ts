@@ -48,6 +48,7 @@ export const buyerApplicationSchema = z.object({
   employerPhone: z.string().optional(),
   employmentStatus: z.string().optional(),
   incomeType: z.string().optional(),
+  grossSalaryDollars: z.coerce.number().min(0).optional(),
   employmentYears: z.coerce.number().int().min(0).optional(),
   employmentMonths: z.coerce.number().int().min(0).max(11).optional(),
   employerStreet: z.string().optional(),
@@ -61,6 +62,7 @@ export const buyerApplicationSchema = z.object({
   prevOccupation: z.string().optional(),
   prevEmployerPhone: z.string().optional(),
   prevEmploymentStatus: z.string().optional(),
+  prevGrossSalaryDollars: z.coerce.number().min(0).optional(),
   prevEmploymentYears: z.coerce.number().int().min(0).optional(),
   prevEmploymentMonths: z.coerce.number().int().min(0).max(11).optional(),
 
@@ -139,6 +141,7 @@ function employmentFromInput(p: BuyerApplicationInput, which: "current" | "previ
   const employerPhone = which === "current" ? p.employerPhone : p.prevEmployerPhone;
   const employmentStatus = which === "current" ? p.employmentStatus : p.prevEmploymentStatus;
   const incomeType = which === "current" ? p.incomeType : null;
+  const grossSalaryDollars = which === "current" ? p.grossSalaryDollars : p.prevGrossSalaryDollars;
   const years = which === "current" ? p.employmentYears : p.prevEmploymentYears;
   const months = which === "current" ? p.employmentMonths : p.prevEmploymentMonths;
   const street = which === "current" ? p.employerStreet : null;
@@ -148,7 +151,11 @@ function employmentFromInput(p: BuyerApplicationInput, which: "current" | "previ
   const zip = which === "current" ? p.employerZip : null;
   const county = which === "current" ? p.employerCounty : null;
 
-  const hasAny = [employerName, occupation, employerPhone, employmentStatus, incomeType, street, city].some((v) => nullIfBlank(v)) || years != null || months != null;
+  const hasAny =
+    [employerName, occupation, employerPhone, employmentStatus, incomeType, street, city].some((v) => nullIfBlank(v)) ||
+    years != null ||
+    months != null ||
+    grossSalaryDollars != null;
   if (!hasAny) return null;
 
   return {
@@ -157,6 +164,7 @@ function employmentFromInput(p: BuyerApplicationInput, which: "current" | "previ
     employerPhone: nullIfBlank(employerPhone),
     employmentStatus: nullIfBlank(employmentStatus),
     incomeType: nullIfBlank(incomeType),
+    grossSalaryCents: grossSalaryDollars != null ? Math.round(grossSalaryDollars * 100) : null,
     yearsAtJob: years ?? null,
     monthsAtJob: months ?? null,
     street: nullIfBlank(street),
@@ -209,6 +217,7 @@ export function creditAppToFormFieldValues(extracted: CreditAppExtracted): Recor
   set("phone", extracted.cellPhone);
   set("idType", extracted.idType);
   set("gender", extracted.gender);
+  set("dob", extracted.dob);
   set("homePhone", extracted.homePhone);
   set("workPhone", extracted.workPhone);
   set("email", extracted.email);
@@ -251,6 +260,7 @@ export function creditAppToFormFieldValues(extracted: CreditAppExtracted): Recor
     set("employerPhone", e.employerPhone);
     set("employmentStatus", e.employmentStatus);
     set("incomeType", e.incomeType);
+    set("grossSalaryDollars", e.grossSalaryCents != null ? e.grossSalaryCents / 100 : null);
     set("employmentYears", e.yearsAtJob);
     set("employmentMonths", e.monthsAtJob);
     set("employerStreet", e.street);
@@ -266,6 +276,7 @@ export function creditAppToFormFieldValues(extracted: CreditAppExtracted): Recor
     set("prevOccupation", e.occupation);
     set("prevEmployerPhone", e.employerPhone);
     set("prevEmploymentStatus", e.employmentStatus);
+    set("prevGrossSalaryDollars", e.grossSalaryCents != null ? e.grossSalaryCents / 100 : null);
     set("prevEmploymentYears", e.yearsAtJob);
     set("prevEmploymentMonths", e.monthsAtJob);
   }

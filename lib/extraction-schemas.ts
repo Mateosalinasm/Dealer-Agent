@@ -6,7 +6,9 @@ import { z } from "zod";
 // rule. Money is integer cents throughout, same as the rest of the app.
 //
 // Deliberately NOT extracted anywhere here: full SSNs, full account/card
-// numbers, full DOB. Only last-4 where a number needs to be referenced.
+// numbers. Only last-4 where a number needs to be referenced. DOB *is*
+// extracted (creditAppSchema.dob) — unlike SSN, the finance manager
+// explicitly asked for it to auto-fill from an uploaded credit app.
 
 // Tool-use output isn't schema-enforced at the API level the way a plain
 // JSON mode is — the model occasionally writes a string ("none found") or
@@ -153,13 +155,16 @@ const addressExtractionShape = {
 // Shared by currentEmployment/previousEmployment below. Monthly income
 // itself is NOT in here — it's the top-level monthlyIncomeStatedCents
 // field, same one deal-underwriting.ts already reads for the income-
-// source fallback.
+// source fallback. grossSalaryCents is a separate self-reported figure
+// off the application (often an annual gross salary line), never used in
+// any money math — display/reference only.
 const employmentExtractionShape = {
   employerName: z.string().nullable(),
   occupation: z.string().nullable(),
   employerPhone: z.string().nullable(),
   employmentStatus: z.string().nullable().describe("employed full time, part time, self-employed, retired, etc."),
   incomeType: z.string().nullable().describe("how income is verified/paid, e.g. TurboPass, pay stub, self-employed, as labeled on the form"),
+  grossSalaryCents: looseNullableNumber(),
   yearsAtJob: looseNullableNumber(),
   monthsAtJob: looseNullableNumber(),
   street: z.string().nullable(),
@@ -174,6 +179,7 @@ export const creditAppSchema = z.object({
   applicantName: z.string().nullable(),
   coApplicantName: z.string().nullable(),
   gender: z.string().nullable(),
+  dob: z.string().nullable().describe("ISO date if present"),
   // Last 4 only — same rule as every other document type here. A full
   // SSN never goes through the extraction pipeline; the finance manager
   // types the full number by hand into the deal's own ssn field.
