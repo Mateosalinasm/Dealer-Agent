@@ -38,6 +38,22 @@ const looseNullableNumber = () =>
     return null;
   }, z.number().int().nullable());
 
+// Same class of problem again, for a plain nullable string: the model
+// sometimes writes the literal word "null" (or "n/a", "none", "unknown",
+// a bare dash) as the STRING value instead of the actual null the schema
+// wants — a plain z.string().nullable() happily accepts that, since
+// "null" the four-letter word is a perfectly valid string, so it flows
+// straight through into the UI as visible placeholder text instead of
+// leaving the field blank. Treat any of these placeholder words the same
+// as real null.
+const NULL_LIKE_STRINGS = new Set(["null", "n/a", "na", "none", "unknown", "-", "--"]);
+const looseNullableString = () =>
+  z.preprocess((val) => {
+    if (typeof val !== "string") return val;
+    const trimmed = val.trim();
+    return trimmed === "" || NULL_LIKE_STRINGS.has(trimmed.toLowerCase()) ? null : val;
+  }, z.string().nullable());
+
 // The categories a TurboPass transaction can fall into — grouping and the
 // income baseline math (lib/turbopass-analysis.ts) both key off this list,
 // so it doubles as the taxonomy for the "Accounts" category breakdown.
@@ -140,13 +156,13 @@ export const creditReportSchema = z.object({
 // months naming quirks (kept aligned so applyCreditAppExtraction in
 // app/desk/deals/actions.ts can copy this straight across).
 const addressExtractionShape = {
-  street: z.string().nullable(),
-  aptUnit: z.string().nullable(),
-  city: z.string().nullable(),
-  state: z.string().nullable(),
-  zip: z.string().nullable(),
-  county: z.string().nullable(),
-  addressType: z.string().nullable().describe("rent, own, live with family, etc., as marked on the form"),
+  street: looseNullableString(),
+  aptUnit: looseNullableString(),
+  city: looseNullableString(),
+  state: looseNullableString(),
+  zip: looseNullableString(),
+  county: looseNullableString(),
+  addressType: looseNullableString().describe("rent, own, live with family, etc., as marked on the form"),
   rentMortCents: looseNullableNumber(),
   years: looseNullableNumber(),
   months: looseNullableNumber(),
@@ -159,48 +175,48 @@ const addressExtractionShape = {
 // off the application (often an annual gross salary line), never used in
 // any money math — display/reference only.
 const employmentExtractionShape = {
-  employerName: z.string().nullable(),
-  occupation: z.string().nullable(),
-  employerPhone: z.string().nullable(),
-  employmentStatus: z.string().nullable().describe("employed full time, part time, self-employed, retired, etc."),
-  incomeType: z.string().nullable().describe("how income is verified/paid, e.g. TurboPass, pay stub, self-employed, as labeled on the form"),
+  employerName: looseNullableString(),
+  occupation: looseNullableString(),
+  employerPhone: looseNullableString(),
+  employmentStatus: looseNullableString().describe("employed full time, part time, self-employed, retired, etc."),
+  incomeType: looseNullableString().describe("how income is verified/paid, e.g. TurboPass, pay stub, self-employed, as labeled on the form"),
   grossSalaryCents: looseNullableNumber(),
   yearsAtJob: looseNullableNumber(),
   monthsAtJob: looseNullableNumber(),
-  street: z.string().nullable(),
-  aptUnit: z.string().nullable(),
-  city: z.string().nullable(),
-  state: z.string().nullable(),
-  zip: z.string().nullable(),
-  county: z.string().nullable(),
+  street: looseNullableString(),
+  aptUnit: looseNullableString(),
+  city: looseNullableString(),
+  state: looseNullableString(),
+  zip: looseNullableString(),
+  county: looseNullableString(),
 };
 
 export const creditAppSchema = z.object({
-  applicantName: z.string().nullable(),
-  coApplicantName: z.string().nullable(),
-  gender: z.string().nullable(),
-  dob: z.string().nullable().describe("ISO date if present"),
+  applicantName: looseNullableString(),
+  coApplicantName: looseNullableString(),
+  gender: looseNullableString(),
+  dob: looseNullableString().describe("ISO date if present"),
   // Last 4 only — same rule as every other document type here. A full
   // SSN never goes through the extraction pipeline; the finance manager
   // types the full number by hand into the deal's own ssn field.
-  ssnLast4: z.string().nullable(),
-  cellPhone: z.string().nullable(),
-  homePhone: z.string().nullable(),
-  workPhone: z.string().nullable(),
-  email: z.string().nullable(),
-  idType: z.string().nullable(),
-  idState: z.string().nullable(),
-  idNumber: z.string().nullable(),
-  idIssuedDate: z.string().nullable().describe("ISO date if present"),
-  idExpirationDate: z.string().nullable().describe("ISO date if present"),
+  ssnLast4: looseNullableString(),
+  cellPhone: looseNullableString(),
+  homePhone: looseNullableString(),
+  workPhone: looseNullableString(),
+  email: looseNullableString(),
+  idType: looseNullableString(),
+  idState: looseNullableString(),
+  idNumber: looseNullableString(),
+  idIssuedDate: looseNullableString().describe("ISO date if present"),
+  idExpirationDate: looseNullableString().describe("ISO date if present"),
   currentAddress: looseNullableObject(addressExtractionShape),
   previousAddress: looseNullableObject(addressExtractionShape),
   currentEmployment: looseNullableObject(employmentExtractionShape),
   previousEmployment: looseNullableObject(employmentExtractionShape),
   monthlyIncomeStatedCents: looseNullableNumber(),
   otherIncomeAmountCents: looseNullableNumber(),
-  otherIncomeSource: z.string().nullable(),
-  notes: z.string().nullable(),
+  otherIncomeSource: looseNullableString(),
+  notes: looseNullableString(),
 });
 
 export const autocheckSchema = z.object({
