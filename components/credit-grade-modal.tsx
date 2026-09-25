@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Input, Label, Select } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DocumentRow } from "@/components/document-row";
-import { CreditReportUploadField } from "@/components/credit-report-upload-field";
+import { DocumentUploadPill } from "@/components/document-upload-pill";
 import { analyzeDocument, deleteDocument, updateCredit } from "@/app/desk/deals/actions";
 import { gradeCredit, type CreditFacts } from "@/lib/credit-grade";
 import { cn } from "@/lib/utils";
@@ -84,7 +84,7 @@ export function CreditGradeBadge({ dealId, customerName, vehicleLabel, facts, cr
       <DialogContent
         title={customerName}
         subtitle={`${vehicleLabel || "Vehicle TBD"} · credit grade`}
-        headerExtra={<CreditReportUploadField dealId={dealId} />}
+        headerExtra={<DocumentUploadPill dealId={dealId} category="credit_report" label="Credit report" />}
       >
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <form action={save} className="flex flex-col gap-3">

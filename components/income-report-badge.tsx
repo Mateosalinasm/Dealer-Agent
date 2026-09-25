@@ -1,14 +1,12 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo } from "react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label, Select } from "@/components/ui/input";
 import { DocumentRow } from "@/components/document-row";
+import { DocumentUploadPill } from "@/components/document-upload-pill";
 import { TurboPassBreakdown } from "@/components/turbopass-breakdown";
 import { BankStatementBreakdown } from "@/components/bank-statement-breakdown";
-import { UploadingLabel } from "@/components/uploading-indicator";
-import { analyzeDocument, deleteDocument, uploadDocument } from "@/app/desk/deals/actions";
+import { analyzeDocument, deleteDocument } from "@/app/desk/deals/actions";
 import { EXTRACTION_SCHEMAS } from "@/lib/extraction-schemas";
 import { analyzeTurboPass } from "@/lib/turbopass-analysis";
 import { analyzeBankStatements } from "@/lib/bank-statement-analysis";
@@ -39,9 +37,6 @@ export interface IncomeReportBadgeProps {
 // ANTHROPIC_API_KEY is configured (same as every other document type).
 export function IncomeReportBadge({ dealId, customerName, incomeSource, monthlyIncomeCents, documents }: IncomeReportBadgeProps) {
   const verified = incomeSource === "TurboPass" || !!incomeSource?.startsWith("Bank statement");
-  const [isPending, startTransition] = useTransition();
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const [uploadCategory, setUploadCategory] = useState<"turbopass" | "bank_statement">("turbopass");
 
   // Most-recently-extracted TurboPass doc drives the rich breakdown below
   // the summary card — parsed defensively, same as everywhere else this
@@ -68,19 +63,6 @@ export function IncomeReportBadge({ dealId, customerName, incomeSource, monthlyI
     return analyzeBankStatements(successful);
   }, [documents]);
 
-  // A bound server-action reference passed directly as a form's `action`
-  // triggers Next's full action/navigation machinery, which can fight with
-  // the Dialog staying open across the resulting revalidation. Routing the
-  // upload through startTransition (same pattern as the credit-grade
-  // modal's main form) keeps the Dialog mounted cleanly.
-  function upload(formData: FormData) {
-    setUploadError(null);
-    startTransition(async () => {
-      const result = await uploadDocument(dealId, formData);
-      if (!result.ok) setUploadError(result.error ?? "Upload failed — try again.");
-    });
-  }
-
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -102,7 +84,17 @@ export function IncomeReportBadge({ dealId, customerName, incomeSource, monthlyI
           </svg>
         </button>
       </DialogTrigger>
-      <DialogContent title={customerName} subtitle="income verification" className="max-w-3xl">
+      <DialogContent
+        title={customerName}
+        subtitle="income verification"
+        className="max-w-3xl"
+        headerExtra={
+          <div className="flex items-center gap-2">
+            <DocumentUploadPill dealId={dealId} category="turbopass" label="TurboPass" />
+            <DocumentUploadPill dealId={dealId} category="bank_statement" label="Bank statements" multiple />
+          </div>
+        }
+      >
         <div className="rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)] p-4">
           <div
             className={cn(
@@ -121,16 +113,14 @@ export function IncomeReportBadge({ dealId, customerName, incomeSource, monthlyI
         {turbopassAnalysis && <TurboPassBreakdown dealId={dealId} analysis={turbopassAnalysis} />}
         {bankStatementAnalysis && <BankStatementBreakdown dealId={dealId} analysis={bankStatementAnalysis} />}
 
-        <div className="mt-4">
-          <p className="mb-2 text-[11px] text-[var(--color-text-muted)]">
-            Upload a TurboPass or bank statements below — each upload is analyzed automatically, no separate step
-            needed. Select multiple bank statement files at once (e.g. the last 3 months) and they&apos;re
-            cross-referenced into one combined baseline above. Stated/verified income can still be entered by hand
-            in Customer.
-          </p>
-
-          {documents.length > 0 && (
-            <div className="mb-3 flex flex-col">
+        {documents.length > 0 && (
+          <div className="mt-4">
+            <p className="mb-2 text-[11px] text-[var(--color-text-muted)]">
+              Each upload above is analyzed automatically, no separate step needed. Bank statements accept several
+              files at once (e.g. the last 3 months) and are cross-referenced into one combined baseline above.
+              Stated/verified income can still be entered by hand in Customer.
+            </p>
+            <div className="flex flex-col">
               {documents.map((doc) => (
                 <DocumentRow
                   key={doc.id}
@@ -140,34 +130,8 @@ export function IncomeReportBadge({ dealId, customerName, incomeSource, monthlyI
                 />
               ))}
             </div>
-          )}
-
-          <form action={upload} className="flex items-end gap-2">
-            <div className="w-40">
-              <Label>Type</Label>
-              <Select name="category" value={uploadCategory} onChange={(e) => setUploadCategory(e.target.value as "turbopass" | "bank_statement")}>
-                <option value="turbopass">TurboPass</option>
-                <option value="bank_statement">Bank statement</option>
-              </Select>
-            </div>
-            <input
-              name="file"
-              type="file"
-              required
-              multiple={uploadCategory === "bank_statement"}
-              className="block flex-1 text-[12.5px] text-[var(--color-text-muted)] file:mr-3 file:rounded-[var(--radius-pill)] file:border-0 file:bg-[var(--color-fill-subtle)] file:px-3 file:py-1.5 file:text-[12px] file:font-semibold"
-            />
-            <Button
-              type="submit"
-              variant="secondary"
-              disabled={isPending}
-              className={isPending ? "[animation:upload-pulse-tone_1.1s_ease-in-out_infinite]" : undefined}
-            >
-              {isPending ? <UploadingLabel /> : "Upload"}
-            </Button>
-          </form>
-          {uploadError && <p className="mt-1.5 text-[12px] text-[var(--color-negative-text)]">{uploadError}</p>}
-        </div>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

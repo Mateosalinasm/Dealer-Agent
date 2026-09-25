@@ -7,29 +7,41 @@ import { cn } from "@/lib/utils";
 
 type Status = "idle" | "uploading" | "done" | "error";
 
-// Lives in the credit-grade modal's header, next to the customer name —
-// same placement and same "pick a file, it just goes" behavior as the New
-// Deal credit-app upload button. uploadDocument already saves the file AND
-// runs AI extraction in one server action (see app/desk/deals/actions.ts),
-// so there's no separate "Analyze with AI" step to trigger here — the
-// pending state below covers both.
-export function CreditReportUploadField({ dealId }: { dealId: string }) {
-  const [fileName, setFileName] = useState("");
+// Shared header-pill upload control: pick a file, it uploads AND runs AI
+// extraction immediately (uploadDocument does both in one server action —
+// see app/desk/deals/actions.ts — so there's no separate "Analyze with AI"
+// click for the first pass anywhere this is used). Same placement (next to
+// the modal's title) and same bounce/pulse animation everywhere it
+// appears: credit report upload, and here for TurboPass/bank statements.
+export function DocumentUploadPill({
+  dealId,
+  category,
+  label,
+  multiple = false,
+  accept = ".pdf,image/*",
+}: {
+  dealId: string;
+  category: string;
+  label: string;
+  multiple?: boolean;
+  accept?: string;
+}) {
+  const [fileLabel, setFileLabel] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function onChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null;
-    if (!file) return;
-    setFileName(file.name);
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    setFileLabel(files.length > 1 ? `${files.length} files` : files[0].name);
     setError(null);
     setStatus("uploading");
 
     startTransition(async () => {
       const fd = new FormData();
-      fd.set("category", "credit_report");
-      fd.set("file", file);
+      fd.set("category", category);
+      for (const file of files) fd.append("file", file);
       const result = await uploadDocument(dealId, fd);
       if (!result.ok) {
         setStatus("error");
@@ -45,15 +57,7 @@ export function CreditReportUploadField({ dealId }: { dealId: string }) {
   return (
     <div className="flex flex-col items-end gap-1">
       <label
-        title={
-          pending
-            ? "Uploading and reading the credit report…"
-            : status === "done"
-              ? "Uploaded and analyzed"
-              : status === "error"
-                ? (error ?? "Couldn't upload the file")
-                : "Upload credit report"
-        }
+        title={pending ? `Uploading and reading ${label.toLowerCase()}…` : status === "done" ? "Uploaded and analyzed" : status === "error" ? (error ?? "Couldn't upload the file") : `Upload ${label.toLowerCase()}`}
         className={cn(
           "flex cursor-pointer items-center gap-1.5 rounded-[var(--radius-pill)] border px-3 py-1.5 text-[12px] font-semibold transition-colors",
           pending
@@ -74,12 +78,10 @@ export function CreditReportUploadField({ dealId }: { dealId: string }) {
         ) : (
           <Upload size={14} className="flex-none text-[var(--color-text-muted)]" />
         )}
-        <span className="max-w-[200px] truncate">
-          {pending ? "Uploading & analyzing…" : status === "done" ? "Uploaded — see below" : status === "error" ? "Failed — click to retry" : fileName || "Upload credit report"}
-        </span>
-        <input type="file" accept=".pdf,image/*" className="hidden" disabled={pending} onChange={onChange} />
+        <span className="max-w-[170px] truncate">{pending ? "Uploading…" : status === "done" ? "Uploaded" : status === "error" ? "Failed — retry" : fileLabel || label}</span>
+        <input type="file" accept={accept} multiple={multiple} className="hidden" disabled={pending} onChange={onChange} />
       </label>
-      {status === "error" && error && <p className="max-w-[260px] text-right text-[10.5px] text-[var(--color-negative-text)]">{error}</p>}
+      {status === "error" && error && <p className="max-w-[220px] text-right text-[10.5px] text-[var(--color-negative-text)]">{error}</p>}
     </div>
   );
 }
