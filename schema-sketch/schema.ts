@@ -88,7 +88,31 @@ export const settings = pgTable('settings', {
   // otherwise rather than sending a generic "leave us a review" with
   // nowhere to click.
   googleReviewUrl: text('google_review_url'),
+  // Auto-post schedule for the browser-extension listing bot (see
+  // extensionTokens below and app/api/extension/*) — never used unless
+  // autoPostEnabled is explicitly turned on from Settings. autoPostTimes is
+  // a list of "HH:mm" 24h local times (dealership timezone, above); a slot
+  // is "due" once that time has passed today and fewer than
+  // autoPostMaxPerDay auto-posts have gone out today. See
+  // lib/auto-post-schedule.ts for the actual due-now computation.
+  autoPostEnabled: boolean('auto_post_enabled').notNull().default(false),
+  autoPostMaxPerDay: integer('auto_post_max_per_day').notNull().default(1),
+  autoPostTimes: jsonb('auto_post_times').$type<string[]>().notNull().default(['09:00']),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+// Pairing tokens for the browser extension that actually drives Facebook
+// Marketplace (a Chrome extension running in the operator's own logged-in
+// session — this app never touches their Facebook credentials). Only the
+// SHA-256 hash is stored; the raw token is shown once, at creation, and
+// never recoverable after — same as an API key. See lib/extension-auth.ts.
+export const extensionTokens = pgTable('extension_tokens', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  label: text('label').notNull(),
+  tokenHash: text('token_hash').notNull().unique(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
 });
 
 export const auctionHouse = ['manheim', 'americas', 'iaa'] as const;
@@ -256,6 +280,18 @@ export const marketingPosts = pgTable('marketing_posts', {
   language: text('language').$type<(typeof marketingLanguage)[number]>().notNull(),
   body: text('body'),
   postedAt: timestamp('posted_at', { withTimezone: true }),
+  // 'manual' = the operator clicked Mark posted themselves; 'auto' = the
+  // browser extension posted it. Null until postedAt is set.
+  postedVia: text('posted_via').$type<'manual' | 'auto'>(),
+  externalListingUrl: text('external_listing_url'),
+  // Auto-post queue state — see lib/auto-post-schedule.ts and
+  // app/api/extension/*. queuedAt orders the FIFO queue. A failed attempt
+  // sets autoPostError and clears queuedForAutoPost (dequeues it) rather
+  // than silently retrying against Facebook — the operator has to look at
+  // the error and re-queue on purpose.
+  queuedForAutoPost: boolean('queued_for_auto_post').notNull().default(false),
+  queuedAt: timestamp('queued_at', { withTimezone: true }),
+  autoPostError: text('auto_post_error'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => ({

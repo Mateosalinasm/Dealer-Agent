@@ -1,7 +1,9 @@
+import { desc } from "drizzle-orm";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { NotificationSettingsForm } from "@/components/notification-settings-form";
+import { AutoPostSettingsForm } from "@/components/auto-post-settings-form";
 import { whatsappConfigured } from "@/lib/whatsapp";
 import { emailConfigured } from "@/lib/email";
 import { googleCalendarConfigured } from "@/lib/google-calendar";
@@ -22,11 +24,12 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const { google } = await searchParams;
   const statusBanner = google ? GOOGLE_STATUS_MESSAGE[google] : null;
 
-  const [waConfigured, gcalEnvConfigured, gcalConnected, settingsRows] = await Promise.all([
+  const [waConfigured, gcalEnvConfigured, gcalConnected, settingsRows, extensionTokenRows] = await Promise.all([
     Promise.resolve(whatsappConfigured()),
     Promise.resolve(googleCalendarConfigured()),
     isIntegrationConnected("google_calendar"),
     db.select().from(schema.settings).limit(1),
+    db.select().from(schema.extensionTokens).orderBy(desc(schema.extensionTokens.createdAt)),
   ]);
   const settingsRow = settingsRows[0] ?? null;
   const emlConfigured = emailConfigured();
@@ -126,6 +129,26 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           operatorPhone={settingsRow?.operatorPhone ?? null}
           operatorEmail={settingsRow?.operatorEmail ?? null}
           googleReviewUrl={settingsRow?.googleReviewUrl ?? null}
+        />
+      </Card>
+
+      <Card className="mt-4">
+        <div className="mb-1 text-[13.5px] font-semibold text-[var(--color-text)]">Facebook Marketplace auto-post</div>
+        <p className="mb-4 text-[11.5px] text-[var(--color-text-muted)]">
+          A paired browser extension posts queued listings for you (see the Marketing page). This app never touches
+          your Facebook password — the extension runs in your own logged-in browser.
+        </p>
+        <AutoPostSettingsForm
+          autoPostEnabled={settingsRow?.autoPostEnabled ?? false}
+          autoPostMaxPerDay={settingsRow?.autoPostMaxPerDay ?? 1}
+          autoPostTimes={settingsRow?.autoPostTimes ?? ["09:00"]}
+          tokens={extensionTokenRows.map((t) => ({
+            id: t.id,
+            label: t.label,
+            createdAt: t.createdAt.toISOString(),
+            lastUsedAt: t.lastUsedAt ? t.lastUsedAt.toISOString() : null,
+            revokedAt: t.revokedAt ? t.revokedAt.toISOString() : null,
+          }))}
         />
       </Card>
     </div>

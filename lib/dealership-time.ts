@@ -24,3 +24,13 @@ export function todayInTimezone(timezone: string): string {
     day: "2-digit",
   }).format(new Date());
 }
+
+/** The given instant's calendar date in the timezone, as YYYY-MM-DD. */
+export function dateInTimezone(timezone: string, at: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit" }).format(at);
+}
+
+/** The given instant's 24h clock time in the timezone, as "HH:mm". */
+export function clockTimeInTimezone(timezone: string, at: Date): string {
+  return new Intl.DateTimeFormat("en-GB", { timeZone: timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(at);
+}

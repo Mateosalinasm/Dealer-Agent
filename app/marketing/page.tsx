@@ -60,6 +60,10 @@ export default async function MarketingPage() {
               language: p.language,
               body: p.body,
               postedAt: p.postedAt ? p.postedAt.toISOString() : null,
+              postedVia: p.postedVia,
+              externalListingUrl: p.externalListingUrl,
+              queuedForAutoPost: p.queuedForAutoPost,
+              autoPostError: p.autoPostError,
             }))}
           />
         </TabsContent>

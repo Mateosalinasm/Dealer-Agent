@@ -9,7 +9,9 @@ import {
   generateListing,
   logLeadFromVehicle,
   markPosted,
+  queueForAutoPost,
   setMarketingStatus,
+  unqueueAutoPost,
   updateListingBody,
   updateVehicleMarketingFacts,
 } from "@/app/marketing/actions";
@@ -91,6 +93,18 @@ export function MarketingDetailPanel({ vehicle, posts }: { vehicle: MarketingVeh
     startSave(() => markPosted(vehicle.id, platform, language));
   }
 
+  function handleQueueAutoPost() {
+    setError(null);
+    startSave(async () => {
+      const result = await queueForAutoPost(vehicle.id, platform, language);
+      if (!result.ok) setError(result.error ?? "Couldn't queue this listing.");
+    });
+  }
+
+  function handleUnqueueAutoPost() {
+    startSave(() => unqueueAutoPost(vehicle.id, platform, language));
+  }
+
   return (
     <Card className="flex flex-col gap-4">
       <div>
@@ -168,10 +182,42 @@ export function MarketingDetailPanel({ vehicle, posts }: { vehicle: MarketingVeh
         <Button type="button" variant="secondary" onClick={handleMarkPosted} disabled={!body || isSaving}>
           Mark posted
         </Button>
+        {platform === "facebook_marketplace" &&
+          !savedPost?.postedAt &&
+          (savedPost?.queuedForAutoPost ? (
+            <Button type="button" variant="secondary" onClick={handleUnqueueAutoPost} disabled={isSaving}>
+              Cancel auto-post
+            </Button>
+          ) : (
+            <Button type="button" variant="secondary" onClick={handleQueueAutoPost} disabled={!body || isSaving}>
+              Queue for auto-post
+            </Button>
+          ))}
         <Button type="button" variant="secondary" onClick={() => setLoggingLead((v) => !v)}>
           Log a lead
         </Button>
       </div>
+
+      {platform === "facebook_marketplace" && savedPost?.queuedForAutoPost && (
+        <p className="rounded-[var(--radius-panel)] bg-[var(--color-info-bg)] p-2.5 text-[11.5px] text-[var(--color-info-text)]">
+          Queued — the browser extension will post this automatically at its next scheduled time.
+        </p>
+      )}
+      {platform === "facebook_marketplace" && savedPost?.autoPostError && (
+        <p className="rounded-[var(--radius-panel)] bg-[var(--color-negative-bg)] p-2.5 text-[11.5px] text-[var(--color-negative-text)]">
+          Last auto-post attempt failed: {savedPost.autoPostError}
+        </p>
+      )}
+      {platform === "facebook_marketplace" && savedPost?.postedVia === "auto" && (
+        <p className="rounded-[var(--radius-panel)] bg-[var(--color-positive-bg)] p-2.5 text-[11.5px] text-[var(--color-positive-text)]">
+          Auto-posted by the extension.{" "}
+          {savedPost.externalListingUrl && (
+            <a href={savedPost.externalListingUrl} target="_blank" rel="noreferrer" className="font-semibold underline">
+              View listing
+            </a>
+          )}
+        </p>
+      )}
 
       {error && <p className="text-[11.5px] text-[var(--color-negative-text)]">{error}</p>}
 
@@ -185,7 +231,9 @@ export function MarketingDetailPanel({ vehicle, posts }: { vehicle: MarketingVeh
       />
 
       <p className="text-[11px] text-[var(--color-text-muted)]">
-        Only facts from the vehicle record are used — no invented features. Posting is manual; nothing is sent to any platform from here.
+        Only facts from the vehicle record are used — no invented features. Nothing is sent to any platform from this
+        page directly; Facebook Marketplace posting only happens through the paired browser extension, and only for
+        listings you explicitly queue.
       </p>
 
       {loggingLead && (

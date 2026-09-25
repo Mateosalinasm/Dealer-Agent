@@ -468,3 +468,22 @@ EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 CREATE INDEX IF NOT EXISTS "vehicle_photos_vehicle_idx" ON "vehicle_photos" USING btree ("vehicle_id");
+
+-- --- 0020 ---
+CREATE TABLE IF NOT EXISTS "extension_tokens" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"label" text NOT NULL,
+	"token_hash" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"last_used_at" timestamp with time zone,
+	"revoked_at" timestamp with time zone,
+	CONSTRAINT "extension_tokens_token_hash_unique" UNIQUE("token_hash")
+);
+ALTER TABLE "marketing_posts" ADD COLUMN IF NOT EXISTS "posted_via" text;
+ALTER TABLE "marketing_posts" ADD COLUMN IF NOT EXISTS "external_listing_url" text;
+ALTER TABLE "marketing_posts" ADD COLUMN IF NOT EXISTS "queued_for_auto_post" boolean DEFAULT false NOT NULL;
+ALTER TABLE "marketing_posts" ADD COLUMN IF NOT EXISTS "queued_at" timestamp with time zone;
+ALTER TABLE "marketing_posts" ADD COLUMN IF NOT EXISTS "auto_post_error" text;
+ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "auto_post_enabled" boolean DEFAULT false NOT NULL;
+ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "auto_post_max_per_day" integer DEFAULT 1 NOT NULL;
+ALTER TABLE "settings" ADD COLUMN IF NOT EXISTS "auto_post_times" jsonb DEFAULT '["09:00"]'::jsonb NOT NULL;

@@ -8,6 +8,8 @@ import { normalizePhone } from "@/lib/phone";
 import { buildDeskBrief } from "@/lib/desk-brief";
 import { sendWhatsAppMessage, whatsappConfigured } from "@/lib/whatsapp";
 import { sendEmail, emailConfigured } from "@/lib/email";
+import { createExtensionToken, revokeExtensionToken } from "@/lib/extension-auth";
+import { autoPostScheduleSchema } from "@/lib/validation";
 
 export async function disconnectGoogleCalendar() {
   await disconnectIntegration("google_calendar");
@@ -28,6 +30,40 @@ export async function updateNotificationSettings(formData: FormData) {
   } else {
     await db.insert(schema.settings).values({ operatorPhone, operatorEmail, googleReviewUrl });
   }
+  revalidatePath("/settings");
+}
+
+export async function updateAutoPostSchedule(formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  const parsed = autoPostScheduleSchema.safeParse({
+    autoPostEnabled: formData.get("autoPostEnabled") === "on",
+    autoPostMaxPerDay: formData.get("autoPostMaxPerDay"),
+    autoPostTimes: String(formData.get("autoPostTimes") ?? "")
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean),
+  });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid schedule." };
+
+  const { autoPostEnabled, autoPostMaxPerDay, autoPostTimes } = parsed.data;
+  const [existing] = await db.select().from(schema.settings).limit(1);
+  if (existing) {
+    await db.update(schema.settings).set({ autoPostEnabled, autoPostMaxPerDay, autoPostTimes }).where(eq(schema.settings.id, existing.id));
+  } else {
+    await db.insert(schema.settings).values({ autoPostEnabled, autoPostMaxPerDay, autoPostTimes });
+  }
+  revalidatePath("/settings");
+  return { ok: true };
+}
+
+/** Returns the raw token — the only time it's ever visible, shown once in the UI and never stored client-side after. */
+export async function createExtensionTokenAction(label: string): Promise<string> {
+  const token = await createExtensionToken(label || "Browser extension");
+  revalidatePath("/settings");
+  return token;
+}
+
+export async function revokeExtensionTokenAction(id: string) {
+  await revokeExtensionToken(id);
   revalidatePath("/settings");
 }
 

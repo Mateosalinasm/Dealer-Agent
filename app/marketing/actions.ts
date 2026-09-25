@@ -88,6 +88,37 @@ export async function markPosted(vehicleId: string, platform: (typeof marketingP
   revalidatePath("/marketing");
 }
 
+export async function queueForAutoPost(
+  vehicleId: string,
+  platform: (typeof marketingPlatform)[number],
+  language: (typeof marketingLanguage)[number],
+): Promise<{ ok: boolean; error?: string }> {
+  const [existing] = await db
+    .select()
+    .from(schema.marketingPosts)
+    .where(and(eq(schema.marketingPosts.vehicleId, vehicleId), eq(schema.marketingPosts.platform, platform), eq(schema.marketingPosts.language, language)))
+    .limit(1);
+
+  if (!existing?.body) return { ok: false, error: "Write the listing before queuing it to auto-post." };
+  if (existing.postedAt) return { ok: false, error: "Already posted — mark it in stock again first if you want to re-post." };
+
+  await db
+    .update(schema.marketingPosts)
+    .set({ queuedForAutoPost: true, queuedAt: new Date(), autoPostError: null })
+    .where(eq(schema.marketingPosts.id, existing.id));
+
+  revalidatePath("/marketing");
+  return { ok: true };
+}
+
+export async function unqueueAutoPost(vehicleId: string, platform: (typeof marketingPlatform)[number], language: (typeof marketingLanguage)[number]) {
+  await db
+    .update(schema.marketingPosts)
+    .set({ queuedForAutoPost: false })
+    .where(and(eq(schema.marketingPosts.vehicleId, vehicleId), eq(schema.marketingPosts.platform, platform), eq(schema.marketingPosts.language, language)));
+  revalidatePath("/marketing");
+}
+
 export async function setMarketingStatus(vehicleId: string, status: (typeof marketingStatus)[number]) {
   await db.update(schema.vehicles).set({ marketingStatus: status }).where(eq(schema.vehicles.id, vehicleId));
   revalidatePath("/marketing");

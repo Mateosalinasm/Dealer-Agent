@@ -257,3 +257,20 @@ export const leadSchema = z.object({
   maxPaymentDollars: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional()),
   downAvailableDollars: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional()),
 });
+
+// Posted by the browser extension after it attempts a Facebook Marketplace
+// listing — see app/api/extension/report/route.ts.
+export const autoPostReportSchema = z.object({
+  postId: z.string().uuid(),
+  ok: z.boolean(),
+  error: z.string().max(2000).optional(),
+  listingUrl: z.string().url().optional(),
+});
+
+// The Settings page's auto-post schedule form.
+export const autoPostScheduleSchema = z.object({
+  autoPostEnabled: z.boolean(),
+  autoPostMaxPerDay: z.coerce.number().int().min(1).max(10),
+  // "HH:mm" 24h times, one per line/entry from the form.
+  autoPostTimes: z.array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24h HH:mm, e.g. 09:00")).min(1).max(10),
+});

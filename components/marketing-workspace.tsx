@@ -31,6 +31,10 @@ export interface MarketingPostRow {
   language: "es" | "en";
   body: string | null;
   postedAt: string | null;
+  postedVia: "manual" | "auto" | null;
+  externalListingUrl: string | null;
+  queuedForAutoPost: boolean;
+  autoPostError: string | null;
 }
 
 export const STATUS_LABELS: Record<MarketingVehicle["marketingStatus"] | "sold", string> = {
