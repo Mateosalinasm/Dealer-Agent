@@ -3,8 +3,10 @@
 import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
-import { saveFile, saveBuffer, readStoredFile } from "@/lib/storage";
+import { saveBuffer, readStoredFile } from "@/lib/storage";
 import { editVehiclePhoto as runPhotoEdit } from "@/lib/photo-editor";
+import { normalizeToPhotoAspectRatio } from "@/lib/image-aspect";
+import { MAX_VEHICLE_PHOTOS } from "@/lib/vehicle-photo-settings";
 import type { VehiclePhotoEditSettings } from "@/schema-sketch/schema";
 
 function extFor(mimeType: string): string {
@@ -23,24 +25,42 @@ export async function uploadVehiclePhotos(vehicleId: string, formData: FormData)
     .select({ id: schema.vehiclePhotos.id })
     .from(schema.vehiclePhotos)
     .where(eq(schema.vehiclePhotos.vehicleId, vehicleId));
+
+  if (existing.length >= MAX_VEHICLE_PHOTOS) {
+    return { ok: false, error: `This vehicle already has the maximum of ${MAX_VEHICLE_PHOTOS} photos — delete one before adding more.` };
+  }
+
+  const room = MAX_VEHICLE_PHOTOS - existing.length;
+  const accepted = files.slice(0, room);
+  const skipped = files.length - accepted.length;
   let nextOrder = existing.length;
 
-  for (const file of files) {
-    let storagePath: string;
+  for (const file of accepted) {
     try {
-      ({ storagePath } = await saveFile(file));
+      const rawMimeType = file.type || "image/jpeg";
+      const rawBuffer = Buffer.from(await file.arrayBuffer());
+      // Normalize to the shared 4:3 canvas at upload time, not just for AI
+      // edits — a portrait phone photo left as-is would still get cropped
+      // unpredictably by the aspect-[4/3] display boxes everywhere else.
+      const normalized = await normalizeToPhotoAspectRatio(rawBuffer, rawMimeType);
+      const { storagePath } = await saveBuffer(normalized.buffer, normalized.mimeType, file.name || `photo.${extFor(normalized.mimeType)}`);
+      await db.insert(schema.vehiclePhotos).values({
+        vehicleId,
+        originalStoragePath: storagePath,
+        originalMimeType: normalized.mimeType,
+        sortOrder: nextOrder++,
+      });
     } catch (err) {
       return { ok: false, error: err instanceof Error ? err.message : "Upload failed — try again." };
     }
-    await db.insert(schema.vehiclePhotos).values({
-      vehicleId,
-      originalStoragePath: storagePath,
-      originalMimeType: file.type || null,
-      sortOrder: nextOrder++,
-    });
   }
 
   revalidatePath(`/inventory/${vehicleId}`);
+  revalidatePath("/inventory");
+
+  if (skipped > 0) {
+    return { ok: true, error: `Added ${accepted.length} — this vehicle is capped at ${MAX_VEHICLE_PHOTOS} photos, so ${skipped} more didn't fit.` };
+  }
   return { ok: true };
 }
 
@@ -60,13 +80,17 @@ export async function editVehiclePhotoAction(photoId: string, settings: VehicleP
   const result = await runPhotoEdit(buffer, photo.originalMimeType, settings);
 
   if (result.ok && result.imageBuffer && result.mimeType) {
-    const { storagePath } = await saveBuffer(result.imageBuffer, result.mimeType, `edited.${extFor(result.mimeType)}`);
+    // Gemini doesn't reliably return a given aspect ratio, so normalize its
+    // output to the same 4:3 canvas as everything else rather than trusting
+    // whatever shape it produced this time.
+    const normalized = await normalizeToPhotoAspectRatio(result.imageBuffer, result.mimeType);
+    const { storagePath } = await saveBuffer(normalized.buffer, normalized.mimeType, `edited.${extFor(normalized.mimeType)}`);
     await db
       .update(schema.vehiclePhotos)
       .set({
         status: "edited",
         editedStoragePath: storagePath,
-        editedMimeType: result.mimeType,
+        editedMimeType: normalized.mimeType,
         editSettings: settings,
         editError: null,
         editedAt: new Date(),
@@ -99,6 +123,36 @@ export async function reorderVehiclePhotos(vehicleId: string, orderedPhotoIds: s
     ),
   );
   revalidatePath(`/inventory/${vehicleId}`);
+  revalidatePath("/inventory");
+}
+
+// "I don't like the edit, go back to the original" — clears every
+// edit-related field so the photo's status and display fall straight back
+// to the untouched upload, same as if it had never been edited. The
+// generated file itself is left in storage (same as deleteVehiclePhoto
+// already leaves orphaned files behind) — cheap enough for this volume
+// that cleaning it up isn't worth the added complexity.
+export async function revertVehiclePhoto(photoId: string) {
+  const [photo] = await db
+    .select({ vehicleId: schema.vehiclePhotos.vehicleId })
+    .from(schema.vehiclePhotos)
+    .where(eq(schema.vehiclePhotos.id, photoId))
+    .limit(1);
+  if (!photo) return;
+
+  await db
+    .update(schema.vehiclePhotos)
+    .set({
+      status: "uploaded",
+      editedStoragePath: null,
+      editedMimeType: null,
+      editSettings: null,
+      editError: null,
+      editedAt: null,
+    })
+    .where(eq(schema.vehiclePhotos.id, photoId));
+
+  revalidatePath(`/inventory/${photo.vehicleId}`);
   revalidatePath("/inventory");
 }
 

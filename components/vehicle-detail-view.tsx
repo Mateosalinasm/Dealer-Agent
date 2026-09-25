@@ -23,6 +23,7 @@ export async function VehicleDetailView({ id }: { id: string }) {
     status: p.status,
     editSettings: p.editSettings,
     editError: p.editError,
+    mimeType: (p.editedStoragePath ? p.editedMimeType : p.originalMimeType) ?? null,
   }));
 
   const label = `${vehicle.year ?? ""} ${vehicle.make ?? ""} ${vehicle.model ?? ""} ${vehicle.trim ?? ""}`.replace(/\s+/g, " ").trim();

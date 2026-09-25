@@ -52,6 +52,10 @@ export default async function InventoryPage() {
       coverUrl: photos[0]?.url ?? null,
       photos,
       hasDeal: vehicleIdsWithDeal.has(v.id),
+      bodyType: v.bodyType,
+      fuelType: v.fuelType,
+      isThreeRowSuv: v.isThreeRowSuv,
+      title: v.title,
     };
   });
 
@@ -65,10 +69,6 @@ export default async function InventoryPage() {
           <InventoryImport />
           <AddVehicleModal />
         </div>
-      </div>
-
-      <div className="mb-3 text-[13.5px] font-semibold text-[var(--color-text)]">
-        Current stock · {vehicles.length}
       </div>
 
       <InventoryGrid vehicles={cards} />

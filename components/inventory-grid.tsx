@@ -2,7 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Car, LayoutGrid, List as ListIcon, Search, Trash2 } from "lucide-react";
+import { Car, CarFront, Fuel, LayoutGrid, List as ListIcon, OctagonAlert, Search, Trash2, Truck, TriangleAlert, Users } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,10 @@ import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { VehicleGalleryButton, type GalleryPhoto } from "@/components/vehicle-gallery-button";
 import { deleteVehicles, markVehicleSold } from "@/app/inventory/actions";
 import { formatCents, cn } from "@/lib/utils";
+
+type BodyType = "truck" | "sedan" | "suv";
+type FuelType = "gas" | "diesel" | "hybrid" | "electric";
+type TitleStatus = "clean" | "salvage" | "rebuilt" | "flood" | "lemon" | "branded";
 
 export interface InventoryVehicleCard {
   id: string;
@@ -25,13 +30,39 @@ export interface InventoryVehicleCard {
   coverUrl: string | null;
   photos: GalleryPhoto[];
   hasDeal: boolean;
+  bodyType: BodyType | null;
+  fuelType: FuelType;
+  isThreeRowSuv: boolean;
+  title: TitleStatus;
 }
 
 type ViewMode = "grid" | "list";
+type Category = "all" | BodyType;
+type SortOrder = "none" | "newest" | "oldest";
+
+const CATEGORY_ICONS: Record<BodyType, LucideIcon> = { sedan: Car, truck: Truck, suv: CarFront };
+const CATEGORY_LABELS: Record<BodyType, string> = { sedan: "Sedans", truck: "Trucks", suv: "SUVs" };
+
+// Only 'salvage' gets the red danger treatment, matching the explicit ask.
+// Every other non-clean brand (rebuilt/flood/lemon/branded — "insurance
+// loss" isn't its own column in the schema, it lands under one of these)
+// gets the amber warning icon instead. Both reuse existing design-system
+// color tokens (--color-negative / --color-caution-text) rather than new
+// hex values, per CLAUDE.md.
+function titleBadge(title: TitleStatus): { Icon: LucideIcon; className: string; label: string } | null {
+  if (title === "clean") return null;
+  if (title === "salvage") return { Icon: OctagonAlert, className: "bg-[var(--color-negative)] text-white", label: "Salvage title" };
+  const label = title.charAt(0).toUpperCase() + title.slice(1);
+  return { Icon: TriangleAlert, className: "bg-[var(--color-caution-text)] text-white", label: `${label} title` };
+}
 
 export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }) {
   const [view, setView] = useState<ViewMode>("grid");
   const [query, setQuery] = useState("");
+  const [category, setCategory] = useState<Category>("all");
+  const [dieselOnly, setDieselOnly] = useState(false);
+  const [threeRowOnly, setThreeRowOnly] = useState(false);
+  const [sort, setSort] = useState<SortOrder>("none");
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -39,9 +70,22 @@ export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return vehicles;
-    return vehicles.filter((v) => [v.label, v.stockNumber, v.vin, v.color].filter(Boolean).some((f) => f!.toLowerCase().includes(q)));
-  }, [vehicles, query]);
+    let list = vehicles;
+    if (category !== "all") list = list.filter((v) => v.bodyType === category);
+    if (dieselOnly) list = list.filter((v) => v.fuelType === "diesel");
+    if (threeRowOnly) list = list.filter((v) => v.isThreeRowSuv);
+    if (q) list = list.filter((v) => [v.label, v.stockNumber, v.vin, v.color].filter(Boolean).some((f) => f!.toLowerCase().includes(q)));
+    if (sort !== "none") {
+      list = [...list].sort((a, b) => {
+        // Fewest days at lot = most recently acquired = "newest"; vehicles
+        // with no acquired date sort last regardless of direction.
+        if (a.daysAtLot == null) return 1;
+        if (b.daysAtLot == null) return -1;
+        return sort === "newest" ? a.daysAtLot - b.daysAtLot : b.daysAtLot - a.daysAtLot;
+      });
+    }
+    return list;
+  }, [vehicles, query, category, dieselOnly, threeRowOnly, sort]);
 
   function toggleSelectMode() {
     setSelectMode((v) => !v);
@@ -76,6 +120,62 @@ export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="text-[13.5px] font-semibold text-[var(--color-text)]">Current stock · {filtered.length}</div>
+        <div className="flex flex-none items-center gap-1 rounded-[var(--radius-pill)] bg-[var(--color-fill-subtle)] p-0.5">
+          <button
+            type="button"
+            onClick={() => setCategory("all")}
+            title="All body types"
+            className={cn(
+              "rounded-[var(--radius-pill)] px-2.5 py-1 text-[11px] font-semibold transition-colors",
+              category === "all" ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-[var(--shadow-card)]" : "text-[var(--color-text-muted)]",
+            )}
+          >
+            All
+          </button>
+          {(Object.keys(CATEGORY_ICONS) as BodyType[]).map((bt) => {
+            const Icon = CATEGORY_ICONS[bt];
+            return (
+              <button
+                key={bt}
+                type="button"
+                onClick={() => setCategory((prev) => (prev === bt ? "all" : bt))}
+                title={CATEGORY_LABELS[bt]}
+                className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-[var(--radius-pill)] transition-colors",
+                  category === bt ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-[var(--shadow-card)]" : "text-[var(--color-text-muted)]",
+                )}
+              >
+                <Icon size={14} />
+              </button>
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={() => setDieselOnly((v) => !v)}
+          title="Diesel only"
+          className={cn(
+            "flex flex-none items-center gap-1 rounded-[var(--radius-pill)] border px-2.5 py-1 text-[11px] font-semibold transition-colors",
+            dieselOnly ? "border-[var(--color-primary)] bg-[var(--color-info-bg)] text-[var(--color-info-text)]" : "border-[var(--color-hairline)] text-[var(--color-text-muted)]",
+          )}
+        >
+          <Fuel size={12} /> Diesel
+        </button>
+        <button
+          type="button"
+          onClick={() => setThreeRowOnly((v) => !v)}
+          title="Three-row SUVs only"
+          className={cn(
+            "flex flex-none items-center gap-1 rounded-[var(--radius-pill)] border px-2.5 py-1 text-[11px] font-semibold transition-colors",
+            threeRowOnly ? "border-[var(--color-primary)] bg-[var(--color-info-bg)] text-[var(--color-info-text)]" : "border-[var(--color-hairline)] text-[var(--color-text-muted)]",
+          )}
+        >
+          <Users size={12} /> 3-row
+        </button>
+      </div>
+
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="relative min-w-[200px] flex-1">
           <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--color-text-placeholder)]" />
           <input
@@ -85,6 +185,15 @@ export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }
             className="w-full rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-surface)] py-1.5 pl-8 pr-3 text-[12.5px] text-[var(--color-text)] placeholder:text-[var(--color-text-placeholder)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30"
           />
         </div>
+        <select
+          value={sort}
+          onChange={(e) => setSort(e.target.value as SortOrder)}
+          className="flex-none rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-surface)] px-3 py-1.5 text-[12px] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30"
+        >
+          <option value="none">Sort: default</option>
+          <option value="newest">Newest to oldest</option>
+          <option value="oldest">Oldest to newest</option>
+        </select>
         <div className="flex flex-none items-center gap-0.5 rounded-[var(--radius-pill)] bg-[var(--color-fill-subtle)] p-0.5">
           <button
             type="button"
@@ -157,7 +266,9 @@ export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }
       {filtered.length === 0 ? (
         <Card>
           <p className="text-[12.5px] text-[var(--color-text-muted)]">
-            {query ? `No vehicles match "${query}".` : "Nothing in inventory yet — import a stock list above."}
+            {query || category !== "all" || dieselOnly || threeRowOnly
+              ? "No vehicles match these filters."
+              : "Nothing in inventory yet — import a stock list above."}
           </p>
         </Card>
       ) : view === "grid" ? (
@@ -197,6 +308,17 @@ export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }
   );
 }
 
+function TitleStatusBadge({ title }: { title: TitleStatus }) {
+  const badge = titleBadge(title);
+  if (!badge) return null;
+  const { Icon, className, label } = badge;
+  return (
+    <span title={label} className={cn("flex h-5 w-5 flex-none items-center justify-center rounded-full", className)}>
+      <Icon size={11} />
+    </span>
+  );
+}
+
 function GridCard({ v, selectMode, selected, onToggle }: { v: InventoryVehicleCard; selectMode: boolean; selected: boolean; onToggle: (id: string) => void }) {
   return (
     <Card className={cn("relative flex flex-col overflow-hidden p-0", selected && "ring-2 ring-[var(--color-primary)]")}>
@@ -228,10 +350,11 @@ function GridCard({ v, selectMode, selected, onToggle }: { v: InventoryVehicleCa
             <VehicleGalleryButton photos={v.photos} label={v.label || "Vehicle"} />
           </div>
         )}
-        <div className="absolute left-1.5 top-1.5">
+        <div className="absolute left-1.5 top-1.5 flex items-center gap-1">
           <Badge tone={v.sold ? "neutral" : "positive"} className="px-1.5 py-0.5 text-[9px]">
             {v.sold ? "Sold" : "In stock"}
           </Badge>
+          <TitleStatusBadge title={v.title} />
         </div>
       </div>
 
@@ -332,7 +455,10 @@ function ListRow({ v, selectMode, selected, onToggle }: { v: InventoryVehicleCar
       <td className="px-2 py-1.5 tabular-nums text-[var(--color-text-muted)]">{formatCents(v.costCents)}</td>
       <td className="px-2 py-1.5 tabular-nums text-[var(--color-text)]">{formatCents(v.askingCents)}</td>
       <td className="px-2 py-1.5">
-        <Badge tone={v.sold ? "neutral" : "positive"}>{v.sold ? "Sold" : "In stock"}</Badge>
+        <div className="flex items-center gap-1.5">
+          <Badge tone={v.sold ? "neutral" : "positive"}>{v.sold ? "Sold" : "In stock"}</Badge>
+          <TitleStatusBadge title={v.title} />
+        </div>
       </td>
       <td className="px-2 py-1.5">
         {!selectMode && (

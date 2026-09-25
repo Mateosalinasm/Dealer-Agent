@@ -1,5 +1,12 @@
 import type { VehiclePhotoEditSettings, vehiclePhotoBackgroundValues } from "@/schema-sketch/schema";
 
+// A hard cap, not just a soft nudge — enforced both client-side (instant
+// feedback, no wasted upload bandwidth) and server-side in
+// uploadVehiclePhotos (the real guard, since a client check alone is only
+// a courtesy). Nine keeps a listing's gallery tight without cutting off a
+// legitimate multi-angle shoot.
+export const MAX_VEHICLE_PHOTOS = 9;
+
 export const BACKGROUND_LABELS: Record<(typeof vehiclePhotoBackgroundValues)[number], string> = {
   grass_lot: "Grass lot",
   paved_lot_wall: "Paved lot + wall",
