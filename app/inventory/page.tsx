@@ -45,6 +45,7 @@ export default async function InventoryPage() {
       vin: v.vin,
       color: v.color,
       miles: v.miles,
+      year: v.year,
       daysAtLot: daysAtLot(v.acquiredOn),
       costCents: (v.hammer ?? 0) + (v.buyFee ?? 0) + v.tow + v.recon,
       askingCents: v.askingPrice,

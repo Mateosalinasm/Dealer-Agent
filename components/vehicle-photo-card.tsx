@@ -80,7 +80,7 @@ export function VehiclePhotoCard({
         <BeforeAfterSlider beforeSrc={photo.originalUrl} afterSrc={photo.editedUrl} alt={alt} />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={photo.originalUrl} alt={alt} className="aspect-[4/3] w-full object-cover" draggable={false} />
+        <img src={photo.originalUrl} alt={alt} className="aspect-[3/4] w-full object-cover" draggable={false} />
       )}
 
       {selectMode && (

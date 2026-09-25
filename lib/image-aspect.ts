@@ -3,15 +3,16 @@ import sharp from "sharp";
 
 // Every vehicle photo the UI shows — the inventory grid's cover thumbnail,
 // the gallery lightbox, the photo section's cards — is displayed in an
-// aspect-[4/3] box. Before this module existed, that box just cropped
-// whatever shape the source photo happened to be (a portrait phone photo,
-// a wide AI-generated landscape shot) via object-cover, so the vehicle
-// ended up zoomed in or out inconsistently from one photo to the next.
-// Normalizing every stored photo — original upload AND AI edit — to this
-// exact canvas up front means the CSS box never has to crop unpredictably
-// again; it's already the right shape.
-export const PHOTO_ASPECT_RATIO = 4 / 3;
-const TARGET_WIDTH = 1600;
+// aspect-[3/4] box (a tall portrait crop, matching the look the operator
+// picked from a real AI-generated shot). Before this module existed, that
+// box just cropped whatever shape the source photo happened to be (a
+// landscape phone photo, a square AI output) via object-cover, so the
+// vehicle ended up zoomed in or out inconsistently from one photo to the
+// next. Normalizing every stored photo — original upload AND AI edit — to
+// this exact canvas up front means the CSS box never has to crop
+// unpredictably again; it's already the right shape.
+export const PHOTO_ASPECT_RATIO = 3 / 4;
+const TARGET_WIDTH = 1200;
 const TARGET_HEIGHT = Math.round(TARGET_WIDTH / PHOTO_ASPECT_RATIO);
 const RATIO_TOLERANCE = 0.02;
 
@@ -23,7 +24,7 @@ function formatFor(mimeType: string): { format: NormalizedFormat; outMimeType: s
   return { format: "jpeg", outMimeType: "image/jpeg" };
 }
 
-// A source that doesn't natively fill 4:3 — a portrait phone photo, a
+// A source that doesn't natively fill 3:4 — a landscape phone photo, a
 // square AI output — gets composited onto a softly blurred, darkened,
 // scaled-up copy of itself rather than stretched (which would distort the
 // vehicle) or letterboxed with hard bars (which would look unfinished).

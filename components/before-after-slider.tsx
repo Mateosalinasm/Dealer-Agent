@@ -14,7 +14,7 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, alt, className }: { bef
   const [percent, setPercent] = useState(50);
 
   return (
-    <div className={cn("relative aspect-[4/3] w-full select-none overflow-hidden rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)]", className)}>
+    <div className={cn("relative aspect-[3/4] w-full select-none overflow-hidden rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)]", className)}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={afterSrc} alt={`${alt} — after`} className="pointer-events-none absolute inset-0 h-full w-full object-cover" draggable={false} />
       <div className="pointer-events-none absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 ${100 - percent}% 0 0)` }}>

@@ -2,13 +2,15 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Car, CarFront, Fuel, LayoutGrid, List as ListIcon, OctagonAlert, Search, Trash2, TriangleAlert, Users } from "lucide-react";
+import { Car, Fuel, LayoutGrid, List as ListIcon, OctagonAlert, Search, Trash2, TriangleAlert, Users } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { VehicleGalleryButton, type GalleryPhoto } from "@/components/vehicle-gallery-button";
 import { PickupTruckIcon } from "@/components/icons/pickup-truck-icon";
+import { SedanIcon } from "@/components/icons/sedan-icon";
+import { SuvIcon } from "@/components/icons/suv-icon";
 import { deleteVehicles, markVehicleSold } from "@/app/inventory/actions";
 import { formatCents, cn } from "@/lib/utils";
 
@@ -23,6 +25,7 @@ export interface InventoryVehicleCard {
   vin: string | null;
   color: string | null;
   miles: number | null;
+  year: number | null;
   daysAtLot: number | null;
   costCents: number;
   askingCents: number | null;
@@ -38,10 +41,10 @@ export interface InventoryVehicleCard {
 
 type ViewMode = "grid" | "list";
 type Category = "all" | BodyType;
-type SortOrder = "none" | "newest" | "oldest";
+type SortOrder = "none" | "lotNewest" | "lotOldest" | "yearNewest" | "yearOldest";
 
 type IconComponent = React.ComponentType<{ size?: number; className?: string }>;
-const CATEGORY_ICONS: Record<BodyType, IconComponent> = { sedan: Car, truck: PickupTruckIcon, suv: CarFront };
+const CATEGORY_ICONS: Record<BodyType, IconComponent> = { sedan: SedanIcon, truck: PickupTruckIcon, suv: SuvIcon };
 const CATEGORY_LABELS: Record<BodyType, string> = { sedan: "Sedans", truck: "Trucks", suv: "SUVs" };
 
 // Only 'salvage' gets the red danger treatment, matching the explicit ask.
@@ -76,13 +79,19 @@ export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }
     if (dieselOnly) list = list.filter((v) => v.fuelType === "diesel");
     if (threeRowOnly) list = list.filter((v) => v.isThreeRowSuv);
     if (q) list = list.filter((v) => [v.label, v.stockNumber, v.vin, v.color].filter(Boolean).some((f) => f!.toLowerCase().includes(q)));
-    if (sort !== "none") {
+    if (sort === "lotNewest" || sort === "lotOldest") {
       list = [...list].sort((a, b) => {
         // Fewest days at lot = most recently acquired = "newest"; vehicles
         // with no acquired date sort last regardless of direction.
         if (a.daysAtLot == null) return 1;
         if (b.daysAtLot == null) return -1;
-        return sort === "newest" ? a.daysAtLot - b.daysAtLot : b.daysAtLot - a.daysAtLot;
+        return sort === "lotNewest" ? a.daysAtLot - b.daysAtLot : b.daysAtLot - a.daysAtLot;
+      });
+    } else if (sort === "yearNewest" || sort === "yearOldest") {
+      list = [...list].sort((a, b) => {
+        if (a.year == null) return 1;
+        if (b.year == null) return -1;
+        return sort === "yearNewest" ? b.year - a.year : a.year - b.year;
       });
     }
     return list;
@@ -143,11 +152,11 @@ export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }
                 onClick={() => setCategory((prev) => (prev === bt ? "all" : bt))}
                 title={CATEGORY_LABELS[bt]}
                 className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-[var(--radius-pill)] transition-colors",
+                  "flex h-7 items-center justify-center rounded-[var(--radius-pill)] px-1.5 transition-colors",
                   category === bt ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-[var(--shadow-card)]" : "text-[var(--color-text-muted)]",
                 )}
               >
-                <Icon size={14} />
+                <Icon size={18} />
               </button>
             );
           })}
@@ -192,8 +201,10 @@ export function InventoryGrid({ vehicles }: { vehicles: InventoryVehicleCard[] }
           className="flex-none rounded-[var(--radius-pill)] border border-[var(--color-hairline)] bg-[var(--color-surface)] px-3 py-1.5 text-[12px] text-[var(--color-text)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30"
         >
           <option value="none">Sort: default</option>
-          <option value="newest">Newest to oldest</option>
-          <option value="oldest">Oldest to newest</option>
+          <option value="lotNewest">Days at lot: fewest first</option>
+          <option value="lotOldest">Days at lot: most first</option>
+          <option value="yearNewest">Year: newest first</option>
+          <option value="yearOldest">Year: oldest first</option>
         </select>
         <div className="flex flex-none items-center gap-0.5 rounded-[var(--radius-pill)] bg-[var(--color-fill-subtle)] p-0.5">
           <button
@@ -329,7 +340,7 @@ function GridCard({ v, selectMode, selected, onToggle }: { v: InventoryVehicleCa
         <Link href={`/inventory/${v.id}`} className="absolute inset-0 z-0" aria-label={`Open ${v.label || "vehicle"}`} />
       )}
 
-      <div className="relative aspect-[4/3] w-full bg-[var(--color-fill-subtle)]">
+      <div className="relative aspect-[3/4] w-full bg-[var(--color-fill-subtle)]">
         {v.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={v.coverUrl} alt={v.label || "Vehicle photo"} className="h-full w-full object-cover" />
