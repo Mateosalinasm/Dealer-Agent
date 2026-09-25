@@ -99,9 +99,18 @@ const HEADER_ALIASES: Record<string, string[]> = {
   color: ["color", "colour", "exterior color", "ext color", "ext. color"],
   bodyType: ["body", "body type", "bodytype", "body style"],
   miles: ["miles", "mileage", "odometer"],
-  askingPriceDollars: ["price", "asking price", "list price", "asking"],
-  costDollars: ["cost", "hammer", "hammer price", "purchase price", "buy price", "cost paid", "acquisition cost", "paid"],
+  askingPriceDollars: ["price", "asking price", "list price", "asking", "askingprice"],
+  // "TotalCostForUI" is the all-in landed cost a dealer-management-system
+  // export shows the user in its UI — "VehicleCost" in the same export is a
+  // different, narrower figure and must never match here (see importVehicles).
+  costDollars: ["cost", "hammer", "hammer price", "purchase price", "buy price", "cost paid", "acquisition cost", "paid", "totalcostforui", "total cost"],
   acquiredOn: ["in stock since", "in stock date", "date in stock", "acquired", "acquired on", "in-service date"],
+  // Not part of VehicleImportRow — read separately by the importer to
+  // derive year/make/model (vehicleInfo, e.g. "2014 RAM 1500 CREW CAB...")
+  // and acquiredOn (daysInStock, converted to a date) when a file has no
+  // dedicated columns for those.
+  vehicleInfo: ["vehicle info", "vehicleinfo", "description", "vehicle description", "vehicle"],
+  daysInStock: ["days in stock", "daysinstock", "days on lot", "age", "days"],
 };
 
 function normalizeHeader(h: string): string {
@@ -116,4 +125,18 @@ export function mapHeaders(headers: string[]): Record<string, number> {
     if (idx !== -1) map[field] = idx;
   }
   return map;
+}
+
+// A single free-text "vehicle info" column (e.g. "2014 RAM 1500 CREW CAB
+// LONE STAR PICKUP 4D 5 1/2 FT") in place of separate year/make/model
+// columns — leading 4-digit year, next token the make, everything after
+// is the model (trim isn't reliably separable from this shape, so it's
+// left for the operator to fill in if they care).
+export function parseVehicleInfo(text: string): { year?: number; make?: string; model?: string } {
+  const trimmed = text.trim();
+  const match = trimmed.match(/^(\d{4})\s+(\S+)\s+(.+)$/);
+  if (!match) return {};
+  const year = Number(match[1]);
+  if (year < 1900 || year > 2100) return {};
+  return { year, make: match[2], model: match[3].trim() || undefined };
 }

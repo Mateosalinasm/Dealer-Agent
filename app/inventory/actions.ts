@@ -71,7 +71,16 @@ export async function importVehicles(rows: VehicleImportRowInput[]) {
       if (row.bodyType) patch.bodyType = row.bodyType;
       if (row.miles != null) patch.miles = row.miles;
       if (row.askingPriceDollars != null) patch.askingPrice = Math.round(row.askingPriceDollars * 100);
-      if (row.costDollars != null) patch.hammer = Math.round(row.costDollars * 100);
+      // Cost is a single all-in figure — writing it into hammer alone and
+      // zeroing the legacy buyFee/tow/recon columns keeps the grid's
+      // hammer+buyFee+tow+recon sum equal to exactly what this import said,
+      // instead of a stale component (or tow's $100 DB default) adding on.
+      if (row.costDollars != null) {
+        patch.hammer = Math.round(row.costDollars * 100);
+        patch.buyFee = 0;
+        patch.tow = 0;
+        patch.recon = 0;
+      }
       if (row.acquiredOn) patch.acquiredOn = row.acquiredOn;
 
       if (Object.keys(patch).length > 0) {
@@ -91,6 +100,11 @@ export async function importVehicles(rows: VehicleImportRowInput[]) {
         miles: row.miles ?? null,
         askingPrice: row.askingPriceDollars != null ? Math.round(row.askingPriceDollars * 100) : null,
         hammer: row.costDollars != null ? Math.round(row.costDollars * 100) : null,
+        // Explicit zero, not the column defaults (tow defaults to $100) —
+        // cost here is the single costDollars figure, full stop.
+        buyFee: 0,
+        tow: 0,
+        recon: 0,
         acquiredOn: row.acquiredOn || today,
         title: "clean",
       });
@@ -137,10 +151,7 @@ export async function updateVehicle(vehicleId: string, formData: FormData) {
     title: formData.get("title") || "clean",
     miles: formData.get("miles") || undefined,
     priceDollars: formData.get("priceDollars") || undefined,
-    hammerDollars: formData.get("hammerDollars") || undefined,
-    buyFeeDollars: formData.get("buyFeeDollars") || undefined,
-    towDollars: formData.get("towDollars") || undefined,
-    reconDollars: formData.get("reconDollars") || undefined,
+    costDollars: formData.get("costDollars") || undefined,
     lot: formData.get("lot") ?? "",
     acquiredOn: formData.get("acquiredOn") ?? "",
     fuelType: formData.get("fuelType") || "gas",
@@ -162,10 +173,13 @@ export async function updateVehicle(vehicleId: string, formData: FormData) {
       title: parsed.title,
       miles: parsed.miles ?? null,
       askingPrice: parsed.priceDollars != null ? Math.round(parsed.priceDollars * 100) : null,
-      hammer: parsed.hammerDollars != null ? Math.round(parsed.hammerDollars * 100) : null,
-      buyFee: parsed.buyFeeDollars != null ? Math.round(parsed.buyFeeDollars * 100) : null,
-      tow: parsed.towDollars != null ? Math.round(parsed.towDollars * 100) : 0,
-      recon: parsed.reconDollars != null ? Math.round(parsed.reconDollars * 100) : 0,
+      // Single all-in cost figure — zero the legacy buyFee/tow/recon
+      // columns so the grid's hammer+buyFee+tow+recon sum equals exactly
+      // what was typed here, not that plus whatever those held before.
+      hammer: parsed.costDollars != null ? Math.round(parsed.costDollars * 100) : null,
+      buyFee: 0,
+      tow: 0,
+      recon: 0,
       lot: parsed.lot || null,
       acquiredOn: parsed.acquiredOn || null,
       fuelType: parsed.fuelType,
@@ -295,6 +309,11 @@ export async function createVehicleManually(formData: FormData) {
       miles: parsed.miles ?? null,
       askingPrice: parsed.priceDollars != null ? Math.round(parsed.priceDollars * 100) : null,
       hammer: parsed.costDollars != null ? Math.round(parsed.costDollars * 100) : null,
+      // Explicit zero, not the column defaults (tow defaults to $100) —
+      // cost here is the single costDollars figure, full stop.
+      buyFee: 0,
+      tow: 0,
+      recon: 0,
       lot: parsed.lot || null,
       acquiredOn,
       fuelType: parsed.fuelType,

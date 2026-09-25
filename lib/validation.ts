@@ -192,10 +192,10 @@ export const manualVehicleSchema = z.object({
 // manualVehicleSchema, but the acquisition side is different: an existing
 // row already has a real acquiredOn date, so this edits that directly
 // instead of re-deriving it from "days on lot" (which only makes sense
-// once, at intake). Cost is also broken out into its real components
-// (hammer/buyFee/tow/recon) rather than the Add form's single "cost"
-// field, since those are what the inventory grid's "Cost" figure actually
-// sums — see lib/deal-facts.ts.
+// once, at intake). Cost is a single all-in figure, same as the Add form's
+// "cost" field — see updateVehicle in app/inventory/actions.ts for how it's
+// written (it also zeroes the legacy buyFee/tow/recon columns so nothing
+// stale adds on top of it).
 export const editVehicleSchema = z.object({
   stockNumber: z.string().optional(),
   vin: z.string().optional(),
@@ -208,10 +208,7 @@ export const editVehicleSchema = z.object({
   title: z.enum(titleStatusValues),
   miles: z.coerce.number().int().min(0).optional(),
   priceDollars: z.coerce.number().min(0).optional(),
-  hammerDollars: z.coerce.number().min(0).optional(),
-  buyFeeDollars: z.coerce.number().min(0).optional(),
-  towDollars: z.coerce.number().min(0).optional(),
-  reconDollars: z.coerce.number().min(0).optional(),
+  costDollars: z.coerce.number().min(0).optional(),
   lot: z.string().optional(),
   acquiredOn: z.string().optional().or(z.literal("")),
   fuelType: z.enum(fuelTypeValues).default("gas"),

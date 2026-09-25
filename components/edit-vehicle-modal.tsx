@@ -148,22 +148,16 @@ export function EditVehicleModal({ vehicle }: { vehicle: EditableVehicle }) {
             <Label htmlFor="ev-price">Asking price ($)</Label>
             <Input id="ev-price" name="priceDollars" type="number" step="0.01" defaultValue={centsToDollarsStr(vehicle.askingPrice)} />
           </div>
-          <div>
-            <Label htmlFor="ev-hammer">Hammer / purchase price ($)</Label>
-            <Input id="ev-hammer" name="hammerDollars" type="number" step="0.01" defaultValue={centsToDollarsStr(vehicle.hammer)} />
-          </div>
-          <div>
-            <Label htmlFor="ev-buyfee">Buy fee ($)</Label>
-            <Input id="ev-buyfee" name="buyFeeDollars" type="number" step="0.01" defaultValue={centsToDollarsStr(vehicle.buyFee)} />
-          </div>
-          <div>
-            <Label htmlFor="ev-tow">Tow ($)</Label>
-            <Input id="ev-tow" name="towDollars" type="number" step="0.01" defaultValue={centsToDollarsStr(vehicle.tow)} />
-          </div>
           <div className="col-span-2">
-            <Label htmlFor="ev-recon">Recon ($)</Label>
-            <Input id="ev-recon" name="reconDollars" type="number" step="0.01" defaultValue={centsToDollarsStr(vehicle.recon)} />
-            <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">Hammer + buy fee + tow + recon is the &ldquo;Cost&rdquo; shown on the inventory list.</p>
+            <Label htmlFor="ev-cost">Cost ($)</Label>
+            <Input
+              id="ev-cost"
+              name="costDollars"
+              type="number"
+              step="0.01"
+              defaultValue={centsToDollarsStr((vehicle.hammer ?? 0) + (vehicle.buyFee ?? 0) + vehicle.tow + vehicle.recon)}
+            />
+            <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">The all-in cost shown as &ldquo;Cost&rdquo; on the inventory list.</p>
           </div>
 
           <div className="col-span-2">

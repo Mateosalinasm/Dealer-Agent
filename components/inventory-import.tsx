@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { mapHeaders, parseCsv } from "@/lib/csv";
+import { mapHeaders, parseCsv, parseVehicleInfo } from "@/lib/csv";
 import { importVehicles } from "@/app/inventory/actions";
 import type { VehicleImportRowInput } from "@/lib/validation";
 
@@ -41,6 +41,14 @@ export function InventoryImport() {
 
     const fieldIndex = mapHeaders(headers);
     const optionalFields = new Set(["trim", "stockNumber", "vin", "bodyType", "costDollars"]);
+    if (fieldIndex.vehicleInfo != null) {
+      // A combined "vehicle info" column stands in for year/make/model —
+      // don't warn about those being unmapped when it's present.
+      optionalFields.add("year");
+      optionalFields.add("make");
+      optionalFields.add("model");
+    }
+    if (fieldIndex.daysInStock != null) optionalFields.add("acquiredOn");
     const missing = FIELDS.filter((f) => !optionalFields.has(f.key) && fieldIndex[f.key] === undefined);
     if (missing.length) {
       setParseErrors((prev) => [
@@ -49,24 +57,49 @@ export function InventoryImport() {
       ]);
     }
 
-    const nextDraft: DraftRow[] = rows.map((r, i) => ({
-      _key: `${i}-${Date.now()}`,
-      stockNumber: fieldIndex.stockNumber != null ? r[fieldIndex.stockNumber] : "",
-      vin: fieldIndex.vin != null ? r[fieldIndex.vin] : "",
-      year: fieldIndex.year != null ? r[fieldIndex.year] : "",
-      make: fieldIndex.make != null ? r[fieldIndex.make] : "",
-      model: fieldIndex.model != null ? r[fieldIndex.model] : "",
-      trim: fieldIndex.trim != null ? r[fieldIndex.trim] : "",
-      color: fieldIndex.color != null ? r[fieldIndex.color] : "",
-      bodyType: fieldIndex.bodyType != null ? r[fieldIndex.bodyType] : "",
-      miles: fieldIndex.miles != null ? r[fieldIndex.miles].replace(/[^0-9.]/g, "") : "",
-      askingPriceDollars:
-        fieldIndex.askingPriceDollars != null
-          ? r[fieldIndex.askingPriceDollars].replace(/[^0-9.]/g, "")
-          : "",
-      costDollars: fieldIndex.costDollars != null ? r[fieldIndex.costDollars].replace(/[^0-9.]/g, "") : "",
-      acquiredOn: fieldIndex.acquiredOn != null ? r[fieldIndex.acquiredOn] : "",
-    }));
+    // "In stock since" derived from a days-in-stock count, when that's what
+    // the file has instead of a literal date — today's date, in the browser's
+    // local timezone, minus that many days.
+    function acquiredOnFromDaysInStock(raw: string): string {
+      const days = Number(raw.replace(/[^0-9.]/g, ""));
+      if (!raw || Number.isNaN(days)) return "";
+      const d = new Date();
+      d.setDate(d.getDate() - Math.round(days));
+      return d.toISOString().slice(0, 10);
+    }
+
+    const nextDraft: DraftRow[] = rows.map((r, i) => {
+      // Only a fallback for whichever of year/make/model has no dedicated
+      // column of its own — a file with real Year/Make/Model columns keeps
+      // using those even if it also happens to carry a description column.
+      const info = fieldIndex.vehicleInfo != null ? parseVehicleInfo(r[fieldIndex.vehicleInfo]) : {};
+      const yearCell = fieldIndex.year != null ? r[fieldIndex.year] : "";
+      const makeCell = fieldIndex.make != null ? r[fieldIndex.make] : "";
+      const modelCell = fieldIndex.model != null ? r[fieldIndex.model] : "";
+      return {
+        _key: `${i}-${Date.now()}`,
+        stockNumber: fieldIndex.stockNumber != null ? r[fieldIndex.stockNumber] : "",
+        vin: fieldIndex.vin != null ? r[fieldIndex.vin] : "",
+        year: yearCell || (info.year != null ? String(info.year) : ""),
+        make: makeCell || info.make || "",
+        model: modelCell || info.model || "",
+        trim: fieldIndex.trim != null ? r[fieldIndex.trim] : "",
+        color: fieldIndex.color != null ? r[fieldIndex.color] : "",
+        bodyType: fieldIndex.bodyType != null ? r[fieldIndex.bodyType] : "",
+        miles: fieldIndex.miles != null ? r[fieldIndex.miles].replace(/[^0-9.]/g, "") : "",
+        askingPriceDollars:
+          fieldIndex.askingPriceDollars != null
+            ? r[fieldIndex.askingPriceDollars].replace(/[^0-9.]/g, "")
+            : "",
+        costDollars: fieldIndex.costDollars != null ? r[fieldIndex.costDollars].replace(/[^0-9.]/g, "") : "",
+        acquiredOn:
+          fieldIndex.daysInStock != null
+            ? acquiredOnFromDaysInStock(r[fieldIndex.daysInStock])
+            : fieldIndex.acquiredOn != null
+              ? r[fieldIndex.acquiredOn]
+              : "",
+      };
+    });
     setDraft(nextDraft);
   }
 
