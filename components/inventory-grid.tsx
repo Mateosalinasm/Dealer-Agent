@@ -373,15 +373,16 @@ function GridCard({ v, selectMode, selected, onToggle }: { v: InventoryVehicleCa
         <Link href={`/inventory/${v.id}`} className="absolute inset-0 z-0" aria-label={`Open ${v.label || "vehicle"}`} />
       )}
 
-      <div className="relative h-40 w-full bg-[var(--color-fill-subtle)]">
+      <div className="relative w-full overflow-hidden bg-[var(--color-fill-subtle)] aspect-[3/4]">
         {v.coverUrl ? (
-          // Fixed-height slot so every card in the grid is the same size
-          // regardless of the source photo's own dimensions — object-cover
-          // just changes how the photo is framed here, it never touches
-          // the stored file itself (the detail page and gallery still show
-          // it at full, untouched size).
+          // A fixed 3:4 (iPhone-vertical-photo) box so every card is the
+          // same size, but object-contain — not object-cover — so the
+          // photo itself is never cropped or stretched to fill it. A
+          // photo shorter or wider than 3:4 just sits at its own natural
+          // proportions inside the box with blank space taking up the
+          // rest, instead of distorting the picture to match its neighbors.
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={v.coverUrl} alt={v.label || "Vehicle photo"} className="h-full w-full object-cover" />
+          <img src={v.coverUrl} alt={v.label || "Vehicle photo"} className="h-full w-full object-contain" />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
             <Car size={18} className="text-[var(--color-text-placeholder)]" />
