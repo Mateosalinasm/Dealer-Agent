@@ -83,6 +83,11 @@ export function VehiclePhotoEditFields({
       </div>
 
       <div className="py-2">
+        <Toggle label="Turn on headlights/taillights" checked={settings.turnOnVehicleLights} onChange={(v) => onChange("turnOnVehicleLights", v)} />
+        <p className="mt-0.5 text-[10.5px] text-[var(--color-text-muted)]">If they&rsquo;re off in the photo, lights them up so the vehicle pops more.</p>
+      </div>
+
+      <div className="py-2">
         <Toggle label="Professional camera look" checked={settings.professionalCameraLook} onChange={(v) => onChange("professionalCameraLook", v)} />
       </div>
 

@@ -30,4 +30,5 @@ export const DEFAULT_EDIT_SETTINGS: VehiclePhotoEditSettings = {
   cinematicIntensity: 15,
   backgroundRealism: 80,
   imageQuality: 80,
+  turnOnVehicleLights: false,
 };

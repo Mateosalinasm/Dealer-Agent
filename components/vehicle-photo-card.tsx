@@ -136,49 +136,53 @@ export function VehiclePhotoCard({
             <MoreVertical size={15} />
           </button>
 
+          {/* This panel stays mounted (hidden via CSS, not unmounted) even
+              when the menu closes — the "Edit with AI" item opens a Dialog
+              that lives inside it, and unmounting on close would tear that
+              dialog down in the same render pass before it could ever show. */}
           {menuOpen && (
-            <>
-              {/* Closes the menu on any outside click — sits behind the panel below. */}
-              <button type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-30 cursor-default" />
-              <div
-                onClick={() => setMenuOpen(false)}
-                className="absolute right-0 top-9 z-40 w-48 rounded-[var(--radius-panel)] border border-[var(--color-hairline)] bg-[var(--color-surface)] p-1 shadow-[var(--shadow-card)]"
-              >
-                <VehiclePhotoEditPanel
-                  photoId={photo.id}
-                  status={photo.status}
-                  editSettings={photo.editSettings}
-                  editError={photo.editError}
-                  asMenuItem
-                />
-                {photo.editedUrl && (
-                  <button
-                    type="button"
-                    onClick={onRevert}
-                    disabled={isReverting}
-                    className="flex w-full items-center gap-2 rounded-[var(--radius-panel)] px-2.5 py-2 text-left text-[12.5px] text-[var(--color-text)] hover:bg-[var(--color-fill-subtle)] disabled:opacity-50"
-                  >
-                    <RotateCcw size={14} /> Revert to original
-                  </button>
-                )}
-                <a
-                  href={photo.editedUrl ?? photo.originalUrl}
-                  download
-                  className="flex w-full items-center gap-2 rounded-[var(--radius-panel)] px-2.5 py-2 text-left text-[12.5px] text-[var(--color-text)] hover:bg-[var(--color-fill-subtle)]"
-                >
-                  <Download size={14} /> Download
-                </a>
-                <button
-                  type="button"
-                  onClick={onDelete}
-                  disabled={isDeleting}
-                  className="flex w-full items-center gap-2 rounded-[var(--radius-panel)] px-2.5 py-2 text-left text-[12.5px] text-[var(--color-negative-text)] hover:bg-[var(--color-negative-bg)] disabled:opacity-50"
-                >
-                  <Trash2 size={14} /> Delete photo
-                </button>
-              </div>
-            </>
+            <button type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-30 cursor-default" />
           )}
+          <div
+            onClick={() => setMenuOpen(false)}
+            className={cn(
+              "absolute right-0 top-9 z-40 w-48 rounded-[var(--radius-panel)] border border-[var(--color-hairline)] bg-[var(--color-surface)] p-1 shadow-[var(--shadow-card)]",
+              !menuOpen && "hidden",
+            )}
+          >
+            <VehiclePhotoEditPanel
+              photoId={photo.id}
+              status={photo.status}
+              editSettings={photo.editSettings}
+              editError={photo.editError}
+              asMenuItem
+            />
+            {photo.editedUrl && (
+              <button
+                type="button"
+                onClick={onRevert}
+                disabled={isReverting}
+                className="flex w-full items-center gap-2 rounded-[var(--radius-panel)] px-2.5 py-2 text-left text-[12.5px] text-[var(--color-text)] hover:bg-[var(--color-fill-subtle)] disabled:opacity-50"
+              >
+                <RotateCcw size={14} /> Revert to original
+              </button>
+            )}
+            <a
+              href={photo.editedUrl ?? photo.originalUrl}
+              download
+              className="flex w-full items-center gap-2 rounded-[var(--radius-panel)] px-2.5 py-2 text-left text-[12.5px] text-[var(--color-text)] hover:bg-[var(--color-fill-subtle)]"
+            >
+              <Download size={14} /> Download
+            </a>
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={isDeleting}
+              className="flex w-full items-center gap-2 rounded-[var(--radius-panel)] px-2.5 py-2 text-left text-[12.5px] text-[var(--color-negative-text)] hover:bg-[var(--color-negative-bg)] disabled:opacity-50"
+            >
+              <Trash2 size={14} /> Delete photo
+            </button>
+          </div>
         </div>
       )}
 

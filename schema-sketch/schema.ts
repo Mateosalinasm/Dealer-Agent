@@ -220,6 +220,7 @@ export interface VehiclePhotoEditSettings {
   cinematicIntensity: number; // 0-100, meaningful only when cinematicGrade is true
   backgroundRealism: number; // 0-100
   imageQuality: number; // 0-100
+  turnOnVehicleLights: boolean; // headlights/taillights lit if they appear off in the original
 }
 
 // One row per uploaded vehicle photo. originalStoragePath never changes

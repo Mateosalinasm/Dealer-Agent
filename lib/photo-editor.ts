@@ -19,8 +19,9 @@ const BACKGROUND_PROMPTS: Record<(typeof vehiclePhotoBackgroundValues)[number], 
     "a clean, empty paved asphalt lot with a plain neutral wall (light gray, tan, or brick) behind the vehicle — no " +
     "signage, graffiti, murals, or other markings on the wall",
   sunset_sky:
-    "an open outdoor setting at golden hour with a warm sunset sky filling the background — soft orange/pink/purple " +
-    "tones, open flat ground beneath the vehicle, no buildings crowding the frame",
+    "an open outdoor setting at golden hour with a vivid sunset sky filling the background — rich, varied " +
+    "orange/pink/purple/blue tones with real color separation between them, not a flat overall sepia or brown " +
+    "wash, open flat ground beneath the vehicle, no buildings crowding the frame",
   houston_skyline:
     "an open paved or grass lot with the Houston downtown skyline softly visible in the distance, gently out of " +
     "focus so it reads as atmosphere rather than a distraction",
@@ -28,8 +29,10 @@ const BACKGROUND_PROMPTS: Record<(typeof vehiclePhotoBackgroundValues)[number], 
     "a calm lakeside or bayou setting typical of the Houston area — still water and trees in the background, open " +
     "ground at the water's edge where the vehicle sits",
   studio_gradient:
-    "a clean professional studio backdrop — a smooth neutral gray-to-white gradient with soft, even studio " +
-    "lighting, no visible horizon or outdoor elements",
+    "a clean professional two-tone studio backdrop — not one single flat color. A smooth, evenly lit light " +
+    "gray-to-white wall behind the vehicle, meeting the ground at a soft seamless curve where the floor turns " +
+    "distinctly darker than the wall — a deep charcoal-to-black floor, giving clear visual separation between " +
+    "wall and floor like a real photography studio cove. No visible horizon or outdoor elements",
 };
 
 export interface PhotoEditResult {
@@ -66,16 +69,22 @@ function buildEditPrompt(settings: VehiclePhotoEditSettings): string {
 
   if (!settings.preserveOriginalBackground) {
     const isStudio = settings.background === "studio_gradient";
+    const isSunset = settings.background === "sunset_sky";
     sections.push(
       `Detect and isolate the vehicle from its original background. Replace the background with ` +
         `${BACKGROUND_PROMPTS[settings.background]}. No other vehicles, no people, no dealership signs, no ` +
         `distracting clutter. Match the original photo's perspective and camera angle. ` +
         (isStudio
           ? `Light it with soft, even studio lighting rather than trying to replicate outdoor sun.`
-          : `Match the lighting direction, softness, and approximate time of day from the original photo — if it ` +
-            `was shot in sunlight, match the sun direction and shadow direction; if overcast, use soft light with ` +
-            `no hard shadows; if the chosen setting is inherently golden-hour (sunset), use warm late-day light ` +
-            `regardless of the original photo's lighting.`) +
+          : isSunset
+            ? `Use warm late-day sunset light on the sky and ground, but keep the vehicle itself brightly and ` +
+              `clearly lit — expose the vehicle noticeably brighter and more clearly than the ambient background, ` +
+              `as if it has its own supplemental fill light, not lit only by the dim ambient sunset glow. Do not ` +
+              `let the vehicle go dark, murky, or silhouetted, and do not let an overall sepia/brown color cast ` +
+              `wash over it — its paint color must stay true and clearly readable even under the warm light.`
+            : `Match the lighting direction, softness, and approximate time of day from the original photo — if it ` +
+              `was shot in sunlight, match the sun direction and shadow direction; if overcast, use soft light with ` +
+              `no hard shadows.`) +
         ` The vehicle must look physically present in the new environment, not pasted on: generate realistic ` +
         `contact shadows under the vehicle, tire shadows, subtle ambient occlusion, and ground reflections ` +
         `where appropriate. Tires must never appear to float. Realism target for this background swap is ` +
@@ -106,6 +115,17 @@ function buildEditPrompt(settings: VehiclePhotoEditSettings): string {
       `framing, natural camera height. Never crop off part of the vehicle. Favor a clean 3/4 front or 3/4 rear ` +
       `presentation when the source composition allows it without material re-cropping.`,
   );
+
+  if (settings.turnOnVehicleLights) {
+    sections.push(
+      `If the vehicle's headlights, taillights, or daytime running lights appear off in the original photo, turn ` +
+        `them on in the final image: headlights lit with a realistic white/blue-white glow, taillights and brake ` +
+        `lights lit with a realistic red glow, with soft, physically accurate light spill onto the ground and ` +
+        `surrounding surfaces — the way dealerships often light a car for a listing photo to make it look more ` +
+        `appealing. Only change whether the lights are illuminated — every lens, housing, and light fixture must ` +
+        `stay exactly as it is on the real vehicle.`,
+    );
+  }
 
   if (settings.enhanceQuality) {
     sections.push(
