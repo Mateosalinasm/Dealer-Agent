@@ -100,6 +100,7 @@ const HEADER_ALIASES: Record<string, string[]> = {
   bodyType: ["body", "body type", "bodytype", "body style"],
   miles: ["miles", "mileage", "odometer"],
   askingPriceDollars: ["price", "asking price", "list price", "asking"],
+  costDollars: ["cost", "hammer", "hammer price", "purchase price", "buy price", "cost paid", "acquisition cost", "paid"],
   acquiredOn: ["in stock since", "in stock date", "date in stock", "acquired", "acquired on", "in-service date"],
 };
 

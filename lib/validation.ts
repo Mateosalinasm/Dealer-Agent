@@ -188,6 +188,37 @@ export const manualVehicleSchema = z.object({
   isThreeRowSuv: z.coerce.boolean().default(false),
 });
 
+// Editing an existing vehicle — same identity/spec fields as
+// manualVehicleSchema, but the acquisition side is different: an existing
+// row already has a real acquiredOn date, so this edits that directly
+// instead of re-deriving it from "days on lot" (which only makes sense
+// once, at intake). Cost is also broken out into its real components
+// (hammer/buyFee/tow/recon) rather than the Add form's single "cost"
+// field, since those are what the inventory grid's "Cost" figure actually
+// sums — see lib/deal-facts.ts.
+export const editVehicleSchema = z.object({
+  stockNumber: z.string().optional(),
+  vin: z.string().optional(),
+  year: z.coerce.number().int().min(1900).max(2100).optional(),
+  make: z.string().optional(),
+  model: z.string().optional(),
+  trim: z.string().optional(),
+  color: z.string().optional(),
+  bodyType: z.enum(["truck", "sedan", "suv"]).optional().or(z.literal("")),
+  title: z.enum(titleStatusValues),
+  miles: z.coerce.number().int().min(0).optional(),
+  priceDollars: z.coerce.number().min(0).optional(),
+  hammerDollars: z.coerce.number().min(0).optional(),
+  buyFeeDollars: z.coerce.number().min(0).optional(),
+  towDollars: z.coerce.number().min(0).optional(),
+  reconDollars: z.coerce.number().min(0).optional(),
+  lot: z.string().optional(),
+  acquiredOn: z.string().optional().or(z.literal("")),
+  fuelType: z.enum(fuelTypeValues).default("gas"),
+  isThreeRowSuv: z.coerce.boolean().default(false),
+  notes: z.string().optional(),
+});
+
 export const vehicleImportRowSchema = z.object({
   stockNumber: z.string().optional(),
   vin: z.string().optional(),
@@ -199,6 +230,7 @@ export const vehicleImportRowSchema = z.object({
   bodyType: z.preprocess(emptyToUndefined, z.enum(["truck", "sedan", "suv"]).optional()),
   miles: z.preprocess(emptyToUndefined, z.coerce.number().int().min(0).optional()),
   askingPriceDollars: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional()),
+  costDollars: z.preprocess(emptyToUndefined, z.coerce.number().min(0).optional()),
   acquiredOn: z.string().optional(),
 });
 export type VehicleImportRow = z.infer<typeof vehicleImportRowSchema>;

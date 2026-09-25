@@ -22,6 +22,7 @@ const FIELDS: Array<{ key: keyof VehicleImportRowInput; label: string }> = [
   { key: "bodyType", label: "Body type" },
   { key: "miles", label: "Miles" },
   { key: "askingPriceDollars", label: "Asking price" },
+  { key: "costDollars", label: "Cost" },
   { key: "acquiredOn", label: "In stock since" },
 ];
 
@@ -30,7 +31,7 @@ export function InventoryImport() {
   const [draft, setDraft] = useState<DraftRow[] | null>(null);
   const [parseErrors, setParseErrors] = useState<string[]>([]);
   const [importing, setImporting] = useState(false);
-  const [result, setResult] = useState<{ imported: number; errors: string[] } | null>(null);
+  const [result, setResult] = useState<{ imported: number; updated: number; markedSold: number; errors: string[] } | null>(null);
 
   async function handleFile(file: File) {
     setResult(null);
@@ -39,7 +40,7 @@ export function InventoryImport() {
     setParseErrors(errors);
 
     const fieldIndex = mapHeaders(headers);
-    const optionalFields = new Set(["trim", "stockNumber", "vin", "bodyType"]);
+    const optionalFields = new Set(["trim", "stockNumber", "vin", "bodyType", "costDollars"]);
     const missing = FIELDS.filter((f) => !optionalFields.has(f.key) && fieldIndex[f.key] === undefined);
     if (missing.length) {
       setParseErrors((prev) => [
@@ -63,6 +64,7 @@ export function InventoryImport() {
         fieldIndex.askingPriceDollars != null
           ? r[fieldIndex.askingPriceDollars].replace(/[^0-9.]/g, "")
           : "",
+      costDollars: fieldIndex.costDollars != null ? r[fieldIndex.costDollars].replace(/[^0-9.]/g, "") : "",
       acquiredOn: fieldIndex.acquiredOn != null ? r[fieldIndex.acquiredOn] : "",
     }));
     setDraft(nextDraft);
@@ -78,8 +80,8 @@ export function InventoryImport() {
     if (!draft) return;
     setImporting(true);
     const rows = draft.map((row): VehicleImportRowInput => {
-      const { stockNumber, vin, year, make, model, trim, color, bodyType, miles, askingPriceDollars, acquiredOn } = row;
-      return { stockNumber, vin, year, make, model, trim, color, bodyType, miles, askingPriceDollars, acquiredOn };
+      const { stockNumber, vin, year, make, model, trim, color, bodyType, miles, askingPriceDollars, costDollars, acquiredOn } = row;
+      return { stockNumber, vin, year, make, model, trim, color, bodyType, miles, askingPriceDollars, costDollars, acquiredOn };
     });
     const res = await importVehicles(rows);
     setImporting(false);
@@ -97,8 +99,14 @@ export function InventoryImport() {
       </div>
       <p className="mb-3 text-[12px] text-[var(--color-text-muted)]">
         Upload a CSV with your current inventory. Columns are matched by name (stock #, year, make,
-        model, trim, color, body type, miles, price, in stock since) — review and fix anything below
-        before committing. Nothing is saved until you click Import.
+        model, trim, color, body type, miles, price, cost, in stock since) — review and fix anything
+        below before committing. Nothing is saved until you click Import.
+      </p>
+      <p className="mb-3 text-[12px] text-[var(--color-text-muted)]">
+        Matched by VIN (or stock # if no VIN) against what&rsquo;s already in stock: a match updates
+        whatever changed — miles, cost, price, etc. — without touching its photos or anything else on
+        file. A vehicle that&rsquo;s currently in stock but missing from this list is assumed sold.
+        Anything that doesn&rsquo;t match is added as new.
       </p>
       <input
         type="file"
@@ -118,9 +126,17 @@ export function InventoryImport() {
         </div>
       )}
 
+      {result && result.errors.length === 0 && (
+        <div className="mb-3 rounded-[var(--radius-panel)] bg-[var(--color-positive-bg)] p-3 text-[11.5px] text-[var(--color-positive-text)]">
+          {result.imported} new · {result.updated} updated · {result.markedSold} marked sold
+        </div>
+      )}
+
       {result && result.errors.length > 0 && (
         <div className="mb-3 rounded-[var(--radius-panel)] bg-[var(--color-negative-bg)] p-3 text-[11.5px] text-[var(--color-negative-text)]">
-          <div className="font-semibold">{result.imported} row(s) imported. These failed:</div>
+          <div className="font-semibold">
+            {result.imported} new · {result.updated} updated · {result.markedSold} marked sold. These rows failed:
+          </div>
           {result.errors.map((e, i) => (
             <div key={i}>{e}</div>
           ))}

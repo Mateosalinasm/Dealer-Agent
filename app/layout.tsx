@@ -4,7 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { QueryProvider } from "@/components/query-provider";
 
 export const metadata: Metadata = {
-  title: "Deal Desk",
+  title: "Dealer Agent",
   description: "Finance manager deal workflow — desk, source, fund.",
 };
 

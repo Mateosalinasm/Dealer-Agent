@@ -221,7 +221,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex min-h-screen flex-1 flex-col">
         <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-[var(--color-header-rule)] bg-[var(--color-surface)] px-5 py-3">
-          <span className="text-[13.5px] font-semibold tracking-tight">Deal Desk</span>
+          <span className="text-[13.5px] font-semibold tracking-tight">Dealer Agent</span>
           {showNewDeal && (
             <Link href="/desk/deals/new" className="ml-auto">
               <Button type="button">New deal</Button>

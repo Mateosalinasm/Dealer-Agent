@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { VehiclePhotosSection } from "@/components/vehicle-photos-section";
 import type { VehiclePhotoDTO } from "@/components/vehicle-photo-card";
+import { EditVehicleModal } from "@/components/edit-vehicle-modal";
 import { formatCents } from "@/lib/utils";
 
 export async function VehicleDetailView({ id }: { id: string }) {
@@ -42,7 +43,10 @@ export async function VehicleDetailView({ id }: { id: string }) {
               {vehicle.miles != null ? ` · ${vehicle.miles.toLocaleString()} mi` : ""}
             </div>
           </div>
-          <Badge tone={vehicle.sold ? "neutral" : "positive"}>{vehicle.sold ? "Sold" : "In stock"}</Badge>
+          <div className="flex flex-none items-center gap-2">
+            <Badge tone={vehicle.sold ? "neutral" : "positive"}>{vehicle.sold ? "Sold" : "In stock"}</Badge>
+            <EditVehicleModal vehicle={vehicle} />
+          </div>
         </div>
         <div className="mt-3 flex items-baseline gap-4 text-[13px]">
           <div className="text-[var(--color-text)]">
