@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { AddressDetail, EmploymentDetail, OtherIncomeDetail } from "@/schema-sketch/schema";
+import type { CreditAppExtracted } from "@/lib/credit-app-merge";
 
 // The "Buyer Info / Address / Employment / Other Income" fields — shared
 // by New Deal (lib/validation.ts's newDealSchema) and Customer facts
@@ -188,4 +189,90 @@ export function buyerApplicationPatch(p: BuyerApplicationInput): BuyerApplicatio
         ? { amountCents: p.otherIncomeAmountDollars != null ? Math.round(p.otherIncomeAmountDollars * 100) : null, source: nullIfBlank(p.otherIncomeSource) }
         : null,
   };
+}
+
+// The reverse direction of the two functions above — a standalone credit-
+// app extraction (New Deal form, before a deal even exists — see
+// extractCreditAppFile in app/desk/deals/actions.ts) becomes a flat map of
+// form field name -> string value, for a client component to drop
+// straight into the still-open form's inputs. Field names match this
+// file's own buyerApplicationSchema plus New Deal's own top-level fields
+// (customerName/phone/idType/statedIncomeDollars), so the same names line
+// up on both ends.
+export function creditAppToFormFieldValues(extracted: CreditAppExtracted): Record<string, string> {
+  const out: Record<string, string> = {};
+  const set = (key: string, value: string | number | null | undefined) => {
+    if (value != null && String(value).trim() !== "") out[key] = String(value);
+  };
+
+  set("customerName", extracted.applicantName);
+  set("phone", extracted.cellPhone);
+  set("idType", extracted.idType);
+  set("gender", extracted.gender);
+  set("homePhone", extracted.homePhone);
+  set("workPhone", extracted.workPhone);
+  set("email", extracted.email);
+  set("idState", extracted.idState);
+  set("idNumber", extracted.idNumber);
+  set("idIssuedDate", extracted.idIssuedDate);
+  set("idExpirationDate", extracted.idExpirationDate);
+  set("statedIncomeDollars", extracted.monthlyIncomeStatedCents != null ? extracted.monthlyIncomeStatedCents / 100 : null);
+
+  if (extracted.currentAddress) {
+    const a = extracted.currentAddress;
+    set("currentStreet", a.street);
+    set("currentAptUnit", a.aptUnit);
+    set("currentCity", a.city);
+    set("currentState", a.state);
+    set("currentZip", a.zip);
+    set("currentCounty", a.county);
+    set("currentAddressType", a.addressType);
+    set("currentRentMortDollars", a.rentMortCents != null ? a.rentMortCents / 100 : null);
+    set("currentAddressYears", a.years);
+    set("currentAddressMonths", a.months);
+  }
+  if (extracted.previousAddress) {
+    const a = extracted.previousAddress;
+    set("previousStreet", a.street);
+    set("previousAptUnit", a.aptUnit);
+    set("previousCity", a.city);
+    set("previousState", a.state);
+    set("previousZip", a.zip);
+    set("previousCounty", a.county);
+    set("previousAddressType", a.addressType);
+    set("previousRentMortDollars", a.rentMortCents != null ? a.rentMortCents / 100 : null);
+    set("previousAddressYears", a.years);
+    set("previousAddressMonths", a.months);
+  }
+  if (extracted.currentEmployment) {
+    const e = extracted.currentEmployment;
+    set("employerName", e.employerName);
+    set("occupation", e.occupation);
+    set("employerPhone", e.employerPhone);
+    set("employmentStatus", e.employmentStatus);
+    set("incomeType", e.incomeType);
+    set("employmentYears", e.yearsAtJob);
+    set("employmentMonths", e.monthsAtJob);
+    set("employerStreet", e.street);
+    set("employerAptUnit", e.aptUnit);
+    set("employerCity", e.city);
+    set("employerState", e.state);
+    set("employerZip", e.zip);
+    set("employerCounty", e.county);
+  }
+  if (extracted.previousEmployment) {
+    const e = extracted.previousEmployment;
+    set("prevEmployerName", e.employerName);
+    set("prevOccupation", e.occupation);
+    set("prevEmployerPhone", e.employerPhone);
+    set("prevEmploymentStatus", e.employmentStatus);
+    set("prevEmploymentYears", e.yearsAtJob);
+    set("prevEmploymentMonths", e.monthsAtJob);
+  }
+  if (extracted.otherIncomeAmountCents != null || extracted.otherIncomeSource) {
+    set("otherIncomeAmountDollars", extracted.otherIncomeAmountCents != null ? extracted.otherIncomeAmountCents / 100 : null);
+    set("otherIncomeSource", extracted.otherIncomeSource);
+  }
+
+  return out;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Input, Label, Select } from "@/components/ui/input";
 import { AccordionSection } from "@/components/accordion-section";
 import type { AddressDetail, EmploymentDetail, OtherIncomeDetail } from "@/schema-sketch/schema";
@@ -56,14 +56,36 @@ function centsToDollarsStr(cents: number | null | undefined): string {
 // of its own. Field names match lib/buyer-application.ts's
 // buyerApplicationSchema exactly — that's what turns these into the
 // deals table's structured jsonb columns on save.
-export function BuyerApplicationFields({ defaults }: { defaults?: Partial<BuyerApplicationDefaults> }) {
+export function BuyerApplicationFields({
+  defaults,
+  forceOpenSignal,
+}: {
+  defaults?: Partial<BuyerApplicationDefaults>;
+  /** Forces all three sections open — e.g. once a credit app upload has just filled them in. See AccordionSection. */
+  forceOpenSignal?: unknown;
+}) {
   const d = defaults ?? {};
   const [showPreviousAddress, setShowPreviousAddress] = useState(!!d.previousAddress);
   const [showPreviousEmployment, setShowPreviousEmployment] = useState(!!d.previousEmployment);
+  const mounted = useRef(false);
+
+  // A credit app upload fills previous-address/employer fields via direct
+  // DOM manipulation (see credit-app-upload-field.tsx), which can't spring
+  // these two open on its own the way `defaults` does at mount — so also
+  // reveal both blocks whenever the same signal fires. Harmless if a given
+  // upload didn't actually have previous-address/employer data; an empty
+  // revealed block is a no-op for the customer, not a bug.
+  useEffect(() => {
+    if (mounted.current && forceOpenSignal !== undefined) {
+      setShowPreviousAddress(true);
+      setShowPreviousEmployment(true);
+    }
+    mounted.current = true;
+  }, [forceOpenSignal]);
 
   return (
     <div className="flex flex-col gap-3">
-      <AccordionSection title="Buyer info">
+      <AccordionSection title="Buyer info" forceOpenSignal={forceOpenSignal}>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div>
             <Label htmlFor="gender">Gender</Label>
@@ -95,7 +117,7 @@ export function BuyerApplicationFields({ defaults }: { defaults?: Partial<BuyerA
         </div>
       </AccordionSection>
 
-      <AccordionSection title="Address">
+      <AccordionSection title="Address" forceOpenSignal={forceOpenSignal}>
         <div className="mb-1 text-[11.5px] font-semibold text-[var(--color-text)]">Current address</div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="col-span-2">
@@ -156,7 +178,7 @@ export function BuyerApplicationFields({ defaults }: { defaults?: Partial<BuyerA
         )}
       </AccordionSection>
 
-      <AccordionSection title="Employment">
+      <AccordionSection title="Employment" forceOpenSignal={forceOpenSignal}>
         <div className="mb-1 text-[11.5px] font-semibold text-[var(--color-text)]">Current employer</div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
           <div className="col-span-2">

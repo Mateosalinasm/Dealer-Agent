@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,7 @@ export function AccordionSection({
   badge,
   trailing,
   defaultOpen = false,
+  forceOpenSignal,
   children,
 }: {
   title: string;
@@ -19,9 +20,19 @@ export function AccordionSection({
   /** Rendered after the summary, before the chevron — e.g. a "2/4" count. */
   trailing?: React.ReactNode;
   defaultOpen?: boolean;
+  /** Any value that changes (e.g. an incrementing counter) forces the section
+   *  open — for a parent that just filled in fields the user should see,
+   *  like an AI auto-fill landing. Omit for a plain collapsible section. */
+  forceOpenSignal?: unknown;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const mounted = useRef(false);
+
+  useEffect(() => {
+    if (mounted.current && forceOpenSignal !== undefined) setOpen(true);
+    mounted.current = true;
+  }, [forceOpenSignal]);
 
   return (
     <div className="overflow-hidden rounded-[var(--radius-card)] bg-[var(--color-surface)] shadow-[var(--shadow-card)]">

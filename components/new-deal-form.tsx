@@ -11,7 +11,7 @@ import type { bodyType } from "@/schema-sketch/schema";
 
 type BodyType = (typeof bodyType)[number];
 
-interface VehicleOption {
+export interface VehicleOption {
   id: string;
   year: number | null;
   make: string | null;
@@ -32,7 +32,16 @@ function vehicleLabel(v: VehicleOption) {
   return [v.year, v.make, v.model, v.trim].filter(Boolean).join(" ");
 }
 
-export function NewDealForm({ vehicles, lenders }: { vehicles: VehicleOption[]; lenders: { id: string; name: string }[] }) {
+export function NewDealForm({
+  vehicles,
+  lenders,
+  forceOpenSignal,
+}: {
+  vehicles: VehicleOption[];
+  lenders: { id: string; name: string }[];
+  /** Forces the buyer-application sections open — e.g. once a credit app upload has just filled them in. */
+  forceOpenSignal?: unknown;
+}) {
   const [bodyFilter, setBodyFilter] = useState<BodyType | null>(null);
   const [vehicleQuery, setVehicleQuery] = useState("");
   const [selectedVehicleId, setSelectedVehicleId] = useState("");
@@ -184,7 +193,7 @@ export function NewDealForm({ vehicles, lenders }: { vehicles: VehicleOption[]; 
       </div>
 
       <div className="md:col-span-2">
-        <BuyerApplicationFields />
+        <BuyerApplicationFields forceOpenSignal={forceOpenSignal} />
       </div>
 
       <div className="mt-1 flex justify-end gap-2 md:col-span-2">

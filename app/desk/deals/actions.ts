@@ -32,6 +32,21 @@ const DEFAULT_STIPS = ["POI", "POR", "TurboPass", "Insurance"].map((label) => ({
   done: false,
 }));
 
+// Standalone credit-app read for the New Deal form (components/credit-app-
+// upload-field.tsx) — no deal exists yet at this point, so there's nowhere
+// to attach a documents row. This only reads the file and hands back the
+// extracted fields so the client can fill in the still-open form; the file
+// itself gets saved and analyzed again (this time attached to the real
+// deal) inside createDeal once the deal is actually submitted.
+export async function extractCreditAppFile(formData: FormData): Promise<{ ok: boolean; data?: CreditAppExtracted; error?: string }> {
+  const file = formData.get("file") as File | null;
+  if (!file || file.size === 0) return { ok: false, error: "No file selected." };
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const result = await extractDocument("credit_app", buffer, file.type || null);
+  if (!result.ok) return { ok: false, error: result.error };
+  return { ok: true, data: result.data };
+}
+
 export async function createDeal(formData: FormData) {
   const parsed = newDealSchema.parse({
     customerName: formData.get("customerName"),
