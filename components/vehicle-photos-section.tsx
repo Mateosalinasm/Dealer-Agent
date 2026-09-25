@@ -5,6 +5,7 @@ import { ImagePlus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { UploadingLabel } from "@/components/uploading-indicator";
 import { VehiclePhotoCard, type VehiclePhotoDTO } from "@/components/vehicle-photo-card";
+import { VehicleEditAllButton } from "@/components/vehicle-edit-all-button";
 import { uploadVehiclePhotos } from "@/app/inventory/photo-actions";
 import { resizeImageForUpload } from "@/lib/client-image-resize";
 import { cn } from "@/lib/utils";
@@ -43,6 +44,7 @@ export function VehiclePhotosSection({ vehicleId, vehicleLabel, photos }: { vehi
     <Card className="mt-4">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="text-[13.5px] font-semibold text-[var(--color-text)]">Photos · {photos.length}</div>
+        <VehicleEditAllButton photoIds={photos.map((p) => p.id)} />
       </div>
 
       <div

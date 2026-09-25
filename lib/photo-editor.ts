@@ -1,10 +1,36 @@
 import "server-only";
 import { GoogleGenAI } from "@google/genai";
-import type { VehiclePhotoEditSettings } from "@/schema-sketch/schema";
+import type { VehiclePhotoEditSettings, vehiclePhotoBackgroundValues } from "@/schema-sketch/schema";
 
 const MODEL = "gemini-2.5-flash-image";
 
 const SUPPORTED_MIME_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+
+// Realistic settings a Houston-area dealership could plausibly shoot a car
+// in front of — picked for variety (open field, urban, water, dramatic
+// light, neutral studio) while staying unobtrusive: nothing here is meant
+// to upstage the vehicle. Each description feeds straight into the prompt
+// alongside the shared grounding/lighting-match/plate-removal instructions
+// in buildEditPrompt, so it only needs to describe the *setting* itself.
+const BACKGROUND_PROMPTS: Record<(typeof vehiclePhotoBackgroundValues)[number], string> = {
+  grass_lot:
+    "a realistic, professional empty grass lot: clean well-maintained grass, open space, natural horizon",
+  paved_lot_wall:
+    "a clean, empty paved asphalt lot with a plain neutral wall (light gray, tan, or brick) behind the vehicle — no " +
+    "signage, graffiti, murals, or other markings on the wall",
+  sunset_sky:
+    "an open outdoor setting at golden hour with a warm sunset sky filling the background — soft orange/pink/purple " +
+    "tones, open flat ground beneath the vehicle, no buildings crowding the frame",
+  houston_skyline:
+    "an open paved or grass lot with the Houston downtown skyline softly visible in the distance, gently out of " +
+    "focus so it reads as atmosphere rather than a distraction",
+  lakeside:
+    "a calm lakeside or bayou setting typical of the Houston area — still water and trees in the background, open " +
+    "ground at the water's edge where the vehicle sits",
+  studio_gradient:
+    "a clean professional studio backdrop — a smooth neutral gray-to-white gradient with soft, even studio " +
+    "lighting, no visible horizon or outdoor elements",
+};
 
 export interface PhotoEditResult {
   ok: boolean;
@@ -39,15 +65,18 @@ function buildEditPrompt(settings: VehiclePhotoEditSettings): string {
   );
 
   if (!settings.preserveOriginalBackground) {
+    const isStudio = settings.background === "studio_gradient";
     sections.push(
-      `Detect and isolate the vehicle from its original background. Replace the background with a realistic, ` +
-        `professional empty grass lot suitable for a dealership: clean well-maintained grass, open space, no ` +
-        `other vehicles, no people, no buildings (unless extremely subtle and distant), no dealership signs, ` +
-        `no distracting objects, a natural horizon, and realistic perspective. Match the original photo's ` +
-        `perspective, lighting direction, camera angle, and approximate time of day — if it was shot in ` +
-        `sunlight, use a sunny lot and match the sun direction and shadow direction; if overcast, use soft ` +
-        `overcast lighting with no hard artificial shadows; if near sunset, use warm but realistic light. The ` +
-        `vehicle must look physically present in the new environment, not pasted on: generate realistic ` +
+      `Detect and isolate the vehicle from its original background. Replace the background with ` +
+        `${BACKGROUND_PROMPTS[settings.background]}. No other vehicles, no people, no dealership signs, no ` +
+        `distracting clutter. Match the original photo's perspective and camera angle. ` +
+        (isStudio
+          ? `Light it with soft, even studio lighting rather than trying to replicate outdoor sun.`
+          : `Match the lighting direction, softness, and approximate time of day from the original photo — if it ` +
+            `was shot in sunlight, match the sun direction and shadow direction; if overcast, use soft light with ` +
+            `no hard shadows; if the chosen setting is inherently golden-hour (sunset), use warm late-day light ` +
+            `regardless of the original photo's lighting.`) +
+        ` The vehicle must look physically present in the new environment, not pasted on: generate realistic ` +
         `contact shadows under the vehicle, tire shadows, subtle ambient occlusion, and ground reflections ` +
         `where appropriate. Tires must never appear to float. Realism target for this background swap is ` +
         `about ${settings.backgroundRealism}/100 — higher means it should be indistinguishable from a real ` +

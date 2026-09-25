@@ -193,12 +193,26 @@ export const vehicles = pgTable('vehicles', {
 
 export const vehiclePhotoStatus = ['uploaded', 'processing', 'edited', 'failed'] as const;
 
+// Backdrop choices offered in the editing panel when preserveOriginalBackground
+// is off — all realistic settings a Houston-area dealership could plausibly
+// photograph a car in front of. See lib/photo-editor.ts's BACKGROUND_PROMPTS
+// for what each one actually asks the model for.
+export const vehiclePhotoBackgroundValues = [
+  'grass_lot',
+  'paved_lot_wall',
+  'sunset_sky',
+  'houston_skyline',
+  'lakeside',
+  'studio_gradient',
+] as const;
+
 // The knobs from the AI photo-editing panel (components/vehicle-photo-*),
 // captured on the photo itself rather than a separate settings table —
 // "Regenerate" reruns with whatever's here by default, and a photo's own
 // row stays a complete record of how its current edit was produced.
 export interface VehiclePhotoEditSettings {
-  preserveOriginalBackground: boolean; // true = enhance only, skip the grass-lot background swap
+  preserveOriginalBackground: boolean; // true = enhance only, skip the background swap
+  background: (typeof vehiclePhotoBackgroundValues)[number]; // only meaningful when preserveOriginalBackground is false
   enhanceQuality: boolean;
   removeLicensePlate: boolean;
   professionalCameraLook: boolean;

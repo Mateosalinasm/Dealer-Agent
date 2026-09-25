@@ -5,40 +5,13 @@ import { Wand2 } from "lucide-react";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { UploadingLabel } from "@/components/uploading-indicator";
+import { VehiclePhotoEditFields } from "@/components/vehicle-photo-edit-fields";
 import { editVehiclePhotoAction } from "@/app/inventory/photo-actions";
 import { DEFAULT_EDIT_SETTINGS } from "@/lib/vehicle-photo-settings";
 import type { VehiclePhotoEditSettings, vehiclePhotoStatus } from "@/schema-sketch/schema";
 import { cn } from "@/lib/utils";
 
 export type VehiclePhotoStatus = (typeof vehiclePhotoStatus)[number];
-
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <label className="flex items-center justify-between gap-3 py-1.5 text-[12.5px] text-[var(--color-text)]">
-      {label}
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="h-3.5 w-3.5 flex-none rounded accent-[var(--color-primary)]" />
-    </label>
-  );
-}
-
-function Slider({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
-  return (
-    <div className="py-1.5">
-      <div className="mb-1 flex items-center justify-between text-[11px] text-[var(--color-text-muted)]">
-        <span>{label}</span>
-        <span className="tabular-nums">{value}</span>
-      </div>
-      <input
-        type="range"
-        min={0}
-        max={100}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-[var(--color-primary)]"
-      />
-    </div>
-  );
-}
 
 // The magic-wand trigger + settings panel for one photo. Opening it seeds
 // the form from whatever settings produced the photo's current edit (or
@@ -96,42 +69,7 @@ export function VehiclePhotoEditPanel({
         </button>
       </DialogTrigger>
       <DialogContent title={hasResult ? "Regenerate photo" : "Edit photo with AI"} subtitle="Professional dealership listing look" className="max-w-md">
-        <div className="flex flex-col divide-y divide-[var(--color-hairline)]">
-          <div className="pb-2">
-            <Toggle
-              label="Preserve original background"
-              checked={settings.preserveOriginalBackground}
-              onChange={(v) => set("preserveOriginalBackground", v)}
-            />
-            <p className="mt-0.5 text-[10.5px] text-[var(--color-text-muted)]">
-              {settings.preserveOriginalBackground ? "Only enhances the photo — keeps the original environment." : "Background: Automatic — empty grass lot"}
-            </p>
-          </div>
-
-          {!settings.preserveOriginalBackground && (
-            <div className="py-2">
-              <Slider label="Background realism" value={settings.backgroundRealism} onChange={(v) => set("backgroundRealism", v)} />
-            </div>
-          )}
-
-          <div className="py-2">
-            <Toggle label="Enhance quality" checked={settings.enhanceQuality} onChange={(v) => set("enhanceQuality", v)} />
-            {settings.enhanceQuality && <Slider label="Image quality" value={settings.imageQuality} onChange={(v) => set("imageQuality", v)} />}
-          </div>
-
-          <div className="py-2">
-            <Toggle label="Remove license plate" checked={settings.removeLicensePlate} onChange={(v) => set("removeLicensePlate", v)} />
-          </div>
-
-          <div className="py-2">
-            <Toggle label="Professional camera look" checked={settings.professionalCameraLook} onChange={(v) => set("professionalCameraLook", v)} />
-          </div>
-
-          <div className="pt-2">
-            <Toggle label="Cinematic grade" checked={settings.cinematicGrade} onChange={(v) => set("cinematicGrade", v)} />
-            {settings.cinematicGrade && <Slider label="Cinematic intensity" value={settings.cinematicIntensity} onChange={(v) => set("cinematicIntensity", v)} />}
-          </div>
-        </div>
+        <VehiclePhotoEditFields settings={settings} onChange={set} />
 
         {error && <p className="mt-3 text-[12px] text-[var(--color-negative-text)]">{error}</p>}
 
