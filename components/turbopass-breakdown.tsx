@@ -83,9 +83,9 @@ export function TurboPassBreakdown({ dealId, analysis }: { dealId: string; analy
                 <input type="checkbox" checked={!!checked[l.id]} onChange={() => toggle(l.id)} className="h-4 w-4 flex-none rounded accent-[var(--color-primary)]" />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[12.5px] font-semibold text-[var(--color-text)]">{l.label}</div>
-                  <div className="truncate text-[11px] text-[var(--color-text-muted)]">{l.subtitle}</div>
+                  <div className="break-words text-[11px] text-[var(--color-text-muted)]">{l.subtitle}</div>
                 </div>
-                <div className="flex-none tabular-nums text-[13px] font-semibold text-[var(--color-text)]">{formatCents(l.amountCents)}</div>
+                <div className="flex-none self-start tabular-nums text-[13px] font-semibold text-[var(--color-text)]">{formatCents(l.amountCents)}</div>
               </label>
             ))}
           </div>
@@ -113,7 +113,7 @@ export function TurboPassBreakdown({ dealId, analysis }: { dealId: string; analy
         {analysis.payrollGroups.map((g) => (
           <div key={`${g.holderName}:${g.employer}`} className="rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)] p-3">
             <div className="truncate text-[12.5px] font-semibold text-[var(--color-text)]">{g.holderName}</div>
-            <div className="truncate text-[10.5px] text-[var(--color-text-muted)]">{g.employer}</div>
+            <div className="break-words text-[10.5px] text-[var(--color-text-muted)]">{g.employer}</div>
             <div className="mt-1.5 text-[17px] font-semibold tabular-nums text-[var(--color-text)]">{formatCents(g.monthlyAverageCents)}</div>
             <div className="text-[10px] text-[var(--color-text-placeholder)]">monthly payroll baseline</div>
             <div className="mt-2 flex flex-col gap-0.5 border-t border-[var(--color-hairline)] pt-1.5 text-[11px]">

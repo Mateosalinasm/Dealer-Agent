@@ -87,7 +87,7 @@ export function IncomeReportBadge({ dealId, customerName, incomeSource, monthlyI
       <DialogContent
         title={customerName}
         subtitle="income verification"
-        className="max-w-3xl"
+        className="max-w-4xl"
         headerExtra={
           <div className="flex items-center gap-2">
             <DocumentUploadPill dealId={dealId} category="turbopass" label="TurboPass" />
