@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { UploadingLabel } from "@/components/uploading-indicator";
 import { VehiclePhotoCard, type VehiclePhotoDTO } from "@/components/vehicle-photo-card";
 import { uploadVehiclePhotos } from "@/app/inventory/photo-actions";
+import { resizeImageForUpload } from "@/lib/client-image-resize";
 import { cn } from "@/lib/utils";
 
 export function VehiclePhotosSection({ vehicleId, vehicleLabel, photos }: { vehicleId: string; vehicleLabel: string; photos: VehiclePhotoDTO[] }) {
@@ -19,10 +20,22 @@ export function VehiclePhotosSection({ vehicleId, vehicleLabel, photos }: { vehi
     if (list.length === 0) return;
     setError(null);
     startTransition(async () => {
-      const fd = new FormData();
-      for (const file of list) fd.append("file", file);
-      const result = await uploadVehiclePhotos(vehicleId, fd);
-      if (!result.ok) setError(result.error ?? "Upload failed — try again.");
+      try {
+        // Phone camera photos routinely run well past Vercel's hard 4.5MB
+        // serverless request-body ceiling — shrink before sending rather
+        // than finding out with a 413 (see lib/client-image-resize.ts).
+        const resized = await Promise.all(list.map((file) => resizeImageForUpload(file)));
+        const fd = new FormData();
+        for (const file of resized) fd.append("file", file);
+        const result = await uploadVehiclePhotos(vehicleId, fd);
+        if (!result.ok) setError(result.error ?? "Upload failed — try again.");
+      } catch {
+        // A request the server never got to handle (e.g. still rejected
+        // as too large somewhere upstream) throws instead of returning
+        // {ok:false} — surface it the same way rather than letting it
+        // crash the page.
+        setError("Upload failed — the file may be too large. Try a smaller photo.");
+      }
     });
   }
 
