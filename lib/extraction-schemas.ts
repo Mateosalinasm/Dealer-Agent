@@ -17,6 +17,25 @@ import { z } from "zod";
 // silently treating "not an array" as "nothing found" is a safe degrade.
 const looseArray = <T extends z.ZodTypeAny>(item: T) => z.preprocess((val) => (Array.isArray(val) ? val : []), z.array(item));
 
+// Same tool-call looseness, different shape: an optional nested section
+// (e.g. "previous address" when the form doesn't have one) sometimes comes
+// back as a placeholder string ("N/A", "none", "") instead of null, which
+// fails a plain .nullable() object parse and takes the whole extraction
+// down with it over one blank section. Anything that isn't a real object
+// becomes null.
+const looseNullableObject = <T extends z.ZodRawShape>(shape: T) => z.preprocess((val) => (val && typeof val === "object" && !Array.isArray(val) ? val : null), z.object(shape).nullable());
+
+// Same idea for a nullable number: the model occasionally writes "" or a
+// non-numeric placeholder instead of null for a figure that isn't on the
+// document (e.g. no "other income" line at all). A numeric-looking string
+// still converts through; anything else becomes null rather than failing.
+const looseNullableNumber = () =>
+  z.preprocess((val) => {
+    if (typeof val === "number") return val;
+    if (typeof val === "string" && val.trim() !== "" && !Number.isNaN(Number(val))) return Number(val);
+    return null;
+  }, z.number().int().nullable());
+
 // The categories a TurboPass transaction can fall into — grouping and the
 // income baseline math (lib/turbopass-analysis.ts) both key off this list,
 // so it doubles as the taxonomy for the "Accounts" category breakdown.
@@ -118,7 +137,7 @@ export const creditReportSchema = z.object({
 // schema-sketch/schema.ts's AddressDetail, minus rentMortCents/years/
 // months naming quirks (kept aligned so applyCreditAppExtraction in
 // app/desk/deals/actions.ts can copy this straight across).
-const addressExtractionSchema = z.object({
+const addressExtractionShape = {
   street: z.string().nullable(),
   aptUnit: z.string().nullable(),
   city: z.string().nullable(),
@@ -126,30 +145,30 @@ const addressExtractionSchema = z.object({
   zip: z.string().nullable(),
   county: z.string().nullable(),
   addressType: z.string().nullable().describe("rent, own, live with family, etc., as marked on the form"),
-  rentMortCents: z.number().int().nullable(),
-  years: z.number().nullable(),
-  months: z.number().nullable(),
-});
+  rentMortCents: looseNullableNumber(),
+  years: looseNullableNumber(),
+  months: looseNullableNumber(),
+};
 
 // Shared by currentEmployment/previousEmployment below. Monthly income
 // itself is NOT in here — it's the top-level monthlyIncomeStatedCents
 // field, same one deal-underwriting.ts already reads for the income-
 // source fallback.
-const employmentExtractionSchema = z.object({
+const employmentExtractionShape = {
   employerName: z.string().nullable(),
   occupation: z.string().nullable(),
   employerPhone: z.string().nullable(),
   employmentStatus: z.string().nullable().describe("employed full time, part time, self-employed, retired, etc."),
   incomeType: z.string().nullable().describe("how income is verified/paid, e.g. TurboPass, pay stub, self-employed, as labeled on the form"),
-  yearsAtJob: z.number().nullable(),
-  monthsAtJob: z.number().nullable(),
+  yearsAtJob: looseNullableNumber(),
+  monthsAtJob: looseNullableNumber(),
   street: z.string().nullable(),
   aptUnit: z.string().nullable(),
   city: z.string().nullable(),
   state: z.string().nullable(),
   zip: z.string().nullable(),
   county: z.string().nullable(),
-});
+};
 
 export const creditAppSchema = z.object({
   applicantName: z.string().nullable(),
@@ -168,12 +187,12 @@ export const creditAppSchema = z.object({
   idNumber: z.string().nullable(),
   idIssuedDate: z.string().nullable().describe("ISO date if present"),
   idExpirationDate: z.string().nullable().describe("ISO date if present"),
-  currentAddress: addressExtractionSchema.nullable(),
-  previousAddress: addressExtractionSchema.nullable(),
-  currentEmployment: employmentExtractionSchema.nullable(),
-  previousEmployment: employmentExtractionSchema.nullable(),
-  monthlyIncomeStatedCents: z.number().int().nullable(),
-  otherIncomeAmountCents: z.number().int().nullable(),
+  currentAddress: looseNullableObject(addressExtractionShape),
+  previousAddress: looseNullableObject(addressExtractionShape),
+  currentEmployment: looseNullableObject(employmentExtractionShape),
+  previousEmployment: looseNullableObject(employmentExtractionShape),
+  monthlyIncomeStatedCents: looseNullableNumber(),
+  otherIncomeAmountCents: looseNullableNumber(),
   otherIncomeSource: z.string().nullable(),
   notes: z.string().nullable(),
 });
