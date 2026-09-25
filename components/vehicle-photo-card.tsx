@@ -1,7 +1,8 @@
 "use client";
 
 import { useTransition } from "react";
-import { Download, Loader2, Trash2, TriangleAlert } from "lucide-react";
+import type { DragEvent } from "react";
+import { Download, GripVertical, Loader2, Trash2, TriangleAlert } from "lucide-react";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { VehiclePhotoEditPanel, type VehiclePhotoStatus } from "@/components/vehicle-photo-edit-panel";
 import { deleteVehiclePhoto } from "@/app/inventory/photo-actions";
@@ -17,7 +18,27 @@ export interface VehiclePhotoDTO {
   editError: string | null;
 }
 
-export function VehiclePhotoCard({ photo, alt }: { photo: VehiclePhotoDTO; alt: string }) {
+export function VehiclePhotoCard({
+  photo,
+  alt,
+  isCover,
+  isDragging,
+  isDropTarget,
+  onDragHandleStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+}: {
+  photo: VehiclePhotoDTO;
+  alt: string;
+  isCover?: boolean;
+  isDragging?: boolean;
+  isDropTarget?: boolean;
+  onDragHandleStart?: () => void;
+  onDragOver?: (e: DragEvent) => void;
+  onDrop?: () => void;
+  onDragEnd?: () => void;
+}) {
   const [isDeleting, startDelete] = useTransition();
 
   function onDelete() {
@@ -25,12 +46,24 @@ export function VehiclePhotoCard({ photo, alt }: { photo: VehiclePhotoDTO; alt: 
   }
 
   return (
-    <div className={cn("relative overflow-hidden rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)]", isDeleting && "opacity-40")}>
+    <div
+      onDragOver={onDragOver}
+      onDrop={(e) => {
+        e.preventDefault();
+        onDrop?.();
+      }}
+      className={cn(
+        "relative overflow-hidden rounded-[var(--radius-panel)] bg-[var(--color-fill-subtle)] transition-opacity",
+        isDeleting && "opacity-40",
+        isDragging && "opacity-40",
+        isDropTarget && "ring-2 ring-[var(--color-primary)]",
+      )}
+    >
       {photo.editedUrl ? (
         <BeforeAfterSlider beforeSrc={photo.originalUrl} afterSrc={photo.editedUrl} alt={alt} />
       ) : (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={photo.originalUrl} alt={alt} className="aspect-[4/3] w-full object-cover" />
+        <img src={photo.originalUrl} alt={alt} className="aspect-[4/3] w-full object-cover" draggable={false} />
       )}
 
       {photo.status === "processing" && (
@@ -38,6 +71,23 @@ export function VehiclePhotoCard({ photo, alt }: { photo: VehiclePhotoDTO; alt: 
           <Loader2 size={22} className="animate-spin text-white" />
         </div>
       )}
+
+      <div className="absolute left-2 top-2 flex items-center gap-1.5">
+        <div
+          draggable
+          onDragStart={onDragHandleStart}
+          onDragEnd={onDragEnd}
+          title="Drag to reorder"
+          className="relative flex h-8 w-8 flex-none cursor-grab items-center justify-center rounded-full bg-[var(--color-surface)] text-[var(--color-text-muted)] shadow-[var(--shadow-card)] active:cursor-grabbing"
+        >
+          <GripVertical size={14} />
+        </div>
+        {isCover && (
+          <span className="rounded-[var(--radius-pill)] bg-black/60 px-2 py-1 text-[10px] font-semibold uppercase tracking-[.04em] text-white">
+            Cover
+          </span>
+        )}
+      </div>
 
       <div className="absolute right-2 top-2 flex items-center gap-1.5">
         <VehiclePhotoEditPanel photoId={photo.id} status={photo.status} editSettings={photo.editSettings} editError={photo.editError} />

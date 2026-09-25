@@ -1,20 +1,63 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
+import type { DragEvent } from "react";
 import { ImagePlus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { UploadingLabel } from "@/components/uploading-indicator";
 import { VehiclePhotoCard, type VehiclePhotoDTO } from "@/components/vehicle-photo-card";
 import { VehicleEditAllButton } from "@/components/vehicle-edit-all-button";
-import { uploadVehiclePhotos } from "@/app/inventory/photo-actions";
+import { uploadVehiclePhotos, reorderVehiclePhotos } from "@/app/inventory/photo-actions";
 import { resizeImageForUpload } from "@/lib/client-image-resize";
 import { cn } from "@/lib/utils";
 
 export function VehiclePhotosSection({ vehicleId, vehicleLabel, photos }: { vehicleId: string; vehicleLabel: string; photos: VehiclePhotoDTO[] }) {
-  const [isDragging, setIsDragging] = useState(false);
+  const [isDropzoneActive, setIsDropzoneActive] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Local, reorderable copy of the server order — updated optimistically on
+  // drop, and re-synced whenever the server list changes underneath it (a
+  // new upload, a delete, or another tab's reorder landing via revalidate).
+  // Adjusted during render rather than an effect, per React's guidance for
+  // resetting state when a prop changes — avoids an extra render pass.
+  const [order, setOrder] = useState(photos);
+  const [syncedPhotos, setSyncedPhotos] = useState(photos);
+  if (photos !== syncedPhotos) {
+    setSyncedPhotos(photos);
+    setOrder(photos);
+  }
+
+  const dragFromIndex = useRef<number | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [, startReorder] = useTransition();
+
+  function handleDragHandleStart(index: number) {
+    dragFromIndex.current = index;
+    setDraggingId(order[index].id);
+  }
+  function handleCardDragOver(index: number, e: DragEvent) {
+    if (dragFromIndex.current === null) return;
+    e.preventDefault();
+    if (index !== dragFromIndex.current) setDragOverIndex(index);
+  }
+  function handleCardDrop(index: number) {
+    const from = dragFromIndex.current;
+    resetDrag();
+    if (from === null || from === index) return;
+    const next = [...order];
+    const [moved] = next.splice(from, 1);
+    next.splice(index, 0, moved);
+    setOrder(next);
+    startReorder(() => reorderVehiclePhotos(vehicleId, next.map((p) => p.id)));
+  }
+  function resetDrag() {
+    dragFromIndex.current = null;
+    setDraggingId(null);
+    setDragOverIndex(null);
+  }
 
   function upload(files: FileList | File[]) {
     const list = Array.from(files);
@@ -50,18 +93,18 @@ export function VehiclePhotosSection({ vehicleId, vehicleLabel, photos }: { vehi
       <div
         onDragOver={(e) => {
           e.preventDefault();
-          setIsDragging(true);
+          setIsDropzoneActive(true);
         }}
-        onDragLeave={() => setIsDragging(false)}
+        onDragLeave={() => setIsDropzoneActive(false)}
         onDrop={(e) => {
           e.preventDefault();
-          setIsDragging(false);
+          setIsDropzoneActive(false);
           upload(e.dataTransfer.files);
         }}
         onClick={() => inputRef.current?.click()}
         className={cn(
           "flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-[var(--radius-panel)] border border-dashed px-4 py-6 text-center transition-colors",
-          isDragging ? "border-[var(--color-primary)] bg-[var(--color-info-bg)]" : "border-[var(--color-hairline)] hover:bg-[var(--color-fill-subtle)]",
+          isDropzoneActive ? "border-[var(--color-primary)] bg-[var(--color-info-bg)]" : "border-[var(--color-hairline)] hover:bg-[var(--color-fill-subtle)]",
         )}
       >
         {isPending ? (
@@ -89,12 +132,28 @@ export function VehiclePhotosSection({ vehicleId, vehicleLabel, photos }: { vehi
       </div>
       {error && <p className="mt-1.5 text-[12px] text-[var(--color-negative-text)]">{error}</p>}
 
-      {photos.length > 0 && (
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {photos.map((photo) => (
-            <VehiclePhotoCard key={photo.id} photo={photo} alt={vehicleLabel} />
-          ))}
-        </div>
+      {order.length > 0 && (
+        <>
+          <p className="mt-4 text-[11px] text-[var(--color-text-muted)]">
+            Drag the grip on a photo to reorder — the first one is the cover shown on the inventory list.
+          </p>
+          <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {order.map((photo, index) => (
+              <VehiclePhotoCard
+                key={photo.id}
+                photo={photo}
+                alt={vehicleLabel}
+                isCover={index === 0}
+                isDragging={draggingId === photo.id}
+                isDropTarget={dragOverIndex === index}
+                onDragHandleStart={() => handleDragHandleStart(index)}
+                onDragOver={(e) => handleCardDragOver(index, e)}
+                onDrop={() => handleCardDrop(index)}
+                onDragEnd={resetDrag}
+              />
+            ))}
+          </div>
+        </>
       )}
     </Card>
   );

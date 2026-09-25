@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { db, schema } from "@/lib/db";
 import { saveFile, saveBuffer, readStoredFile } from "@/lib/storage";
@@ -81,6 +81,25 @@ export async function editVehiclePhotoAction(photoId: string, settings: VehicleP
 
   revalidatePath(`/inventory/${photo.vehicleId}`);
   return { ok: result.ok, error: result.error };
+}
+
+// Drag-to-reorder in the gallery — orderedPhotoIds is the full new order,
+// front to back. sortOrder is what everything else (the inventory grid's
+// cover photo, the gallery lightbox, list view) reads, so this is the only
+// place that ever needs to change it. Scoped to vehicleId as well as id so
+// a stale/tampered id list can't touch another vehicle's photos.
+export async function reorderVehiclePhotos(vehicleId: string, orderedPhotoIds: string[]) {
+  if (orderedPhotoIds.length === 0) return;
+  await Promise.all(
+    orderedPhotoIds.map((id, index) =>
+      db
+        .update(schema.vehiclePhotos)
+        .set({ sortOrder: index })
+        .where(and(eq(schema.vehiclePhotos.id, id), eq(schema.vehiclePhotos.vehicleId, vehicleId))),
+    ),
+  );
+  revalidatePath(`/inventory/${vehicleId}`);
+  revalidatePath("/inventory");
 }
 
 export async function deleteVehiclePhoto(photoId: string) {
