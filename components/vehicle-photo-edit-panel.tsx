@@ -24,11 +24,19 @@ export function VehiclePhotoEditPanel({
   status,
   editSettings,
   editError,
+  asMenuItem,
+  onTriggerClick,
 }: {
   photoId: string;
   status: VehiclePhotoStatus;
   editSettings: VehiclePhotoEditSettings | null;
   editError: string | null;
+  // Rendered as a full-width labeled row instead of a circular icon
+  // button, for use inside the photo card's "..." menu.
+  asMenuItem?: boolean;
+  // Fired on the trigger click, in addition to opening the dialog — lets
+  // the parent close its own menu at the same time this dialog opens.
+  onTriggerClick?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState<VehiclePhotoEditSettings>(editSettings ?? DEFAULT_EDIT_SETTINGS);
@@ -57,16 +65,28 @@ export function VehiclePhotoEditPanel({
   return (
     <Dialog open={open} onOpenChange={(v) => !pending && setOpen(v)}>
       <DialogTrigger asChild>
-        <button
-          type="button"
-          title={pending ? "Editing…" : hasResult ? "Regenerate with AI" : "Edit with AI"}
-          className={cn(
-            "relative flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[var(--color-surface)] text-[var(--color-text)] shadow-[var(--shadow-card)] transition-transform after:absolute after:-inset-1 after:content-[''] active:scale-90",
-            pending && "[animation:upload-pulse-tone_1.1s_ease-in-out_infinite]",
-          )}
-        >
-          <Wand2 size={15} className={pending ? "[animation:upload-arrow-bounce_0.9s_ease-in-out_infinite]" : undefined} />
-        </button>
+        {asMenuItem ? (
+          <button
+            type="button"
+            onClick={onTriggerClick}
+            disabled={pending}
+            className="flex w-full items-center gap-2 rounded-[var(--radius-panel)] px-2.5 py-2 text-left text-[12.5px] text-[var(--color-text)] hover:bg-[var(--color-fill-subtle)] disabled:opacity-50"
+          >
+            <Wand2 size={14} className={pending ? "[animation:upload-arrow-bounce_0.9s_ease-in-out_infinite]" : undefined} />
+            {pending ? "Editing…" : hasResult ? "Regenerate with AI" : "Edit with AI"}
+          </button>
+        ) : (
+          <button
+            type="button"
+            title={pending ? "Editing…" : hasResult ? "Regenerate with AI" : "Edit with AI"}
+            className={cn(
+              "relative flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[var(--color-surface)] text-[var(--color-text)] shadow-[var(--shadow-card)] transition-transform after:absolute after:-inset-1 after:content-[''] active:scale-90",
+              pending && "[animation:upload-pulse-tone_1.1s_ease-in-out_infinite]",
+            )}
+          >
+            <Wand2 size={15} className={pending ? "[animation:upload-arrow-bounce_0.9s_ease-in-out_infinite]" : undefined} />
+          </button>
+        )}
       </DialogTrigger>
       <DialogContent title={hasResult ? "Regenerate photo" : "Edit photo with AI"} subtitle="Professional dealership listing look" className="max-w-md">
         <VehiclePhotoEditFields settings={settings} onChange={set} />

@@ -2,13 +2,13 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { Car, CarFront, Fuel, LayoutGrid, List as ListIcon, OctagonAlert, Search, Trash2, Truck, TriangleAlert, Users } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { Car, CarFront, Fuel, LayoutGrid, List as ListIcon, OctagonAlert, Search, Trash2, TriangleAlert, Users } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { VehicleGalleryButton, type GalleryPhoto } from "@/components/vehicle-gallery-button";
+import { PickupTruckIcon } from "@/components/icons/pickup-truck-icon";
 import { deleteVehicles, markVehicleSold } from "@/app/inventory/actions";
 import { formatCents, cn } from "@/lib/utils";
 
@@ -40,7 +40,8 @@ type ViewMode = "grid" | "list";
 type Category = "all" | BodyType;
 type SortOrder = "none" | "newest" | "oldest";
 
-const CATEGORY_ICONS: Record<BodyType, LucideIcon> = { sedan: Car, truck: Truck, suv: CarFront };
+type IconComponent = React.ComponentType<{ size?: number; className?: string }>;
+const CATEGORY_ICONS: Record<BodyType, IconComponent> = { sedan: Car, truck: PickupTruckIcon, suv: CarFront };
 const CATEGORY_LABELS: Record<BodyType, string> = { sedan: "Sedans", truck: "Trucks", suv: "SUVs" };
 
 // Only 'salvage' gets the red danger treatment, matching the explicit ask.
@@ -49,7 +50,7 @@ const CATEGORY_LABELS: Record<BodyType, string> = { sedan: "Sedans", truck: "Tru
 // gets the amber warning icon instead. Both reuse existing design-system
 // color tokens (--color-negative / --color-caution-text) rather than new
 // hex values, per CLAUDE.md.
-function titleBadge(title: TitleStatus): { Icon: LucideIcon; className: string; label: string } | null {
+function titleBadge(title: TitleStatus): { Icon: IconComponent; className: string; label: string } | null {
   if (title === "clean") return null;
   if (title === "salvage") return { Icon: OctagonAlert, className: "bg-[var(--color-negative)] text-white", label: "Salvage title" };
   const label = title.charAt(0).toUpperCase() + title.slice(1);

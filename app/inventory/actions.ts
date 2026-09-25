@@ -7,6 +7,7 @@ import { saveFile, readStoredFile } from "@/lib/storage";
 import { extractDocument } from "@/lib/extraction";
 import { decodeVin, type VinDecodeResult } from "@/lib/vin-decoder";
 import { getDealershipTimezone, todayInTimezone } from "@/lib/dealership-time";
+import { classifyVehicle } from "@/lib/vehicle-classify";
 import { editVehicleSchema, manualVehicleSchema, vehicleImportRowSchema, type VehicleImportRow, type VehicleImportRowInput } from "@/lib/validation";
 
 export async function decodeVinForForm(vin: string): Promise<VinDecodeResult> {
@@ -83,11 +84,28 @@ export async function importVehicles(rows: VehicleImportRowInput[]) {
       }
       if (row.acquiredOn) patch.acquiredOn = row.acquiredOn;
 
+      // Not categorized yet and this row doesn't explicitly say — infer
+      // from make/model text the same way a brand-new row does below, but
+      // only when nothing's set yet, so a category the operator already
+      // corrected (or an earlier import already inferred) is never
+      // overwritten by a later re-upload of the same stock list.
+      if (!row.bodyType && !existing.bodyType) {
+        const guess = classifyVehicle(row.make || existing.make, row.model || existing.model, row.trim || existing.trim);
+        if (guess.bodyType) patch.bodyType = guess.bodyType;
+        if (guess.fuelType && existing.fuelType === "gas") patch.fuelType = guess.fuelType;
+        if (guess.isThreeRowSuv && !existing.isThreeRowSuv) patch.isThreeRowSuv = true;
+      }
+
       if (Object.keys(patch).length > 0) {
         await db.update(schema.vehicles).set(patch).where(eq(schema.vehicles.id, existing.id));
         updated++;
       }
     } else {
+      // The DMS export this app was built against has no BodyType/FuelType
+      // columns — classify from the make/model text (which usually still
+      // carries the real body-style words, e.g. "SPORT UTILITY", "CREW
+      // CAB") rather than leaving every fresh import uncategorized.
+      const guess = classifyVehicle(row.make ?? null, row.model ?? null, row.trim ?? null);
       inserts.push({
         stockNumber: row.stockNumber || null,
         vin: row.vin || null,
@@ -96,7 +114,9 @@ export async function importVehicles(rows: VehicleImportRowInput[]) {
         model: row.model || null,
         trim: row.trim || null,
         color: row.color || null,
-        bodyType: row.bodyType ?? null,
+        bodyType: row.bodyType ?? guess.bodyType,
+        fuelType: guess.fuelType ?? "gas",
+        isThreeRowSuv: guess.isThreeRowSuv,
         miles: row.miles ?? null,
         askingPrice: row.askingPriceDollars != null ? Math.round(row.askingPriceDollars * 100) : null,
         hammer: row.costDollars != null ? Math.round(row.costDollars * 100) : null,

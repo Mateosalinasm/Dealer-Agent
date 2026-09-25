@@ -32,13 +32,6 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, alt, className }: { bef
         </svg>
       </div>
 
-      <span className="pointer-events-none absolute bottom-2 left-2 rounded-[var(--radius-pill)] bg-black/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[.04em] text-white">
-        Before
-      </span>
-      <span className="pointer-events-none absolute bottom-2 right-2 rounded-[var(--radius-pill)] bg-black/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[.04em] text-white">
-        After
-      </span>
-
       <input
         type="range"
         min={0}
@@ -48,6 +41,33 @@ export function BeforeAfterSlider({ beforeSrc, afterSrc, alt, className }: { bef
         aria-label="Drag to compare before and after"
         className="absolute inset-0 h-full w-full cursor-ew-resize opacity-0"
       />
+
+      {/* Quick jump to either extreme without dragging — the slider above
+          still does full drag-to-compare, this is just a shortcut. Bottom
+          center so it never collides with the grip/Cover badge (top-left)
+          or the "..." actions menu (top-right). */}
+      <div className="absolute bottom-2 left-1/2 z-10 flex -translate-x-1/2 items-center gap-0.5 rounded-[var(--radius-pill)] bg-black/60 p-0.5">
+        <button
+          type="button"
+          onClick={() => setPercent(0)}
+          className={cn(
+            "rounded-[var(--radius-pill)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[.04em] transition-colors",
+            percent === 0 ? "bg-white text-[var(--color-text)]" : "text-white",
+          )}
+        >
+          Original
+        </button>
+        <button
+          type="button"
+          onClick={() => setPercent(100)}
+          className={cn(
+            "rounded-[var(--radius-pill)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[.04em] transition-colors",
+            percent === 100 ? "bg-white text-[var(--color-text)]" : "text-white",
+          )}
+        >
+          Edited
+        </button>
+      </div>
     </div>
   );
 }

@@ -34,6 +34,19 @@ export async function normalizeToPhotoAspectRatio(buffer: Buffer, mimeType: stri
   const { format, outMimeType } = formatFor(mimeType);
   const encodeOpts = format === "jpeg" ? { quality: 88 } : format === "webp" ? { quality: 88 } : undefined;
 
+  // Cheap header-only read first — a buffer already at exactly the target
+  // canvas (every prior pass through this function lands here) needs no
+  // further work. This is what lets the photo-serving route self-heal old
+  // un-normalized photos on read (see app/api/vehicle-photos/[id]/file)
+  // without re-encoding an already-fixed JPEG on every single request
+  // forever, which would slowly degrade it — JPEG re-encoding is lossy.
+  // Returning the exact same buffer reference lets a caller detect "no
+  // change was needed" with a cheap `result.buffer === input` check.
+  const rawMeta = await sharp(buffer, { failOn: "none" }).metadata();
+  if (rawMeta.width === TARGET_WIDTH && rawMeta.height === TARGET_HEIGHT) {
+    return { buffer, mimeType: outMimeType };
+  }
+
   const meta = await sharp(buffer, { failOn: "none" }).rotate().metadata();
   if (!meta.width || !meta.height) return { buffer, mimeType: outMimeType };
 

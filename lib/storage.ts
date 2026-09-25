@@ -58,6 +58,27 @@ export async function saveBuffer(buffer: Buffer, contentType: string | undefined
   return { storagePath, fileSize: buffer.byteLength };
 }
 
+// In-place overwrite at an EXISTING storagePath — unlike saveBuffer, this
+// never generates a new path, so no DB row needs to change to point at it.
+// Used to persist a self-healed (aspect-normalized) photo back over the
+// un-normalized bytes it replaced; see app/api/vehicle-photos/[id]/file.
+export async function overwriteStoredFile(storagePath: string, buffer: Buffer, contentType: string | undefined): Promise<void> {
+  if (supabaseStorageConfigured()) {
+    const { error } = await supabaseClient()
+      .storage.from(BUCKET)
+      .upload(storagePath, buffer, { contentType, upsert: true });
+    if (error) throw new Error(`Supabase Storage overwrite failed: ${error.message}`);
+    return;
+  }
+
+  const resolved = path.join(UPLOAD_ROOT, storagePath);
+  if (!resolved.startsWith(UPLOAD_ROOT)) {
+    throw new Error("Invalid storage path");
+  }
+  await mkdir(UPLOAD_ROOT, { recursive: true });
+  await writeFile(resolved, buffer);
+}
+
 export async function readStoredFile(storagePath: string): Promise<Buffer> {
   if (supabaseStorageConfigured()) {
     const { data, error } = await supabaseClient().storage.from(BUCKET).download(storagePath);

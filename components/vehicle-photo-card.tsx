@@ -1,8 +1,8 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import type { DragEvent } from "react";
-import { Download, GripVertical, Loader2, RotateCcw, Trash2, TriangleAlert } from "lucide-react";
+import { Download, GripVertical, Loader2, MoreVertical, RotateCcw, Trash2, TriangleAlert } from "lucide-react";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { VehiclePhotoEditPanel, type VehiclePhotoStatus } from "@/components/vehicle-photo-edit-panel";
 import { deleteVehiclePhoto, revertVehiclePhoto } from "@/app/inventory/photo-actions";
@@ -48,6 +48,7 @@ export function VehiclePhotoCard({
 }) {
   const [isDeleting, startDelete] = useTransition();
   const [isReverting, startRevert] = useTransition();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   function onDelete() {
     startDelete(() => deleteVehiclePhoto(photo.id));
@@ -125,36 +126,59 @@ export function VehiclePhotoCard({
       </div>
 
       {!selectMode && (
-        <div className="absolute right-2 top-2 z-20 flex items-center gap-1.5">
-          <VehiclePhotoEditPanel photoId={photo.id} status={photo.status} editSettings={photo.editSettings} editError={photo.editError} />
-          {photo.editedUrl && (
-            <button
-              type="button"
-              onClick={onRevert}
-              disabled={isReverting}
-              title="Revert to original"
-              className="relative flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[var(--color-surface)] text-[var(--color-text)] shadow-[var(--shadow-card)] transition-transform after:absolute after:-inset-1 after:content-[''] active:scale-90"
-            >
-              <RotateCcw size={14} />
-            </button>
-          )}
-          <a
-            href={photo.editedUrl ?? photo.originalUrl}
-            download
-            title="Download"
-            className="relative flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[var(--color-surface)] text-[var(--color-text)] shadow-[var(--shadow-card)] transition-transform after:absolute after:-inset-1 after:content-[''] active:scale-90"
-          >
-            <Download size={14} />
-          </a>
+        <div className="absolute right-2 top-2 z-20">
           <button
             type="button"
-            onClick={onDelete}
-            disabled={isDeleting}
-            title="Delete photo"
-            className="relative flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[var(--color-surface)] text-[var(--color-negative-text)] shadow-[var(--shadow-card)] transition-transform after:absolute after:-inset-1 after:content-[''] active:scale-90"
+            onClick={() => setMenuOpen((v) => !v)}
+            title="Photo actions"
+            className="relative flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[var(--color-surface)] text-[var(--color-text)] shadow-[var(--shadow-card)] transition-transform after:absolute after:-inset-1 after:content-[''] active:scale-90"
           >
-            <Trash2 size={14} />
+            <MoreVertical size={15} />
           </button>
+
+          {menuOpen && (
+            <>
+              {/* Closes the menu on any outside click — sits behind the panel below. */}
+              <button type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)} className="fixed inset-0 z-30 cursor-default" />
+              <div
+                onClick={() => setMenuOpen(false)}
+                className="absolute right-0 top-9 z-40 w-48 rounded-[var(--radius-panel)] border border-[var(--color-hairline)] bg-[var(--color-surface)] p-1 shadow-[var(--shadow-card)]"
+              >
+                <VehiclePhotoEditPanel
+                  photoId={photo.id}
+                  status={photo.status}
+                  editSettings={photo.editSettings}
+                  editError={photo.editError}
+                  asMenuItem
+                />
+                {photo.editedUrl && (
+                  <button
+                    type="button"
+                    onClick={onRevert}
+                    disabled={isReverting}
+                    className="flex w-full items-center gap-2 rounded-[var(--radius-panel)] px-2.5 py-2 text-left text-[12.5px] text-[var(--color-text)] hover:bg-[var(--color-fill-subtle)] disabled:opacity-50"
+                  >
+                    <RotateCcw size={14} /> Revert to original
+                  </button>
+                )}
+                <a
+                  href={photo.editedUrl ?? photo.originalUrl}
+                  download
+                  className="flex w-full items-center gap-2 rounded-[var(--radius-panel)] px-2.5 py-2 text-left text-[12.5px] text-[var(--color-text)] hover:bg-[var(--color-fill-subtle)]"
+                >
+                  <Download size={14} /> Download
+                </a>
+                <button
+                  type="button"
+                  onClick={onDelete}
+                  disabled={isDeleting}
+                  className="flex w-full items-center gap-2 rounded-[var(--radius-panel)] px-2.5 py-2 text-left text-[12.5px] text-[var(--color-negative-text)] hover:bg-[var(--color-negative-bg)] disabled:opacity-50"
+                >
+                  <Trash2 size={14} /> Delete photo
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
