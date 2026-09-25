@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Dealer Agent — Facebook Poster settings</title>
+  <style>
+    body { font: 14px/1.5 -apple-system, Segoe UI, sans-serif; max-width: 480px; margin: 24px auto; padding: 0 16px; color: #111; }
+    h1 { font-size: 16px; }
+    label { display: block; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: #666; margin: 16px 0 4px; }
+    input { width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+    button { margin-top: 16px; padding: 8px 16px; border: none; border-radius: 6px; background: #2563eb; color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    #status { margin-top: 12px; font-size: 12.5px; }
+    .ok { color: #15803d; }
+    .err { color: #b91c1c; }
+    p.hint { color: #666; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Pair with Dealer Agent</h1>
+  <p class="hint">Paste the app URL and the token generated on the Settings page (Facebook Marketplace auto-post section).</p>
+
+  <label for="apiBaseUrl">App URL</label>
+  <input id="apiBaseUrl" placeholder="https://dealer-agent-sandy.vercel.app" />
+
+  <label for="apiToken">Token</label>
+  <input id="apiToken" placeholder="dext_..." />
+
+  <button id="save">Save and test connection</button>
+  <div id="status"></div>
+
+  <script src="options.js"></script>
+</body>
+</html>

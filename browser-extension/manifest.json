@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Dealer Agent — Facebook Marketplace Poster",
+  "version": "0.1.0",
+  "description": "Posts queued vehicle listings from Dealer Agent to Facebook Marketplace, on your own schedule, in your own logged-in browser.",
+  "permissions": ["storage", "alarms", "scripting", "tabs"],
+  "host_permissions": ["https://www.facebook.com/marketplace/*"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_popup": "popup.html" },
+  "options_page": "options.html",
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+}
