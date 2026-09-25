@@ -191,6 +191,45 @@ export const vehicles = pgTable('vehicles', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => ({ vinIdx: index('vehicles_vin_idx').on(t.vin) }));
 
+export const vehiclePhotoStatus = ['uploaded', 'processing', 'edited', 'failed'] as const;
+
+// The knobs from the AI photo-editing panel (components/vehicle-photo-*),
+// captured on the photo itself rather than a separate settings table —
+// "Regenerate" reruns with whatever's here by default, and a photo's own
+// row stays a complete record of how its current edit was produced.
+export interface VehiclePhotoEditSettings {
+  preserveOriginalBackground: boolean; // true = enhance only, skip the grass-lot background swap
+  enhanceQuality: boolean;
+  removeLicensePlate: boolean;
+  professionalCameraLook: boolean;
+  cinematicGrade: boolean;
+  cinematicIntensity: number; // 0-100, meaningful only when cinematicGrade is true
+  backgroundRealism: number; // 0-100
+  imageQuality: number; // 0-100
+}
+
+// One row per uploaded vehicle photo. originalStoragePath never changes
+// once set — every edit (including Regenerate) re-reads the same original
+// and overwrites editedStoragePath, so there's exactly one "current" edit
+// per photo rather than a version history nobody asked for. See
+// lib/photo-editor.ts for what actually produces editedStoragePath.
+export const vehiclePhotos = pgTable('vehicle_photos', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  vehicleId: uuid('vehicle_id').notNull().references(() => vehicles.id, { onDelete: 'cascade' }),
+  originalStoragePath: text('original_storage_path').notNull(),
+  originalMimeType: text('original_mime_type'),
+  editedStoragePath: text('edited_storage_path'),
+  editedMimeType: text('edited_mime_type'),
+  status: text('status').$type<(typeof vehiclePhotoStatus)[number]>().notNull().default('uploaded'),
+  editSettings: jsonb('edit_settings').$type<VehiclePhotoEditSettings>(),
+  editError: text('edit_error'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  editedAt: timestamp('edited_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, t => ({
+  vehicleIdx: index('vehicle_photos_vehicle_idx').on(t.vehicleId),
+}));
+
 // One row per (vehicle, platform, language) — the current draft/last-posted
 // copy for that combination, editable in place rather than an append-only
 // log. "Post history" on the Marketing page is read off postedAt across

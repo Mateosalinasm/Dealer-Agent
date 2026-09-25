@@ -34,13 +34,21 @@ function supabaseClient() {
 
 export async function saveFile(file: File): Promise<{ storagePath: string; fileSize: number }> {
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const storagePath = `${randomUUID()}-${safeName}`;
   const buffer = Buffer.from(await file.arrayBuffer());
+  return saveBuffer(buffer, file.type || undefined, safeName);
+}
+
+// Same dual-backend write as saveFile, for callers that already have raw
+// bytes rather than a Web File — e.g. an AI-edited image coming back from
+// lib/photo-editor.ts, which has no File object to begin with.
+export async function saveBuffer(buffer: Buffer, contentType: string | undefined, name: string): Promise<{ storagePath: string; fileSize: number }> {
+  const safeName = name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const storagePath = `${randomUUID()}-${safeName}`;
 
   if (supabaseStorageConfigured()) {
     const { error } = await supabaseClient()
       .storage.from(BUCKET)
-      .upload(storagePath, buffer, { contentType: file.type || undefined, upsert: false });
+      .upload(storagePath, buffer, { contentType, upsert: false });
     if (error) throw new Error(`Supabase Storage upload failed: ${error.message}`);
     return { storagePath, fileSize: buffer.byteLength };
   }

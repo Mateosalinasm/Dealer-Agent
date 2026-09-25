@@ -1,4 +1,5 @@
 import { desc } from "drizzle-orm";
+import Link from "next/link";
 import { db, schema } from "@/lib/db";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -59,9 +60,9 @@ export default async function InventoryPage() {
                   return (
                     <tr key={v.id} className="border-b border-[var(--color-hairline)] hover:bg-[var(--color-row-hover)]">
                       <td className="px-2 py-2">
-                        <div className="font-medium text-[var(--color-text)]">
+                        <Link href={`/inventory/${v.id}`} className="font-medium text-[var(--color-text)] hover:underline">
                           {v.year} {v.make} {v.model} {v.trim ?? ""}
-                        </div>
+                        </Link>
                         <div className="text-[11px] text-[var(--color-text-muted)]">
                           {v.stockNumber ? `#${v.stockNumber}` : v.vin ?? "—"}
                         </div>
