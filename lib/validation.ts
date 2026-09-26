@@ -274,7 +274,9 @@ export const autoPostScheduleSchema = z.object({
   // (or whatever's actually safe) once testing is done.
   autoPostMaxPerDay: z.coerce.number().int().min(1).max(20),
   // "HH:mm" 24h times, one per line/entry from the form.
-  autoPostTimes: z.array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24h HH:mm, e.g. 09:00")).min(1).max(10),
+  // Also raised 10 → 20 alongside autoPostMaxPerDay above, for the same
+  // reason — matches how many distinct times you can actually configure.
+  autoPostTimes: z.array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24h HH:mm, e.g. 09:00")).min(1).max(20),
 });
 
 // Posted by the Messenger extension (or any future channel adapter) when a
