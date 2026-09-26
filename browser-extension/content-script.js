@@ -453,7 +453,13 @@ async function selectStaticOption(triggerCandidates, optionText) {
   if (nativeSelect) return setNativeSelectByText(nativeSelect, optionText);
 
   const trigger = await findFieldTrigger(triggerCandidates);
-  if (!trigger) return "could not find the field to click";
+  // Two guesses at this field's failure (typeahead-style search input,
+  // then native <select>) have both come back wrong, so rather than try
+  // a third guess blind, this dumps what's actually on the page right
+  // now — every <select> and its placeholder text — directly into the
+  // error, so the next report says what's really there instead of this
+  // needing another screenshot round-trip to find out.
+  if (!trigger) return `could not find the field to click — ${selectDiagnostics()}`;
   // Captured BEFORE the click so the input-typing fallback below only ever
   // fires for a field that actually changed focus as a RESULT of this
   // click — otherwise some unrelated input that already happened to have
@@ -493,7 +499,18 @@ async function selectStaticOption(triggerCandidates, optionText) {
     if (popup) popup.scrollTop += popup.clientHeight;
     await sleep(450);
   }
-  return `no option matched "${optionText}" — visible text was: ${visibleTextSample()}`;
+  return `no option matched "${optionText}" — ${selectDiagnostics()}`;
+}
+
+// Every <select> currently on the page plus its placeholder (first)
+// option's text — e.g. an unselected Year field's <select> shows "Year"
+// as that placeholder — so a failure report says exactly what candidate
+// label text would have actually matched, instead of guessing again.
+function selectDiagnostics() {
+  const selects = Array.from(document.querySelectorAll("select"))
+    .filter(isVisible)
+    .map((el) => `"${el.options.length > 0 ? (el.options[0].textContent || "").trim() : "(no options)"}"`);
+  return `selects on page: [${selects.join(", ") || "none"}] — visible text: ${visibleTextSample()}`;
 }
 
 function triggerShowsValue(trigger, optionText) {
