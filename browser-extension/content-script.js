@@ -265,38 +265,73 @@ function previewPanelContainer() {
   return node;
 }
 
-// Runs once, on whichever step actually shows the group list — matches
-// group NAME text first (not the checkbox itself, which — per everything
-// learned building the rest of this form — likely carries no reliable
-// role/tag to search for on its own), then finds that row's checkbox by
-// walking outward from the matched name. A step with no matching group
-// names at all is not an error, just nothing to do yet, so the caller
-// retries this on later steps until it finds one (or never does).
-async function selectHoustonGroups() {
-  const preview = previewPanelContainer();
-  const nameCandidates = Array.from(document.querySelectorAll("span, div"))
+// A long group list is likely virtualized — only the rows currently
+// scrolled into view exist in the DOM at all, same as any other long list
+// in a modern React app — so a single pass over the page would only ever
+// see whichever matches happen to already be rendered near the top.
+// Finds the largest scrollable container currently on screen (the actual
+// list, not some small internal scroller) so selectHoustonGroups can
+// scroll through the whole thing rather than stopping at whatever's
+// visible on the first screen.
+function findScrollableList() {
+  const candidates = Array.from(document.querySelectorAll("div")).filter((el) => isVisible(el) && el.scrollHeight > el.clientHeight + 40);
+  if (candidates.length === 0) return null;
+  return candidates.reduce((best, el) => {
+    const area = (r) => r.width * r.height;
+    return area(el.getBoundingClientRect()) > area(best.getBoundingClientRect()) ? el : best;
+  });
+}
+
+function matchingGroupNames(preview) {
+  return Array.from(document.querySelectorAll("span, div"))
     .filter((el) => el.children.length === 0 && isVisible(el))
     .filter((el) => !preview || !preview.contains(el))
     .filter((el) => {
       const text = (el.textContent || "").toLowerCase();
       return GROUP_AREA_KEYWORDS.some((k) => text.includes(k));
     });
+}
 
+// Matches group NAME text first (not the checkbox itself, which — per
+// everything learned building the rest of this form — likely carries no
+// reliable role/tag to search for on its own), then finds that row's
+// checkbox by walking outward from the matched name. Scrolls the list and
+// re-scans for newly-rendered matches in between passes, stopping once
+// the cap is reached, scrolling stops making progress (the real end of
+// the list), or a generous pass limit is hit. A step with no matching group
+// names at all is not an error, just nothing to do yet, so the caller
+// retries this on later steps until it finds one (or never does).
+async function selectHoustonGroups() {
+  const preview = previewPanelContainer();
   let matched = 0;
   const triedTargets = new Set();
-  for (const nameEl of nameCandidates) {
-    if (matched >= MAX_GROUPS_TO_JOIN) break;
-    const target = findGroupCheckbox(nameEl);
-    if (!target || triedTargets.has(target)) continue;
-    triedTargets.add(target);
+  let scrollContainer = null;
+  let lastScrollTop = -1;
 
-    // No checked/aria-checked to read (see findGroupCheckbox) — this runs
-    // once per job on a fresh, all-unchecked group list, so there's no
-    // "already checked, skip it" case to detect here; just click and move
-    // on to the next match.
-    simulateClick(target);
-    await sleep(250);
-    matched++;
+  for (let pass = 0; pass < 20 && matched < MAX_GROUPS_TO_JOIN; pass++) {
+    for (const nameEl of matchingGroupNames(preview)) {
+      if (matched >= MAX_GROUPS_TO_JOIN) break;
+      const target = findGroupCheckbox(nameEl);
+      if (!target || triedTargets.has(target)) continue;
+      triedTargets.add(target);
+
+      // No checked/aria-checked to read (see findGroupCheckbox) — this
+      // runs once per job on a fresh, all-unchecked group list, so
+      // there's no "already checked, skip it" case to detect here; just
+      // click and move on to the next match.
+      simulateClick(target);
+      await sleep(250);
+      matched++;
+    }
+
+    if (matched >= MAX_GROUPS_TO_JOIN) break;
+    if (!scrollContainer) scrollContainer = findScrollableList();
+    if (!scrollContainer) break; // nothing scrollable found — list is short enough to already be fully visible
+
+    scrollContainer.scrollTop += scrollContainer.clientHeight * 0.8;
+    await sleep(400);
+    if (scrollContainer.scrollTop === lastScrollTop) break; // scrolling had no effect — reached the bottom
+    lastScrollTop = scrollContainer.scrollTop;
   }
   return matched;
 }
