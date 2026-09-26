@@ -52,7 +52,14 @@ window.__dealerAgentFillListing = async function fillListing({ vehicle, body, ph
       if (!fileInput) warnings.push("Could not find the photo upload input on the page.");
       else {
         await setFiles(fileInput, photoDataUrls);
-        await sleep(1500);
+        // setFiles() only proves the event was dispatched, not that
+        // Facebook's own widget actually picked it up and rendered
+        // thumbnails — worth confirming, since a run where every field
+        // after this one comes back empty is much more explicable (and a
+        // different fix) if photos silently never attached in the first
+        // place than if the form itself broke later on.
+        const attached = await waitForPhotosAttached(photoDataUrls.length);
+        if (!attached) warnings.push(`Set ${photoDataUrls.length} photo file(s) on the input but never saw a confirmation they attached.`);
       }
     }
 
@@ -364,6 +371,18 @@ function visibleTextSample(max = 15) {
   return [...new Set(texts)].slice(0, max).join(", ");
 }
 
+// Facebook shows a "N photos attached" (or similar) count once its upload
+// widget actually processes the files — polls for that instead of trusting
+// that dispatching the input's change/drop events was enough on its own.
+async function waitForPhotosAttached(expectedCount) {
+  const pattern = new RegExp(`${expectedCount}\\s*(photo|video)`, "i");
+  for (let attempt = 0; attempt < 8; attempt++) {
+    if (pattern.test(visibleTextSample(60))) return true;
+    await sleep(400);
+  }
+  return false;
+}
+
 function findOpenListbox() {
   const listboxes = Array.from(document.querySelectorAll('[role="listbox"]')).filter(isVisible);
   return listboxes.find((el) => el.scrollHeight > el.clientHeight + 10) || null;
@@ -382,13 +401,28 @@ function findOpenListbox() {
 async function selectStaticOption(triggerCandidates, optionText) {
   const trigger = await findFieldTrigger(triggerCandidates);
   if (!trigger) return "could not find the field to click";
+  // Captured BEFORE the click so the input-typing fallback below only ever
+  // fires for a field that actually changed focus as a RESULT of this
+  // click — otherwise some unrelated input that already happened to have
+  // focus (left over from a previous field, or Facebook's own chrome)
+  // could get this option's text typed into it instead, for a field that
+  // was never meant to be typed into at all (Vehicle type, Body style,
+  // colors, condition, fuel type are all fixed lists, not search boxes).
+  const previouslyFocused = document.activeElement;
   simulateClick(trigger);
-  await sleep(500);
+  await sleep(600);
 
-  const activeInput = document.activeElement && document.activeElement.tagName === "INPUT" ? document.activeElement : null;
+  const activeInput =
+    document.activeElement && document.activeElement !== previouslyFocused && document.activeElement.tagName === "INPUT"
+      ? document.activeElement
+      : null;
   if (activeInput) setInputValue(activeInput, optionText);
 
-  for (let attempt = 0; attempt < 8; attempt++) {
+  // Auction wifi is unreliable (see CLAUDE.md) — a slow connection can
+  // leave a popup's options rendering well past what a single quick check
+  // would tolerate, so this retries for several seconds rather than
+  // giving up fast.
+  for (let attempt = 0; attempt < 12; attempt++) {
     const match = findBestTextMatch(optionText);
     if (match) {
       simulateClick(match);
@@ -404,7 +438,7 @@ async function selectStaticOption(triggerCandidates, optionText) {
     }
     const popup = findOpenListbox();
     if (popup) popup.scrollTop += popup.clientHeight;
-    await sleep(350);
+    await sleep(450);
   }
   return `no option matched "${optionText}" — visible text was: ${visibleTextSample()}`;
 }
