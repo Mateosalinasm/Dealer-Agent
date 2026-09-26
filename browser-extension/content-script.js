@@ -627,9 +627,9 @@ async function selectStaticOption(triggerCandidates, optionText) {
       // confirm the trigger itself now displays the chosen value before
       // calling this a success, since a mis-clicked or ignored click
       // leaves the field looking untouched.
-      if (triggerShowsValue(trigger, optionText)) return true;
+      if (await confirmSelected(trigger, triggerCandidates, optionText)) return true;
       await sleep(400);
-      if (triggerShowsValue(trigger, optionText)) return true;
+      if (await confirmSelected(trigger, triggerCandidates, optionText)) return true;
       return `clicked "${optionText}" but the field still doesn't show it selected`;
     }
     if (visibleOptionElements().length > 0) sawAnyPopupActivity = true;
@@ -668,6 +668,23 @@ function selectDiagnostics(near) {
 function triggerShowsValue(trigger, optionText) {
   const shown = (trigger.getAttribute("aria-label") || trigger.textContent || "").trim().toLowerCase();
   return shown.includes(optionText.trim().toLowerCase());
+}
+
+// Interior color reported "clicked Black but the field still doesn't show
+// it selected" — a real click on a real match, just never confirmed.
+// Likely cause: selecting a value can make Facebook re-render this
+// combobox as a brand new DOM node rather than mutating the one already
+// captured as `trigger` (React does this often for controlled selects
+// whose display changes shape) — checking the OLD node's textContent
+// forever, after the live page replaced it, would explain a real
+// selection reading as permanently unconfirmed. If the captured node is
+// no longer attached to the page, this re-finds the field fresh and
+// checks that instead, before giving up.
+async function confirmSelected(trigger, triggerCandidates, optionText) {
+  if (triggerShowsValue(trigger, optionText)) return true;
+  if (document.body.contains(trigger)) return false;
+  const fresh = await findFieldTrigger(triggerCandidates);
+  return !!fresh && triggerShowsValue(fresh, optionText);
 }
 
 function visibleOptionElements() {
