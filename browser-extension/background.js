@@ -45,7 +45,18 @@ async function reportResult(apiBaseUrl, apiToken, body) {
 // chrome.scripting.executeScript (which can't pass Blobs across that
 // boundary reliably).
 async function photoUrlToDataUrl(url) {
-  const res = await fetch(url);
+  let res;
+  try {
+    res = await fetch(url);
+  } catch (err) {
+    // A CORS/host-mismatch failure throws a generic "Failed to fetch"
+    // with no indication of which URL it was — that detail only ever
+    // showed up in the DevTools console, not anywhere the operator could
+    // see it. Naming the exact URL here means a future occurrence is
+    // diagnosable from the popup/report alone.
+    throw new Error(`Could not fetch photo from ${url}: ${err instanceof Error ? err.message : String(err)}`);
+  }
+  if (!res.ok) throw new Error(`Photo fetch for ${url} returned ${res.status}`);
   const blob = await res.blob();
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
