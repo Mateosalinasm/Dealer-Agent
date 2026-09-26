@@ -5,30 +5,46 @@
 // ============================================================================
 // STATUS after the latest real attempt against the live page:
 //   - CONFIRMED WORKING: Vehicle type, Photos, Location, Model, Mileage,
-//     Price, clean-title checkbox, Transmission.
-//   - CONFIRMED BUG, FIXED (hopefully — theory, not yet verified live):
-//     Year, Make, Body style, Exterior color, Interior color, Vehicle
-//     condition, and Fuel type all failed identically every single time,
-//     immune to retries no matter how long they waited — the kind of
-//     total, retry-proof failure that means the popup-search approach was
-//     never going to find anything, not that it needed more patience.
-//     Best explanation: these are real native <select> elements, not
-//     Facebook's own custom popup widget (which Vehicle type and
-//     Transmission apparently are, since those DID work) — a native
-//     select's option list is rendered by the browser/OS itself, entirely
-//     outside the page's DOM, so searching the page for matching text
-//     after "opening" it was always going to come up empty. Now checks
-//     for a real <select> first (matched by its own placeholder option
-//     text, e.g. an unselected Year field literally reads "Year") and
-//     sets its value directly, the same React-controlled-value trick
-//     already used for text inputs, rather than trying to click anything.
-//   - Also: Make no longer resets Model — Make already ran before Model in
-//     this file's own order, so this was never this script's own doing,
-//     but confirming it here since it came up: if Make failed (as it was,
-//     before this fix) and the operator went back to set it by hand
-//     afterward, THAT later manual change is what reset Model, not
-//     anything this script did or could prevent — the real fix is making
-//     sure Make succeeds on its own so nobody needs to touch it by hand.
+//     Price, clean-title checkbox. (Transmission "working" is suspect —
+//     see below.)
+//   - CONFIRMED WRONG: the native-<select> theory. Diagnostics (added
+//     specifically to test it) came back "selects on page: [none]" — there
+//     are no native selects here at all, so that fix did nothing for
+//     Year/Make/Body style/colors/condition/fuel type, which still fail
+//     identically.
+//   - What the diagnostics DID reveal: the error format itself
+//     ("no option matched X", not "could not find the field to click")
+//     means the trigger for EVERY one of these fields IS being found and
+//     clicked — the failure is specifically that no popup/option content
+//     with the right text ever gets found afterward. Two real bugs fixed
+//     based on that:
+//       1. The typing fallback only fired when document.activeElement was
+//          literally an <input> — but fillLocation (which works) also
+//          falls back to findInputByLabel() when it isn't, and this
+//          selectStaticOption was missing that same fallback entirely.
+//          Should fix Year/Make, which are search-backed like Location.
+//       2. The "visible text" in every diagnostic dump was IDENTICAL page-
+//          wide nav chrome ("Number of unread notifications", "Save
+//          draft", etc.) — not because nothing changed, but because a
+//          flat page-wide sample is dominated by Facebook's own chrome,
+//          which sorts first in DOM order and crowded out whatever
+//          actually sits near the field being diagnosed. Samples now drop
+//          anything above the clicked field's own position, and the
+//          failure message now says whether a popup ever appeared to open
+//          at all versus one opening without the right text in it — the
+//          next report should actually be diagnostic instead of the same
+//          uninformative dump every time.
+//   - Body style/Exterior/Interior color/Vehicle condition/Fuel type
+//     remain unexplained — they're presumably NOT search-backed (no
+//     reason a fixed enum list like "SUV/Sedan/Truck" would need a search
+//     box), so fix #1 above likely doesn't touch them. The next real error
+//     text (with the new "never opened anything" vs "opened without a
+//     match" distinction) should finally say which.
+//   - Also: Make does not reset Model — Make already runs before Model in
+//     this file's own order. If Make fails and the operator sets it by
+//     hand afterward, THAT later manual change is what resets Model, not
+//     anything this script does — the real fix is making Make succeed on
+//     its own so nobody needs to touch it by hand.
 // ============================================================================
 
 // This dealership's lot zip — Facebook otherwise defaults to whatever city
@@ -368,9 +384,14 @@ function findBestTextMatch(text) {
 // fails — included in the error so the next failure report can name the
 // actual option text Facebook is showing without needing another
 // screenshot round-trip.
-function visibleTextSample(max = 15) {
+// minTop, when given, drops anything above that vertical position —
+// without it, a page-wide sample is dominated by Facebook's own nav/
+// notifications chrome (which sorts first in DOM order and is a fixed
+// set of ~10 strings repeated on every page), crowding out whatever
+// actually sits near the field this is diagnosing.
+function visibleTextSample(max = 15, minTop = -Infinity) {
   const texts = Array.from(document.querySelectorAll("span, div"))
-    .filter((el) => el.children.length === 0 && isVisible(el))
+    .filter((el) => el.children.length === 0 && isVisible(el) && el.getBoundingClientRect().top >= minTop)
     .map((el) => (el.textContent || "").trim())
     .filter((t) => t.length > 0 && t.length < 40);
   return [...new Set(texts)].slice(0, max).join(", ");
@@ -471,11 +492,24 @@ async function selectStaticOption(triggerCandidates, optionText) {
   simulateClick(trigger);
   await sleep(600);
 
+  // fillLocation (which works) falls back to findInputByLabel when focus
+  // didn't land on a plain <input> — this same fallback was missing here,
+  // so a field whose combobox doesn't move real DOM focus onto an <input>
+  // (rather than, say, a contenteditable or a nested element) never got
+  // anything typed into it at all.
   const activeInput =
     document.activeElement && document.activeElement !== previouslyFocused && document.activeElement.tagName === "INPUT"
       ? document.activeElement
-      : null;
+      : await findInputByLabel(triggerCandidates);
   if (activeInput) setInputValue(activeInput, optionText);
+
+  // Tracks whether ANYTHING resembling an open popup was ever observed
+  // during the retries below, regardless of whether it contained a
+  // matching option — distinguishes "the trigger click never opens
+  // anything" from "it opens, just never with the text expected", which
+  // otherwise look identical from the outside (both end in the same "no
+  // option matched" outcome) but need very different fixes.
+  let sawAnyPopupActivity = !!activeInput;
 
   // Auction wifi is unreliable (see CLAUDE.md) — a slow connection can
   // leave a popup's options rendering well past what a single quick check
@@ -495,22 +529,37 @@ async function selectStaticOption(triggerCandidates, optionText) {
       if (triggerShowsValue(trigger, optionText)) return true;
       return `clicked "${optionText}" but the field still doesn't show it selected`;
     }
+    if (visibleOptionElements().length > 0) sawAnyPopupActivity = true;
     const popup = findOpenListbox();
-    if (popup) popup.scrollTop += popup.clientHeight;
+    if (popup) {
+      sawAnyPopupActivity = true;
+      popup.scrollTop += popup.clientHeight;
+    }
     await sleep(450);
   }
-  return `no option matched "${optionText}" — ${selectDiagnostics()}`;
+  if (!sawAnyPopupActivity) {
+    return `clicking this field never appeared to open anything (no popup, no listbox, no input gained focus) — ${selectDiagnostics(trigger)}`;
+  }
+  return `something opened but no option matched "${optionText}" — ${selectDiagnostics(trigger)}`;
 }
 
 // Every <select> currently on the page plus its placeholder (first)
 // option's text — e.g. an unselected Year field's <select> shows "Year"
 // as that placeholder — so a failure report says exactly what candidate
 // label text would have actually matched, instead of guessing again.
-function selectDiagnostics() {
+// `near`, when given, biases the visible-text sample toward whatever's at
+// or below that element's position on screen — a flat page-wide sample is
+// dominated by Facebook's own nav/notifications chrome (which sorts first
+// in DOM order), which is what happened in testing: every failure's
+// "visible text" looked identical and useless, always the same nav junk,
+// never the actual field content sitting right below the trigger that was
+// just clicked.
+function selectDiagnostics(near) {
   const selects = Array.from(document.querySelectorAll("select"))
     .filter(isVisible)
     .map((el) => `"${el.options.length > 0 ? (el.options[0].textContent || "").trim() : "(no options)"}"`);
-  return `selects on page: [${selects.join(", ") || "none"}] — visible text: ${visibleTextSample()}`;
+  const sample = near ? visibleTextSample(60, near.getBoundingClientRect().top) : visibleTextSample();
+  return `selects on page: [${selects.join(", ") || "none"}] — visible text: ${sample}`;
 }
 
 function triggerShowsValue(trigger, optionText) {
