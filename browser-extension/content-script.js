@@ -350,12 +350,39 @@ async function findFieldTrigger(candidates) {
       // trigger looks like nothing happened. Picking the most specific
       // (fewest descendants) match, same approach as findBestTextMatch,
       // lands on the real control instead.
-      return matches.reduce((best, el) => (el.querySelectorAll("*").length < best.querySelectorAll("*").length ? el : best));
+      const mostSpecific = matches.reduce((best, el) => (el.querySelectorAll("*").length < best.querySelectorAll("*").length ? el : best));
+      // But the MOST specific element can overshoot too: Year/Make/Body
+      // style/colors/condition/fuel type all confirmed "clicking this
+      // field never appeared to open anything" — consistent with the most
+      // specific match being a bare, non-interactive label span sitting
+      // INSIDE the real clickable control (a common floating-label input
+      // pattern), one or two levels below it. Vehicle type apparently has
+      // no such wrapper — its label IS the clickable element — so walking
+      // up from it just returns itself immediately. Only ever walks
+      // upward, never sideways, so this can't drift onto some unrelated
+      // bigger ancestor the way the plain "most specific" pick alone did.
+      return nearestInteractiveAncestor(mostSpecific);
     }
     window.scrollBy(0, 500);
     await sleep(300);
   }
   return null;
+}
+
+function isLikelyInteractive(el) {
+  if (["BUTTON", "INPUT", "SELECT", "A"].includes(el.tagName)) return true;
+  const role = el.getAttribute("role");
+  if (role === "button" || role === "combobox" || role === "listbox" || role === "option") return true;
+  return el.hasAttribute("tabindex");
+}
+
+function nearestInteractiveAncestor(el) {
+  let node = el;
+  for (let i = 0; i < 5 && node; i++) {
+    if (isLikelyInteractive(node)) return node;
+    node = node.parentElement;
+  }
+  return el; // nothing looked interactive nearby — click the original match, unchanged
 }
 
 // A plain .click() only fires a synthetic MouseEvent — some React
