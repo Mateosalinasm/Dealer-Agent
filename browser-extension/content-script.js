@@ -189,6 +189,19 @@ async function advanceThroughSteps() {
     const unknownError = findUnhandledRequiredFieldError(KNOWN_FIELDS);
     if (unknownError) return { ok: false, error: `Reached a step this script doesn't handle yet: "${unknownError}".` };
 
+    // Groups MUST be checked before Publish is ever clicked — the group-
+    // selection UI can share its screen with the same Publish button
+    // rather than living behind its own separate "Next" step, so checking
+    // for Publish first (the previous order) could click straight through
+    // to publishing without this ever running at all. That's exactly what
+    // was happening: the listing kept publishing immediately with no
+    // groups selected, because Publish was found and clicked before this
+    // line ever got a turn.
+    if (!groupsHandled) {
+      const matched = await selectHoustonGroups();
+      if (matched > 0) groupsHandled = true;
+    }
+
     const publishButton = findButtonByText(["Publish", "Post"]);
     if (publishButton) {
       simulateClick(publishButton);
@@ -198,11 +211,6 @@ async function advanceThroughSteps() {
         listingUrl: extractListingUrl() ?? undefined,
         warning: groupsHandled ? undefined : "Never found any matching Houston/Katy groups to join — the listing published, but wasn't posted to any group.",
       };
-    }
-
-    if (!groupsHandled) {
-      const matched = await selectHoustonGroups();
-      if (matched > 0) groupsHandled = true;
     }
 
     const nextButton = findButtonByText(["Next", "Continue"]);
