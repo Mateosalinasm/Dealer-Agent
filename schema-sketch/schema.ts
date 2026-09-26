@@ -16,7 +16,23 @@ export const appointmentStatus = ['scheduled', 'completed', 'canceled'] as const
 
 export const integrationProvider = ['whatsapp', 'google_calendar'] as const;
 export const messageDirection = ['inbound', 'outbound'] as const;
-export const messageStatus = ['queued', 'sent', 'delivered', 'read', 'failed'] as const;
+// 'draft' is Claude's own suggested reply sitting in assist mode, waiting
+// for a human to approve (see messages.sentByAgent + lib/marketplace-agent.ts)
+// — it only becomes 'queued' once a person actually approves it, whether
+// that's a click in the dashboard or (later) auto mode approving on its own.
+export const messageStatus = ['draft', 'queued', 'sent', 'delivered', 'read', 'failed'] as const;
+export const conversationChannel = ['whatsapp', 'facebook_marketplace'] as const;
+// Maintained by the reply agent from the conversation so far — surfaced in
+// the dashboard as a simple sort signal, not something a human sets by hand.
+export const leadTemperature = ['hot', 'warm', 'cold'] as const;
+// What the customer's LAST inbound message was actually asking about —
+// classified by the agent per-message, not just once per conversation,
+// since the same thread moves through several of these in order (e.g.
+// availability, then price, then appointment).
+export const messageIntent = [
+  'availability', 'price', 'down_payment', 'financing', 'trade_in', 'mileage',
+  'title_status', 'warranty', 'features', 'location', 'appointment', 'other',
+] as const;
 
 export const warrantyProductType = ['vsc', 'gap', 'tire_wheel', 'key_replacement', 'maintenance', 'other'] as const;
 
@@ -98,6 +114,15 @@ export const settings = pgTable('settings', {
   autoPostEnabled: boolean('auto_post_enabled').notNull().default(false),
   autoPostMaxPerDay: integer('auto_post_max_per_day').notNull().default(1),
   autoPostTimes: jsonb('auto_post_times').$type<string[]>().notNull().default(['09:00']),
+  // Facebook Marketplace AI reply agent (lib/marketplace-agent.ts) — off by
+  // default, same as autoPostEnabled above. 'assist' drafts a reply for the
+  // operator to approve before anything sends; 'auto' (not yet built —
+  // there is no code path today that sends a draft without a human
+  // approving it first) would send without waiting. Kept as its own
+  // enabled flag distinct from mode so turning the agent off entirely
+  // doesn't lose which mode it was in.
+  marketplaceAgentEnabled: boolean('marketplace_agent_enabled').notNull().default(false),
+  marketplaceAgentMode: text('marketplace_agent_mode').$type<'assist' | 'auto'>().notNull().default('assist'),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -600,17 +625,42 @@ export const integrations = pgTable('integrations', {
 // lead/deal when the phone number matches one on file — set at
 // creation and re-checked on each inbound message, since a lead can get
 // attached after the thread already exists.
+//
+// contactPhone is nullable because Facebook Messenger threads aren't
+// phone-keyed at all — they're identified by externalThreadId (Facebook's
+// own conversation id) instead. A WhatsApp row always has contactPhone and
+// never externalThreadId; a facebook_marketplace row is the reverse. Never
+// both null — the inbound handler for each channel is responsible for
+// setting whichever one actually identifies that channel's thread.
 export const conversations = pgTable('conversations', {
   id: uuid('id').primaryKey().defaultRandom(),
   leadId: uuid('lead_id').references(() => leads.id, { onDelete: 'set null' }),
   dealId: uuid('deal_id').references(() => deals.id, { onDelete: 'set null' }),
-  contactPhone: text('contact_phone').notNull(), // E.164, e.g. +15551234567
+  // Which listing this thread is about — required to ground the agent's
+  // replies in that specific vehicle's real facts (price, mileage, etc.)
+  // rather than guessing from the conversation text alone. Nullable only
+  // because a WhatsApp thread (general inbound, not tied to one listing)
+  // predates this column; every facebook_marketplace row sets it.
+  vehicleId: uuid('vehicle_id').references(() => vehicles.id, { onDelete: 'set null' }),
+  contactPhone: text('contact_phone'), // E.164, e.g. +15551234567 — WhatsApp only, see above
   contactName: text('contact_name'),
-  channel: text('channel').notNull().default('whatsapp'),
+  channel: text('channel').$type<(typeof conversationChannel)[number]>().notNull().default('whatsapp'),
+  externalThreadId: text('external_thread_id'), // Facebook's own conversation id — see above
+  leadTemperature: text('lead_temperature').$type<(typeof leadTemperature)[number]>(),
+  // Set by the agent when a message crosses a line it shouldn't answer on
+  // its own (a financing-approval guarantee, an exact rate, "I'm ready to
+  // buy," "I'm 20 minutes away") — surfaces as an alert in the dashboard
+  // and (once wired up) a notification to the operator, same channel the
+  // daily desk brief already uses. Cleared once a human responds.
+  needsHumanAttention: boolean('needs_human_attention').notNull().default(false),
+  handoffReason: text('handoff_reason'),
   lastMessageAt: timestamp('last_message_at', { withTimezone: true }),
   unreadCount: integer('unread_count').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-}, t => ({ phoneIdx: index('conversations_phone_idx').on(t.contactPhone) }));
+}, t => ({
+  phoneIdx: index('conversations_phone_idx').on(t.contactPhone),
+  externalThreadIdx: index('conversations_external_thread_idx').on(t.externalThreadId),
+}));
 
 export const messages = pgTable('messages', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -619,11 +669,21 @@ export const messages = pgTable('messages', {
   body: text('body').notNull(),
   status: text('status').$type<(typeof messageStatus)[number]>().notNull().default('queued'),
   providerMessageId: text('provider_message_id'), // Twilio's MessageSid — lets the status-callback webhook find this row
-  // Always false for now — every outbound message is a human clicking Send.
-  // An auto-reply agent needs its own explicit opt-in (see NOTES_FOR_MATEO.md);
-  // this column exists so that toggle only has to change how messages get
+  // What an INBOUND message's own text was asking about, per
+  // lib/marketplace-agent.ts's classification — null on outbound messages
+  // and on any inbound message from before this column existed.
+  intent: text('intent').$type<(typeof messageIntent)[number]>(),
+  // True for any agent-authored message, draft or sent — assist mode keeps
+  // it at status 'draft' until a human approves it (see messageStatus
+  // above); auto mode (once built) would go straight to 'queued'. This
+  // column exists so that mode toggle only has to change how messages get
   // created, not the schema.
   sentByAgent: boolean('sent_by_agent').notNull().default(false),
+  // When a human approved a draft — separate from createdAt (when Claude
+  // wrote it) and from status flipping to 'sent' (when it actually went
+  // out), so the gap between "AI suggested this" and "operator agreed" is
+  // itself something the outcomes/analytics layer can look at later.
+  approvedAt: timestamp('approved_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, t => ({ convIdx: index('messages_conversation_idx').on(t.conversationId) }));
 

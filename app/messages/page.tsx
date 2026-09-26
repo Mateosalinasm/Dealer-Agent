@@ -73,8 +73,12 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
                 )}
               >
                 <div className="min-w-0">
-                  <div className="truncate text-[13px] font-semibold text-[var(--color-text)]">{c.contactName || formatPhoneForDisplay(c.contactPhone)}</div>
-                  <div className="truncate text-[11.5px] text-[var(--color-text-muted)]">{formatPhoneForDisplay(c.contactPhone)}</div>
+                  <div className="truncate text-[13px] font-semibold text-[var(--color-text)]">
+                    {c.contactName || formatPhoneForDisplay(c.contactPhone) || "Facebook Marketplace"}
+                  </div>
+                  <div className="truncate text-[11.5px] text-[var(--color-text-muted)]">
+                    {formatPhoneForDisplay(c.contactPhone) || (c.channel === "facebook_marketplace" ? "Marketplace message" : "")}
+                  </div>
                 </div>
                 <div className="flex flex-none flex-col items-end gap-1">
                   <span className="text-[10.5px] tabular-nums text-[var(--color-text-placeholder)]">{timeAgo(c.lastMessageAt)}</span>

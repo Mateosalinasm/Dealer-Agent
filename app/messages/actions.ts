@@ -13,6 +13,9 @@ export async function sendMessage(conversationId: string, formData: FormData) {
 
   const [conversation] = await db.select().from(schema.conversations).where(eq(schema.conversations.id, conversationId)).limit(1);
   if (!conversation) return;
+  // A facebook_marketplace conversation has no phone number at all — this
+  // action only ever sends over WhatsApp, so there's nothing sendable here.
+  if (!conversation.contactPhone) return "This conversation has no phone number to send a WhatsApp message to.";
 
   const result = await sendWhatsAppMessage(conversation.contactPhone, body);
 

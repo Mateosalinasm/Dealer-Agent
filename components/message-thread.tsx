@@ -45,8 +45,12 @@ export function MessageThread({ conversation, messages }: { conversation: Conver
     <Card className="flex h-full min-h-[500px] flex-col p-0">
       <div className="flex items-center justify-between border-b border-[var(--color-hairline)] px-4 py-3">
         <div>
-          <div className="text-[14px] font-semibold text-[var(--color-text)]">{conversation.contactName || formatPhoneForDisplay(conversation.contactPhone)}</div>
-          <div className="text-[11.5px] text-[var(--color-text-muted)]">{formatPhoneForDisplay(conversation.contactPhone)}</div>
+          <div className="text-[14px] font-semibold text-[var(--color-text)]">
+            {conversation.contactName || formatPhoneForDisplay(conversation.contactPhone) || "Facebook Marketplace"}
+          </div>
+          <div className="text-[11.5px] text-[var(--color-text-muted)]">
+            {formatPhoneForDisplay(conversation.contactPhone) || (conversation.channel === "facebook_marketplace" ? "Marketplace message" : "")}
+          </div>
         </div>
       </div>
 
