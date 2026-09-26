@@ -442,7 +442,17 @@ function findBestTextMatch(text) {
   const wanted = text.trim().toLowerCase();
   const all = Array.from(document.querySelectorAll("*")).filter((el) => isVisible(el) && (el.textContent || "").trim().toLowerCase() === wanted);
   if (all.length === 0) return null;
-  return all.reduce((best, el) => (el.querySelectorAll("*").length < best.querySelectorAll("*").length ? el : best));
+  // Interior color kept matching and clicking "Black", yet stayed blank —
+  // traced to Exterior color (a field of the exact same shape, run right
+  // before it) already showing "Black" as ITS OWN selected value, which is
+  // just as exact and just as minimal a match as the real option sitting
+  // inside Interior color's freshly opened list. Preferring whatever's
+  // actually inside a currently open [role="listbox"] — which only exists
+  // while a popup is genuinely showing — resolves that ambiguity, since a
+  // field's own already-selected value is never inside one.
+  const insideOpenListbox = all.filter((el) => el.closest('[role="listbox"]'));
+  const candidates = insideOpenListbox.length > 0 ? insideOpenListbox : all;
+  return candidates.reduce((best, el) => (el.querySelectorAll("*").length < best.querySelectorAll("*").length ? el : best));
 }
 
 // A short list of what's currently visible on screen, for when a match
@@ -526,6 +536,18 @@ function setNativeSelectByText(select, optionText) {
 // on a real device depending on how long it took to render that time.
 // Returns true, or a string describing what went wrong.
 async function selectStaticOption(triggerCandidates, optionText) {
+  // Interior color kept matching and clicking a "Black" option, yet the
+  // field stayed blank — a real capture showed why: Exterior color (run
+  // immediately before it, same kind of color-list popup) never got
+  // explicitly closed, so the still-open Exterior popup's own "Black"
+  // option was what actually got found and clicked, not anything belonging
+  // to Interior color's own (never-opened) list. Escape closes out
+  // whatever the previous field left open before this one starts looking
+  // for its own trigger — a no-op if nothing was open.
+  document.activeElement?.dispatchEvent?.(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  document.body.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  await sleep(300);
+
   // Year/Make/Body style/Exterior/Interior color/Vehicle condition/Fuel
   // type failed identically every single time, no matter how long this
   // retried — the click-and-search-the-page-for-a-popup approach below
