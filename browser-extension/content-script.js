@@ -4,26 +4,31 @@
 //
 // ============================================================================
 // STATUS after the latest real attempt against the live page:
-//   - CONFIRMED WORKING: Vehicle type, Photos, Location, Mileage, Price,
-//     Body style, clean-title checkbox.
-//   - CONFIRMED BUG, FIXED: Year and Make weren't getting set. Both are
-//     dropdowns that turn out to open a live search input (like Make/Model
-//     always did) rather than a pre-rendered static list — but
-//     selectStaticOption only ever looked for pre-rendered option text, so
-//     it could never find anything for these two. It now also types into
-//     whatever input appears after opening the field, same as the
-//     typeahead path, before searching for a match. Make now uses this
-//     shared function instead of its own separate one.
-//   - Model is confirmed NOT a dropdown — it's a plain text field once
-//     Make is set, so it's just typed directly rather than searched for
-//     an option to click.
-//   - Interior color (always "Black") and Transmission (always "Automatic
-//     transmission") added — these weren't attempted at all before.
-//   - STILL UNVERIFIED LIVE: Exterior color, Vehicle condition, Fuel type
-//     — the operator reported these as blank on the last run; findFieldTrigger
-//     and findInputByLabel now retry with a scroll between attempts in case
-//     these lower-on-the-page fields just weren't rendered/in view yet,
-//     but this hasn't been confirmed against a real run.
+//   - CONFIRMED WORKING: Vehicle type, Photos, Location, Model, Mileage,
+//     Price, clean-title checkbox, Transmission.
+//   - CONFIRMED BUG, FIXED (hopefully — theory, not yet verified live):
+//     Year, Make, Body style, Exterior color, Interior color, Vehicle
+//     condition, and Fuel type all failed identically every single time,
+//     immune to retries no matter how long they waited — the kind of
+//     total, retry-proof failure that means the popup-search approach was
+//     never going to find anything, not that it needed more patience.
+//     Best explanation: these are real native <select> elements, not
+//     Facebook's own custom popup widget (which Vehicle type and
+//     Transmission apparently are, since those DID work) — a native
+//     select's option list is rendered by the browser/OS itself, entirely
+//     outside the page's DOM, so searching the page for matching text
+//     after "opening" it was always going to come up empty. Now checks
+//     for a real <select> first (matched by its own placeholder option
+//     text, e.g. an unselected Year field literally reads "Year") and
+//     sets its value directly, the same React-controlled-value trick
+//     already used for text inputs, rather than trying to click anything.
+//   - Also: Make no longer resets Model — Make already ran before Model in
+//     this file's own order, so this was never this script's own doing,
+//     but confirming it here since it came up: if Make failed (as it was,
+//     before this fix) and the operator went back to set it by hand
+//     afterward, THAT later manual change is what reset Model, not
+//     anything this script did or could prevent — the real fix is making
+//     sure Make succeeds on its own so nobody needs to touch it by hand.
 // ============================================================================
 
 // This dealership's lot zip — Facebook otherwise defaults to whatever city
@@ -388,6 +393,42 @@ function findOpenListbox() {
   return listboxes.find((el) => el.scrollHeight > el.clientHeight + 10) || null;
 }
 
+// A real <select> rarely carries an aria-label/associated <label> in a
+// form like this — but its own placeholder option (the first, disabled
+// one, shown before anything is chosen — e.g. an unselected Year field
+// literally displays the word "Year") almost always matches the field's
+// visible name, so that's checked too, not just the usual label sources.
+async function findNativeSelect(candidates) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const selects = Array.from(document.querySelectorAll("select")).filter(isVisible);
+    const found = selects.find((el) => {
+      const placeholderOptionText = el.options.length > 0 ? (el.options[0].textContent || "").trim() : "";
+      const haystack = [el.getAttribute("aria-label"), labelTextFor(el), placeholderOptionText].filter(Boolean).join(" ").toLowerCase();
+      return candidates.some((c) => wordBoundaryIncludes(haystack, c.toLowerCase()));
+    });
+    if (found) return found;
+    window.scrollBy(0, 500);
+    await sleep(300);
+  }
+  return null;
+}
+
+// Same React-controlled-value problem as setInputValue, but a <select>
+// has no single text value to set — the matching <option>'s own value
+// has to be looked up by its visible text first.
+function setNativeSelectByText(select, optionText) {
+  const wanted = optionText.trim().toLowerCase();
+  const options = Array.from(select.options);
+  const match = options.find((o) => (o.textContent || "").trim().toLowerCase() === wanted);
+  if (!match) return `no <option> matched "${optionText}" — this dropdown's options were: ${options.map((o) => (o.textContent || "").trim()).join(", ")}`;
+
+  const setter = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value").set;
+  setter.call(select, match.value);
+  select.dispatchEvent(new Event("input", { bubbles: true }));
+  select.dispatchEvent(new Event("change", { bubbles: true }));
+  return true;
+}
+
 // For dropdown fields (Vehicle type, Year, Make, Body style, Exterior/
 // Interior color, Vehicle condition, Fuel type, Transmission) — click the
 // trigger, then click the option whose text matches exactly. Some of
@@ -399,6 +440,18 @@ function findOpenListbox() {
 // on a real device depending on how long it took to render that time.
 // Returns true, or a string describing what went wrong.
 async function selectStaticOption(triggerCandidates, optionText) {
+  // Year/Make/Body style/Exterior/Interior color/Vehicle condition/Fuel
+  // type failed identically every single time, no matter how long this
+  // retried — the click-and-search-the-page-for-a-popup approach below
+  // can never work on a real native <select>, because its option list is
+  // rendered by the browser/OS itself, entirely outside the page's DOM,
+  // so there's nothing here to ever find. Vehicle type and Transmission
+  // (which DID work) are presumably Facebook's own custom popup widget,
+  // not a native select — so this checks for a real <select> first and
+  // only falls through to the popup-search approach if there isn't one.
+  const nativeSelect = await findNativeSelect(triggerCandidates);
+  if (nativeSelect) return setNativeSelectByText(nativeSelect, optionText);
+
   const trigger = await findFieldTrigger(triggerCandidates);
   if (!trigger) return "could not find the field to click";
   // Captured BEFORE the click so the input-typing fallback below only ever
