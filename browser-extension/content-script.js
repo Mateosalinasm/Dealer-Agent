@@ -201,7 +201,14 @@ async function advanceThroughSteps() {
     // was happening: the listing kept publishing immediately with no
     // groups selected, because Publish was found and clicked before this
     // line ever got a turn.
-    if (!groupsHandled) {
+    // step 0 is still the main form (before any Next has been clicked
+    // this run) — its own Preview panel now legitimately shows "Houston"
+    // as the resolved Location, which selectHoustonGroups could match as
+    // if it were a real group. previewPanelContainer() already excludes
+    // that specific text, but skipping step 0 entirely here too is a
+    // second, cheap layer of the same protection: there is no real group
+    // list to find before the first Next is clicked anyway.
+    if (!groupsHandled && step > 0) {
       const matched = await selectHoustonGroups();
       if (matched > 0) groupsHandled = true;
     }
@@ -237,6 +244,27 @@ const GROUP_AREA_KEYWORDS = ["houston", "katy"];
 // The operator's own cap, intentionally under Facebook's 20-group limit.
 const MAX_GROUPS_TO_JOIN = 18;
 
+// The listing's own Preview panel now legitimately shows "Houston" (the
+// resolved Location value, e.g. "Houston, TX 77076" and "Listed ... in
+// Houston") — a false-positive match for a "group name" that isn't a
+// group at all. Finds the "Preview" heading and climbs its ancestors,
+// stopping BEFORE an ancestor wide enough to be the whole page layout
+// rather than just that one column — over-climbing would exclude
+// everything on the page, including the real group list.
+function previewPanelContainer() {
+  const heading = Array.from(document.querySelectorAll("span, div, h1, h2")).find(
+    (el) => el.children.length === 0 && (el.textContent || "").trim() === "Preview"
+  );
+  if (!heading) return null;
+  let node = heading;
+  for (let i = 0; i < 12 && node.parentElement; i++) {
+    const next = node.parentElement;
+    if (next.getBoundingClientRect().width > window.innerWidth * 0.7) break;
+    node = next;
+  }
+  return node;
+}
+
 // Runs once, on whichever step actually shows the group list — matches
 // group NAME text first (not the checkbox itself, which — per everything
 // learned building the rest of this form — likely carries no reliable
@@ -245,8 +273,10 @@ const MAX_GROUPS_TO_JOIN = 18;
 // names at all is not an error, just nothing to do yet, so the caller
 // retries this on later steps until it finds one (or never does).
 async function selectHoustonGroups() {
+  const preview = previewPanelContainer();
   const nameCandidates = Array.from(document.querySelectorAll("span, div"))
     .filter((el) => el.children.length === 0 && isVisible(el))
+    .filter((el) => !preview || !preview.contains(el))
     .filter((el) => {
       const text = (el.textContent || "").toLowerCase();
       return GROUP_AREA_KEYWORDS.some((k) => text.includes(k));
