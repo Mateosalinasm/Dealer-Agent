@@ -136,6 +136,19 @@ function RailNav() {
         const Icon = group.icon;
         const isActiveGroup = group.label === activeGroupLabel;
         const isOpen = group.label === openGroup;
+
+        // A group with exactly one destination (Inventory) has nothing to
+        // pick between — its own page already has its own filters/category
+        // icons for that. A flyout listing just that one link back to
+        // itself is a pointless extra click, so this is a direct link.
+        if (group.items.length === 1) {
+          return (
+            <Link key={group.label} href={group.items[0].href} title={group.label} className={railButtonClasses(isActiveGroup)}>
+              <Icon size={19} />
+            </Link>
+          );
+        }
+
         return (
           // Each button gets its own positioning context so its flyout opens
           // right next to IT — previously the flyout was absolutely
@@ -197,7 +210,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 flex h-screen w-16 flex-none flex-col items-center border-r border-[var(--color-hairline)] bg-[var(--color-surface)] py-3">
+      {/*
+        z-40 is deliberate, not decorative: `sticky` positioning makes this
+        aside establish its own stacking context, and with no explicit
+        z-index (the default) a stacking context sits BELOW any descendant
+        elsewhere on the page that sets one explicitly — which is most of
+        them (photo card overlays, the sold-vehicle form, sort menus, all
+        z-10 to z-30). That's what was putting the nav flyout behind
+        ordinary page content on Inventory. z-40 matches this app's other
+        full-page overlays (route-modal, the photo card's own dropdown) —
+        tied z-index falls back to DOM order, and this aside renders first,
+        so those overlays (e.g. a deal modal) still correctly cover the
+        rail rather than the rail punching through them.
+      */}
+      <aside className="sticky top-0 z-40 flex h-screen w-16 flex-none flex-col items-center border-r border-[var(--color-hairline)] bg-[var(--color-surface)] py-3">
         <Link
           href="/"
           title="Home"
