@@ -4,33 +4,26 @@
 //
 // ============================================================================
 // STATUS after the latest real attempt against the live page:
-//   - CONFIRMED WORKING: Photos, Price, Description.
-//   - CONFIRMED BUG, FIXED: Vehicle type still wasn't getting set even
-//     after selectStaticOption added a retry loop — traced to
-//     findFieldTrigger returning the FIRST matching element in document
-//     order, which for a field with no aria-label/placeholder falls back
-//     to a div's whole .textContent. A big ancestor wrapping the real
-//     trigger (and everything after it) can ALSO start with the same
-//     label text and, being an ancestor, always sorts earlier in document
-//     order — so it got clicked instead of the actual small control, and
-//     every retry kept clicking the same wrong thing. Now picks the most
-//     specific (fewest-descendant) match instead, same fix already
-//     applied to option-matching. selectStaticOption now also verifies
-//     the trigger actually shows the chosen value before reporting
-//     success. Vehicle type is a hard stop if it fails — Year/Make/Model/
-//     Mileage don't exist in the DOM until it's set, and the operator
-//     going back to set it by hand can reset those fields, so nothing
-//     downstream should be attempted against a form that isn't ready.
-//   - CONFIRMED BUG, FIXED: Make and Model both ended up typed into the
-//     same field — findInputByLabel's plain substring match let "make"
-//     match Facebook's own top-nav search box (placeholder "Search
-//     Marketplace" contains "make" as a literal substring of
-//     "Marketplace"). Switched to word-boundary matching.
-//   - STILL UNVERIFIED LIVE: Model typeahead matching, Location/Mileage/
-//     Body style/Exterior color/Fuel type/clean-title selectors, and the
-//     group-selection step (selectHoustonGroups) — none of these have
-//     been reached in a real run yet since Vehicle type was blocking
-//     everything before it.
+//   - CONFIRMED WORKING: Vehicle type, Photos, Location, Mileage, Price,
+//     Body style, clean-title checkbox.
+//   - CONFIRMED BUG, FIXED: Year and Make weren't getting set. Both are
+//     dropdowns that turn out to open a live search input (like Make/Model
+//     always did) rather than a pre-rendered static list — but
+//     selectStaticOption only ever looked for pre-rendered option text, so
+//     it could never find anything for these two. It now also types into
+//     whatever input appears after opening the field, same as the
+//     typeahead path, before searching for a match. Make now uses this
+//     shared function instead of its own separate one.
+//   - Model is confirmed NOT a dropdown — it's a plain text field once
+//     Make is set, so it's just typed directly rather than searched for
+//     an option to click.
+//   - Interior color (always "Black") and Transmission (always "Automatic
+//     transmission") added — these weren't attempted at all before.
+//   - STILL UNVERIFIED LIVE: Exterior color, Vehicle condition, Fuel type
+//     — the operator reported these as blank on the last run; findFieldTrigger
+//     and findInputByLabel now retry with a scroll between attempts in case
+//     these lower-on-the-page fields just weren't rendered/in view yet,
+//     but this hasn't been confirmed against a real run.
 // ============================================================================
 
 // This dealership's lot zip — Facebook otherwise defaults to whatever city
@@ -39,6 +32,8 @@
 const ZIP_CODE = "77076";
 const VEHICLE_TYPE_OPTION = "Car/Truck";
 const VEHICLE_CONDITION = "Very good"; // fixed by the operator, not derived from vehicle data
+const INTERIOR_COLOR = "Black"; // fixed by the operator, not derived from vehicle data
+const TRANSMISSION = "Automatic transmission"; // fixed by the operator, not derived from vehicle data
 const BODY_TYPE_LABELS = { sedan: "Sedan", suv: "SUV", truck: "Truck" };
 const FUEL_TYPE_LABELS = { gas: "Gasoline", diesel: "Diesel", hybrid: "Hybrid", electric: "Electric" };
 
@@ -80,16 +75,20 @@ window.__dealerAgentFillListing = async function fillListing({ vehicle, body, ph
     // and Year are both set — give the page a moment to reveal them.
     await sleep(800);
 
+    // Make is a dropdown (must be selected from Facebook's own catalog);
+    // Model, once Make is set, is confirmed to be a plain text field —
+    // typed directly rather than searched for a matching option.
     if (vehicle.make) {
-      const r = await fillTypeahead(["Make"], vehicle.make);
-      if (r !== true) warnings.push(`Could not fill Make (${r}).`);
+      const r = await selectStaticOption(["Make"], vehicle.make);
+      if (r !== true) warnings.push(`Could not set Make (${r}).`);
     }
     if (vehicle.model) {
-      const r = await fillTypeahead(["Model"], vehicle.model);
-      if (r !== true) warnings.push(`Could not fill Model (${r}).`);
+      const modelInput = await findInputByLabel(["Model"]);
+      if (!modelInput) warnings.push("Could not find the Model field on the page.");
+      else setInputValue(modelInput, vehicle.model);
     }
     if (vehicle.miles != null) {
-      const mileageInput = findInputByLabel(["Mileage"]);
+      const mileageInput = await findInputByLabel(["Mileage"]);
       if (!mileageInput) warnings.push("Could not find the Mileage field on the page.");
       else setInputValue(mileageInput, String(vehicle.miles));
     }
@@ -98,7 +97,7 @@ window.__dealerAgentFillListing = async function fillListing({ vehicle, body, ph
     if (locationResult !== true) warnings.push(`Could not set Location (${locationResult}).`);
 
     const priceCents = vehicle.downPaymentCents ?? vehicle.askingPrice ?? 0;
-    const priceInput = findInputByLabel(["Price"]);
+    const priceInput = await findInputByLabel(["Price"]);
     if (!priceInput) warnings.push("Could not find the Price field on the page.");
     else setInputValue(priceInput, String(Math.round(priceCents / 100)));
 
@@ -111,6 +110,11 @@ window.__dealerAgentFillListing = async function fillListing({ vehicle, body, ph
       const r = await selectStaticOption(["Exterior color"], vehicle.color);
       if (r !== true) warnings.push(`Could not set Exterior color (${r}).`);
     }
+    const interiorResult = await selectStaticOption(["Interior color"], INTERIOR_COLOR);
+    if (interiorResult !== true) warnings.push(`Could not set Interior color (${interiorResult}).`);
+
+    const cleanTitleResult = checkCleanTitleBox();
+    if (cleanTitleResult !== true) warnings.push(`Could not check the clean title box (${cleanTitleResult}).`);
 
     const conditionResult = await selectStaticOption(["Vehicle condition"], VEHICLE_CONDITION);
     if (conditionResult !== true) warnings.push(`Could not set Vehicle condition (${conditionResult}).`);
@@ -119,10 +123,10 @@ window.__dealerAgentFillListing = async function fillListing({ vehicle, body, ph
     const fuelResult = await selectStaticOption(["Fuel type"], fuelLabel);
     if (fuelResult !== true) warnings.push(`Could not set Fuel type (${fuelResult}).`);
 
-    const cleanTitleResult = checkCleanTitleBox();
-    if (cleanTitleResult !== true) warnings.push(`Could not check the clean title box (${cleanTitleResult}).`);
+    const transmissionResult = await selectStaticOption(["Transmission"], TRANSMISSION);
+    if (transmissionResult !== true) warnings.push(`Could not set Transmission (${transmissionResult}).`);
 
-    const descriptionInput = findInputByLabel(["Description"], "textarea");
+    const descriptionInput = await findInputByLabel(["Description"], "textarea");
     if (!descriptionInput) warnings.push("Could not find the Description field on the page.");
     else setInputValue(descriptionInput, body);
 
@@ -146,7 +150,8 @@ window.__dealerAgentFillListing = async function fillListing({ vehicle, body, ph
 async function advanceThroughSteps() {
   const KNOWN_FIELDS = [
     "vehicle type", "year", "make", "model", "price", "description", "photo",
-    "mileage", "body style", "exterior color", "condition", "fuel", "clean title", "location",
+    "mileage", "body style", "exterior color", "interior color", "condition",
+    "fuel", "transmission", "clean title", "location",
   ];
   let groupsHandled = false;
 
@@ -249,18 +254,27 @@ function waitFor(check, timeoutMs) {
 // Finds a text input / textarea whose accessible label, placeholder, or a
 // nearby <label> text matches one of the candidates (case-insensitive,
 // substring match — Facebook often prefixes/suffixes labels with extra
-// text like "Price (required)").
-function findInputByLabel(candidates, tag = "input") {
-  const els = Array.from(document.querySelectorAll(tag));
-  return els.find((el) => {
-    const haystack = [el.getAttribute("aria-label"), el.getAttribute("placeholder"), labelTextFor(el)].filter(Boolean).join(" ").toLowerCase();
-    // Plain substring matching let "make" match Facebook's own top-nav
-    // search box (placeholder "Search Marketplace" — "make" is a literal
-    // substring of "Marketplace") — seen in testing swallowing both the
-    // Make and Model values into that one box instead of their own
-    // fields. Word-boundary matching only matches "make" as its own word.
-    return candidates.some((c) => wordBoundaryIncludes(haystack, c.toLowerCase()));
-  });
+// text like "Price (required)"). Retries with a scroll between attempts —
+// fields further down this long form aren't necessarily rendered until
+// scrolled near, so a field that isn't found on the first try isn't
+// necessarily missing, just not there yet.
+async function findInputByLabel(candidates, tag = "input") {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const els = Array.from(document.querySelectorAll(tag));
+    const found = els.find((el) => {
+      const haystack = [el.getAttribute("aria-label"), el.getAttribute("placeholder"), labelTextFor(el)].filter(Boolean).join(" ").toLowerCase();
+      // Plain substring matching let "make" match Facebook's own top-nav
+      // search box (placeholder "Search Marketplace" — "make" is a literal
+      // substring of "Marketplace") — seen in testing swallowing both the
+      // Make and Model values into that one box instead of their own
+      // fields. Word-boundary matching only matches "make" as its own word.
+      return candidates.some((c) => wordBoundaryIncludes(haystack, c.toLowerCase()));
+    });
+    if (found) return found;
+    window.scrollBy(0, 500);
+    await sleep(300);
+  }
+  return undefined;
 }
 
 function wordBoundaryIncludes(haystack, word) {
@@ -288,23 +302,32 @@ function isVisible(el) {
 
 // Finds the clickable trigger for a field by its visible placeholder/label
 // text sitting near a dropdown affordance — used for both static dropdowns
-// and as the open-step of the typeahead fields.
-function findFieldTrigger(candidates) {
-  const all = Array.from(document.querySelectorAll("div, input"));
-  const matches = all.filter((el) => {
-    if (!isVisible(el)) return false;
-    const text = (el.getAttribute("aria-label") || el.getAttribute("placeholder") || el.textContent || "").trim().toLowerCase();
-    return candidates.some((c) => text === c.toLowerCase() || text.startsWith(c.toLowerCase()));
-  });
-  if (matches.length === 0) return null;
-  // .textContent falls back to a div's whole subtree, so a big ancestor
-  // wrapping the real trigger (and everything after it) can ALSO start
-  // with the same label text and would otherwise be matched first, since
-  // document order puts ancestors before their descendants — clicking
-  // that ancestor instead of the actual small trigger looks like nothing
-  // happened. Picking the most specific (fewest descendants) match, same
-  // approach as findBestTextMatch, lands on the real control instead.
-  return matches.reduce((best, el) => (el.querySelectorAll("*").length < best.querySelectorAll("*").length ? el : best));
+// and as the open-step of the typeahead fields. Retries with a scroll
+// between attempts, same reasoning as findInputByLabel: a field further
+// down this long form may just not be rendered yet.
+async function findFieldTrigger(candidates) {
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const all = Array.from(document.querySelectorAll("div, input"));
+    const matches = all.filter((el) => {
+      if (!isVisible(el)) return false;
+      const text = (el.getAttribute("aria-label") || el.getAttribute("placeholder") || el.textContent || "").trim().toLowerCase();
+      return candidates.some((c) => text === c.toLowerCase() || text.startsWith(c.toLowerCase()));
+    });
+    if (matches.length > 0) {
+      // .textContent falls back to a div's whole subtree, so a big
+      // ancestor wrapping the real trigger (and everything after it) can
+      // ALSO start with the same label text and would otherwise be
+      // matched first, since document order puts ancestors before their
+      // descendants — clicking that ancestor instead of the actual small
+      // trigger looks like nothing happened. Picking the most specific
+      // (fewest descendants) match, same approach as findBestTextMatch,
+      // lands on the real control instead.
+      return matches.reduce((best, el) => (el.querySelectorAll("*").length < best.querySelectorAll("*").length ? el : best));
+    }
+    window.scrollBy(0, 500);
+    await sleep(300);
+  }
+  return null;
 }
 
 // A plain .click() only fires a synthetic MouseEvent — some React
@@ -346,17 +369,24 @@ function findOpenListbox() {
   return listboxes.find((el) => el.scrollHeight > el.clientHeight + 10) || null;
 }
 
-// For plain option-list fields (Vehicle type, Year, Body style, Exterior
-// color, Vehicle condition, Fuel type) — click the trigger, then click the
-// option whose text matches exactly. Retries for a few seconds rather than
+// For dropdown fields (Vehicle type, Year, Make, Body style, Exterior/
+// Interior color, Vehicle condition, Fuel type, Transmission) — click the
+// trigger, then click the option whose text matches exactly. Some of
+// these (Year, Make) turn out to open a live search input rather than a
+// pre-rendered list, same as Location — if one appears after opening,
+// type the value into it first so a search-backed field's option
+// actually gets rendered to click. Retries for a few seconds rather than
 // checking once, since a single fixed delay was missing Facebook's popup
 // on a real device depending on how long it took to render that time.
 // Returns true, or a string describing what went wrong.
 async function selectStaticOption(triggerCandidates, optionText) {
-  const trigger = findFieldTrigger(triggerCandidates);
+  const trigger = await findFieldTrigger(triggerCandidates);
   if (!trigger) return "could not find the field to click";
   simulateClick(trigger);
   await sleep(500);
+
+  const activeInput = document.activeElement && document.activeElement.tagName === "INPUT" ? document.activeElement : null;
+  if (activeInput) setInputValue(activeInput, optionText);
 
   for (let attempt = 0; attempt < 8; attempt++) {
     const match = findBestTextMatch(optionText);
@@ -384,36 +414,6 @@ function triggerShowsValue(trigger, optionText) {
   return shown.includes(optionText.trim().toLowerCase());
 }
 
-// For Make/Model — fields tied to Facebook's own searchable catalog (not a
-// short fixed list). Clicks the trigger, types into whatever text input
-// becomes active, waits for suggestions, and clicks the closest match.
-async function fillTypeahead(triggerCandidates, valueText) {
-  const trigger = findFieldTrigger(triggerCandidates);
-  if (!trigger) return "could not find the field to click";
-  simulateClick(trigger);
-  await sleep(400);
-
-  const activeInput = document.activeElement && document.activeElement.tagName === "INPUT" ? document.activeElement : findInputByLabel(triggerCandidates);
-  if (!activeInput) return "could not find a text input after opening the field";
-  setInputValue(activeInput, valueText);
-
-  for (let attempt = 0; attempt < 6; attempt++) {
-    const options = visibleOptionElements();
-    if (options.length > 0) {
-      const mostSpecific = options.reduce((best, el) => (el.querySelectorAll("*").length < best.querySelectorAll("*").length ? el : best));
-      simulateClick(mostSpecific);
-      await sleep(300);
-      return true;
-    }
-    await sleep(300);
-  }
-  // No suggestion list appeared — some of these fields may just accept
-  // free text once typed, so leaving the typed value in place isn't
-  // necessarily wrong. Treat it as success rather than failing the whole
-  // job over a field that might already be fine.
-  return true;
-}
-
 function visibleOptionElements() {
   return Array.from(document.querySelectorAll('[role="option"], [role="listbox"] *')).filter((el) => isVisible(el) && (el.textContent || "").trim().length > 0);
 }
@@ -423,12 +423,12 @@ function visibleOptionElements() {
 // "Houston, TX 77076") a moment later, and that suggestion has to actually
 // be clicked, not just left as typed text.
 async function fillLocation() {
-  const trigger = findFieldTrigger(["Location"]);
+  const trigger = await findFieldTrigger(["Location"]);
   if (!trigger) return "could not find the field to click";
   simulateClick(trigger);
   await sleep(400);
 
-  const activeInput = document.activeElement && document.activeElement.tagName === "INPUT" ? document.activeElement : findInputByLabel(["Location"]);
+  const activeInput = document.activeElement && document.activeElement.tagName === "INPUT" ? document.activeElement : await findInputByLabel(["Location"]);
   if (!activeInput) return "could not find a text input after opening the field";
   setInputValue(activeInput, ZIP_CODE);
 
