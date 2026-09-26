@@ -241,18 +241,19 @@ async function selectHoustonGroups() {
     });
 
   let matched = 0;
-  const triedCheckboxes = new Set();
+  const triedTargets = new Set();
   for (const nameEl of nameCandidates) {
     if (matched >= MAX_GROUPS_TO_JOIN) break;
-    const checkbox = findGroupCheckbox(nameEl);
-    if (!checkbox || triedCheckboxes.has(checkbox)) continue;
-    triedCheckboxes.add(checkbox);
+    const target = findGroupCheckbox(nameEl);
+    if (!target || triedTargets.has(target)) continue;
+    triedTargets.add(target);
 
-    const already = checkbox.getAttribute?.("aria-checked") === "true" || checkbox.checked === true;
-    if (!already) {
-      simulateClick(checkbox);
-      await sleep(250);
-    }
+    // No checked/aria-checked to read (see findGroupCheckbox) — this runs
+    // once per job on a fresh, all-unchecked group list, so there's no
+    // "already checked, skip it" case to detect here; just click and move
+    // on to the next match.
+    simulateClick(target);
+    await sleep(250);
     matched++;
   }
   return matched;
@@ -264,19 +265,24 @@ async function selectHoustonGroups() {
 // ancestor's whole subtree, same "expand outward until something matches"
 // approach as findFileInput.
 function findGroupCheckbox(nameEl) {
-  let node = nameEl;
-  for (let i = 0; i < 6 && node; i++) {
-    if (isCheckboxLike(node)) return node;
-    const nested = node.querySelector?.('[role="checkbox"], input[type="checkbox"]');
-    if (nested) return nested;
-    node = node.parentElement;
+  // A real capture showed this "checkbox" is a plain <i> icon drawn from a
+  // CSS sprite (background-image + background-position) — no role, no
+  // checked attribute, nothing semantic at all, the same pattern as every
+  // other non-native control in this form. role="checkbox"/
+  // input[type=checkbox] never existed to find here. The icon and the
+  // group's name sit in separate sibling containers (two nearly identical
+  // divs sharing the same class set), so this walks up from the name,
+  // widening the search at each level, until it finds a sprite icon that
+  // isn't part of the name's own text — stopping at the FIRST (smallest,
+  // safest) level that has one, so it doesn't grab an icon belonging to a
+  // different group's row further up the list.
+  let row = nameEl;
+  for (let i = 0; i < 8 && row; i++) {
+    const icon = Array.from(row.querySelectorAll('i[data-visualcompletion="css-img"]')).find((el) => !nameEl.contains(el));
+    if (icon) return icon.parentElement || icon;
+    row = row.parentElement;
   }
   return null;
-}
-
-function isCheckboxLike(el) {
-  if (el.tagName === "INPUT" && el.type === "checkbox") return true;
-  return el.getAttribute?.("role") === "checkbox";
 }
 
 // Looks for Facebook's own inline validation text (e.g. "Please choose a
