@@ -130,44 +130,46 @@ function RailNav() {
     };
   }, [openGroup]);
 
-  const openGroupData = NAV.find((g) => g.label === openGroup);
-
   return (
-    <div ref={railRef} className="relative flex flex-col items-center gap-1 pt-1">
+    <div ref={railRef} className="flex flex-col items-center gap-1 pt-1">
       {NAV.map((group) => {
         const Icon = group.icon;
         const isActiveGroup = group.label === activeGroupLabel;
         const isOpen = group.label === openGroup;
         return (
-          <button
-            key={group.label}
-            type="button"
-            title={group.label}
-            aria-expanded={isOpen}
-            onClick={() => setOpenGroup((prev) => (prev === group.label ? null : group.label))}
-            className={railButtonClasses(isActiveGroup || isOpen)}
-          >
-            <Icon size={19} />
-          </button>
+          // Each button gets its own positioning context so its flyout opens
+          // right next to IT — previously the flyout was absolutely
+          // positioned against the whole rail's wrapper (top:0 of the
+          // stack), so it always appeared level with the first icon
+          // (Deals) no matter which button was actually clicked.
+          <div key={group.label} className="relative">
+            <button
+              type="button"
+              title={group.label}
+              aria-expanded={isOpen}
+              onClick={() => setOpenGroup((prev) => (prev === group.label ? null : group.label))}
+              className={railButtonClasses(isActiveGroup || isOpen)}
+            >
+              <Icon size={19} />
+            </button>
+
+            {isOpen && (
+              <div className="absolute left-full top-0 z-30 ml-2 w-60 rounded-[var(--radius-card)] border border-[var(--color-hairline)] bg-[var(--color-surface)] p-2 shadow-[var(--shadow-card)] [animation:dialog-content-in_150ms_cubic-bezier(0.16,1,0.3,1)]">
+                <div className="px-2 pb-1.5 pt-1 text-[10.5px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">
+                  {group.label}
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  {group.items.map((item) => (
+                    <Link key={item.href} href={item.href} onClick={() => setOpenGroup(null)} className={navLinkClasses(currentPath === item.href)}>
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         );
       })}
-
-      {openGroupData && (
-        <div
-          className="absolute left-full top-0 z-30 ml-2 w-60 rounded-[var(--radius-card)] border border-[var(--color-hairline)] bg-[var(--color-surface)] p-2 shadow-[var(--shadow-card)] [animation:dialog-content-in_150ms_cubic-bezier(0.16,1,0.3,1)]"
-        >
-          <div className="px-2 pb-1.5 pt-1 text-[10.5px] font-semibold uppercase tracking-[.05em] text-[var(--color-text-placeholder)]">
-            {openGroupData.label}
-          </div>
-          <div className="flex flex-col gap-0.5">
-            {openGroupData.items.map((item) => (
-              <Link key={item.href} href={item.href} onClick={() => setOpenGroup(null)} className={navLinkClasses(currentPath === item.href)}>
-                {item.label}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -195,7 +197,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="flex w-16 flex-none flex-col items-center border-r border-[var(--color-hairline)] bg-[var(--color-surface)] py-3">
+      <aside className="sticky top-0 flex h-screen w-16 flex-none flex-col items-center border-r border-[var(--color-hairline)] bg-[var(--color-surface)] py-3">
         <Link
           href="/"
           title="Home"
