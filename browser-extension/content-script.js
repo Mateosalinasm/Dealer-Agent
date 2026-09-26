@@ -394,6 +394,15 @@ function simulateClick(el) {
   }
 }
 
+// For the ARIA combobox pattern (role="combobox" aria-haspopup="listbox")
+// seen in a real capture — Enter/Space/ArrowDown are the standard keys
+// that open one for keyboard users, alongside (not instead of) a click.
+function dispatchKey(el, key) {
+  const opts = { key, bubbles: true, cancelable: true };
+  el.dispatchEvent(new KeyboardEvent("keydown", opts));
+  el.dispatchEvent(new KeyboardEvent("keyup", opts));
+}
+
 // Finds the best visible element whose text matches optionText. Not
 // restricted to specific tags or "leaf node" elements — an option's
 // visible text is very often wrapped in an inner <span> — so this matches
@@ -531,8 +540,23 @@ async function selectStaticOption(triggerCandidates, optionText) {
   let opened = false;
   for (let level = 0, node = trigger; level < 5 && node; level++, node = node.parentElement) {
     simulateClick(node);
+    // A real capture showed a wrapper marked data-interactable="|keydown|"
+    // around this exact combobox — Facebook's own hint that this widget
+    // expects a keyboard interaction, not just a click. Focusing it and
+    // pressing Enter is the standard way an ARIA combobox
+    // (aria-haspopup="listbox") opens for keyboard users, so this tries
+    // that too at every level, in case a given ancestor only wired up one
+    // of the two.
+    node.focus?.();
+    dispatchKey(node, "Enter");
     await sleep(500);
     if (
+      // A real capture showed Facebook marking these fields explicitly:
+      // <label role="combobox" aria-haspopup="listbox" aria-expanded="false">
+      // — checking whether the clicked node itself flips to "true" is a
+      // cleaner, more direct signal than inferring it from side effects,
+      // whenever this particular ancestor happens to be that element.
+      node.getAttribute?.("aria-expanded") === "true" ||
       findOpenListbox() ||
       visibleOptionElements().length > 0 ||
       (document.activeElement && document.activeElement !== previouslyFocused && document.activeElement.tagName === "INPUT")
