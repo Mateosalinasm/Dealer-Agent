@@ -159,7 +159,8 @@ async function checkForJob() {
 
     const outcome = await runJob(result.job);
     await reportResult(apiBaseUrl, apiToken, { postId: result.job.postId, ...outcome });
-    await setStatus({ lastCheck: outcome.ok ? `Posted ${label}.` : `Failed: ${outcome.error}` });
+    const successText = outcome.warning ? `Posted ${label} (${outcome.warning})` : `Posted ${label}.`;
+    await setStatus({ lastCheck: outcome.ok ? successText : `Failed: ${outcome.error}` });
   } catch (err) {
     await setStatus({ lastCheck: `Error: ${err instanceof Error ? err.message : String(err)}` });
   }

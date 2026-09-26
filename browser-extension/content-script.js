@@ -193,7 +193,11 @@ async function advanceThroughSteps() {
     if (publishButton) {
       simulateClick(publishButton);
       await sleep(3000);
-      return { ok: true, listingUrl: extractListingUrl() ?? undefined };
+      return {
+        ok: true,
+        listingUrl: extractListingUrl() ?? undefined,
+        warning: groupsHandled ? undefined : "Never found any matching Houston/Katy groups to join — the listing published, but wasn't posted to any group.",
+      };
     }
 
     if (!groupsHandled) {
@@ -212,42 +216,67 @@ async function advanceThroughSteps() {
   return { ok: false, error: "Went through 6 steps without reaching Publish — this form has more steps than expected." };
 }
 
-// Facebook caps a listing at 20 groups. Checks every visible group
-// checkbox whose nearby text reads like a Houston buy/sell group (English
-// or Spanish naming — "Buy Sell Houston", "Compra y Venta de Carros
-// Houston", etc.), up to that cap. Runs once, on whichever step actually
-// shows the group list — a step with no matching checkboxes at all is not
-// an error, just nothing to do yet, so the caller retries this on later
-// steps until it finds one (or never does).
+// Houston-area keywords for matching which of the operator's Facebook
+// groups to join — deliberately not limited to car-related names, since
+// general community groups for this area (e.g. "Cubanos en Houston") are
+// worth joining too, per the operator's own request. Add more city/suburb
+// names here as needed (Katy is a Houston suburb, included the same way).
+const GROUP_AREA_KEYWORDS = ["houston", "katy"];
+// The operator's own cap, intentionally under Facebook's 20-group limit.
+const MAX_GROUPS_TO_JOIN = 18;
+
+// Runs once, on whichever step actually shows the group list — matches
+// group NAME text first (not the checkbox itself, which — per everything
+// learned building the rest of this form — likely carries no reliable
+// role/tag to search for on its own), then finds that row's checkbox by
+// walking outward from the matched name. A step with no matching group
+// names at all is not an error, just nothing to do yet, so the caller
+// retries this on later steps until it finds one (or never does).
 async function selectHoustonGroups() {
-  const checkboxes = Array.from(document.querySelectorAll('[role="checkbox"], input[type="checkbox"]')).filter(isVisible);
+  const nameCandidates = Array.from(document.querySelectorAll("span, div"))
+    .filter((el) => el.children.length === 0 && isVisible(el))
+    .filter((el) => {
+      const text = (el.textContent || "").toLowerCase();
+      return GROUP_AREA_KEYWORDS.some((k) => text.includes(k));
+    });
+
   let matched = 0;
-  for (const box of checkboxes) {
-    if (matched >= 20) break;
-    const text = nearbyText(box);
-    if (!/houston/i.test(text)) continue;
-    const already = box.getAttribute("aria-checked") === "true" || box.checked === true;
+  const triedCheckboxes = new Set();
+  for (const nameEl of nameCandidates) {
+    if (matched >= MAX_GROUPS_TO_JOIN) break;
+    const checkbox = findGroupCheckbox(nameEl);
+    if (!checkbox || triedCheckboxes.has(checkbox)) continue;
+    triedCheckboxes.add(checkbox);
+
+    const already = checkbox.getAttribute?.("aria-checked") === "true" || checkbox.checked === true;
     if (!already) {
-      simulateClick(box);
-      await sleep(150);
+      simulateClick(checkbox);
+      await sleep(250);
     }
     matched++;
   }
   return matched;
 }
 
-// Group checkboxes don't reliably carry their own label as an accessible
-// name, so this walks up a few ancestor levels (same pattern as
-// findFileInput/checkCleanTitleBox) collecting textContent until it finds
-// something to match against.
-function nearbyText(el) {
-  let container = el;
-  for (let i = 0; i < 4 && container; i++) {
-    const text = (container.textContent || "").trim();
-    if (text.length > 0) return text;
-    container = container.parentElement;
+// A group row's checkbox isn't necessarily an ancestor of its own name
+// text (could be a preceding sibling within the same row) — walks up from
+// the name looking both at each ancestor itself and inside that
+// ancestor's whole subtree, same "expand outward until something matches"
+// approach as findFileInput.
+function findGroupCheckbox(nameEl) {
+  let node = nameEl;
+  for (let i = 0; i < 6 && node; i++) {
+    if (isCheckboxLike(node)) return node;
+    const nested = node.querySelector?.('[role="checkbox"], input[type="checkbox"]');
+    if (nested) return nested;
+    node = node.parentElement;
   }
-  return "";
+  return null;
+}
+
+function isCheckboxLike(el) {
+  if (el.tagName === "INPUT" && el.type === "checkbox") return true;
+  return el.getAttribute?.("role") === "checkbox";
 }
 
 // Looks for Facebook's own inline validation text (e.g. "Please choose a
