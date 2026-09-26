@@ -516,8 +516,31 @@ async function selectStaticOption(triggerCandidates, optionText) {
   // was never meant to be typed into at all (Vehicle type, Body style,
   // colors, condition, fuel type are all fixed lists, not search boxes).
   const previouslyFocused = document.activeElement;
-  simulateClick(trigger);
-  await sleep(600);
+
+  // A real capture of this exact markup (an unselected Year field) showed
+  // a plain <div><span>2010</span></div> with NO role, NO tabindex, NOT
+  // even a real onclick attribute — Facebook's own atomic-CSS components
+  // can attach a click handler in React with nothing at all visible in
+  // the rendered DOM to say so. There's no semantic marker left to guess
+  // from, so instead of picking one element to click, this clicks the
+  // matched label, then walks up its ancestors one at a time, checking
+  // after each click whether anything actually happened — stopping at the
+  // first level that visibly opens a popup/listbox or moves focus onto an
+  // input. Only walks upward, capped at 5 levels, same bound as
+  // findFieldTrigger's own interactive-ancestor check.
+  let opened = false;
+  for (let level = 0, node = trigger; level < 5 && node; level++, node = node.parentElement) {
+    simulateClick(node);
+    await sleep(500);
+    if (
+      findOpenListbox() ||
+      visibleOptionElements().length > 0 ||
+      (document.activeElement && document.activeElement !== previouslyFocused && document.activeElement.tagName === "INPUT")
+    ) {
+      opened = true;
+      break;
+    }
+  }
 
   // fillLocation (which works) falls back to findInputByLabel when focus
   // didn't land on a plain <input> — this same fallback was missing here,
@@ -536,7 +559,7 @@ async function selectStaticOption(triggerCandidates, optionText) {
   // anything" from "it opens, just never with the text expected", which
   // otherwise look identical from the outside (both end in the same "no
   // option matched" outcome) but need very different fixes.
-  let sawAnyPopupActivity = !!activeInput;
+  let sawAnyPopupActivity = opened || !!activeInput;
 
   // Auction wifi is unreliable (see CLAUDE.md) — a slow connection can
   // leave a popup's options rendering well past what a single quick check
