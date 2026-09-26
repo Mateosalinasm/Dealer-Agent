@@ -26,6 +26,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     headers: {
       "Content-Type": mimeType || "application/octet-stream",
       "Cache-Control": "private, max-age=3600",
+      // Read-only, unauthenticated by design (see app/api/extension/* —
+      // the browser extension fetches these from its own chrome-extension://
+      // origin to build a Facebook listing). No session/cookie is involved,
+      // so there's nothing sensitive a permissive CORS header would expose.
+      "Access-Control-Allow-Origin": "*",
     },
   });
 }
