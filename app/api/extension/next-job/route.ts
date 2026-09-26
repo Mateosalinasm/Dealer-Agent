@@ -14,5 +14,12 @@ export async function GET(req: NextRequest) {
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const result = await getDueAutoPostJob();
-  return NextResponse.json(result);
+  // The exact same photo URLs kept showing up in testing across several
+  // new deployments, which pointed to this response being cached
+  // somewhere between the extension and this route (this endpoint's
+  // whole point is to say what's due *right now* — a cached answer from
+  // even a minute ago can be wrong) — force-dynamic controls Next's own
+  // render cache, not the Cache-Control header actually sent to the
+  // client, so it's set explicitly here too.
+  return NextResponse.json(result, { headers: { "Cache-Control": "no-store" } });
 }

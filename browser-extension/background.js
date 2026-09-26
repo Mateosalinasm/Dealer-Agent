@@ -24,6 +24,7 @@ async function setStatus(patch) {
 async function fetchNextJob(apiBaseUrl, apiToken) {
   const res = await fetch(`${apiBaseUrl}/api/extension/next-job`, {
     headers: { Authorization: `Bearer ${apiToken}` },
+    cache: "no-store", // this must always reflect what's due right now, never a cached answer
   });
   if (!res.ok) throw new Error(`next-job returned ${res.status}`);
   return res.json();
