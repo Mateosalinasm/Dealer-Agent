@@ -741,16 +741,43 @@ async function fillLocation() {
   if (!activeInput) return "could not find a text input after opening the field";
   setInputValue(activeInput, ZIP_CODE);
 
-  for (let attempt = 0; attempt < 8; attempt++) {
+  // Auction wifi is unreliable (see CLAUDE.md) — reported failing
+  // intermittently, with the raw zip left typed but never resolved into
+  // a real selected place, which is exactly what a slow suggestion
+  // fetch on a given attempt would look like. Longer retry budget (was
+  // 8×350ms, now 14×500ms — ~7s total) rather than assuming it's just a
+  // one-off glitch nothing can be done about.
+  for (let attempt = 0; attempt < 14; attempt++) {
     const cityMatch = visibleOptionElements().find((el) => /houston/i.test(el.textContent || ""));
     if (cityMatch) {
       simulateClick(cityMatch);
       await sleep(300);
-      return true;
+      if (locationLooksResolved(activeInput)) return true;
     }
-    await sleep(350);
+    await sleep(500);
   }
-  return `no "Houston" suggestion appeared for zip ${ZIP_CODE} — visible text was: ${visibleTextSample()}`;
+
+  // Click-based selection never confirmed — try the keyboard path
+  // instead (ArrowDown to highlight the first suggestion, Enter to pick
+  // it), the same combobox pattern already confirmed necessary for
+  // Year/Make. Worth trying before giving up entirely rather than
+  // leaving the operator to always finish this one field by hand.
+  dispatchKey(activeInput, "ArrowDown");
+  await sleep(300);
+  dispatchKey(activeInput, "Enter");
+  await sleep(500);
+  if (locationLooksResolved(activeInput)) return true;
+
+  return `no "Houston" suggestion could be confirmed selected for zip ${ZIP_CODE} — visible text was: ${visibleTextSample()}`;
+}
+
+// A resolved location replaces the raw typed zip with the real place
+// name Facebook picked (e.g. "Houston, TX 77076") — checking for that
+// instead of just "a click happened" catches a click that landed but
+// didn't actually register, the same false-success risk confirmSelected
+// exists to catch elsewhere.
+function locationLooksResolved(input) {
+  return /houston/i.test(input.value || "");
 }
 
 // Always checked, per the operator — walks up a few ancestor levels from
