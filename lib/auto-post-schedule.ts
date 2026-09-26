@@ -3,6 +3,7 @@ import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { clockTimeInTimezone, dateInTimezone, todayInTimezone } from "@/lib/dealership-time";
 import { getAppBaseUrl } from "@/lib/app-url";
+import { downPaymentCentsFor } from "@/lib/marketing-copy";
 
 export interface AutoPostJob {
   postId: string;
@@ -14,6 +15,13 @@ export interface AutoPostJob {
     color: string | null;
     miles: number | null;
     askingPrice: number | null; // integer cents
+    // What Facebook's Price field should actually show — the "starting
+    // from" down payment, same figure and same rule the listing text
+    // itself states, not the full asking price. Null only if bodyType
+    // somehow isn't set (shouldn't happen — generating the listing body
+    // already requires it), in which case the content script falls back
+    // to askingPrice rather than posting a blank price.
+    downPaymentCents: number | null;
     stockNumber: string | null;
     vin: string | null;
     bodyType: string | null;
@@ -86,6 +94,7 @@ export async function getDueAutoPostJob(): Promise<DueResult> {
         color: vehicle.color,
         miles: vehicle.miles,
         askingPrice: vehicle.askingPrice,
+        downPaymentCents: downPaymentCentsFor(vehicle),
         stockNumber: vehicle.stockNumber,
         vin: vehicle.vin,
         bodyType: vehicle.bodyType,
