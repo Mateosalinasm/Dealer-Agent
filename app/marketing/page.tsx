@@ -1,4 +1,4 @@
-import { desc } from "drizzle-orm";
+import { asc, desc } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,14 +9,23 @@ import { sourcePerformance } from "@/lib/lead-source-stats";
 export const dynamic = "force-dynamic";
 
 export default async function MarketingPage() {
-  const [vehicles, posts, leads] = await Promise.all([
+  const [vehicles, posts, leads, photoRows] = await Promise.all([
     db.select().from(schema.vehicles).orderBy(desc(schema.vehicles.createdAt)),
     db.select().from(schema.marketingPosts),
     db.select({ source: schema.leads.source, status: schema.leads.status }).from(schema.leads),
+    db.select().from(schema.vehiclePhotos).orderBy(asc(schema.vehiclePhotos.sortOrder)),
   ]);
 
   const stats = sourcePerformance(leads);
   const totalLeads = leads.length;
+
+  // First photo per vehicle (by sortOrder) is the cover — same "first in
+  // the gallery" photo the Inventory grid and vehicle detail page use.
+  const coverUrlByVehicle = new Map<string, string>();
+  for (const p of photoRows) {
+    if (coverUrlByVehicle.has(p.vehicleId)) continue;
+    coverUrlByVehicle.set(p.vehicleId, p.editedStoragePath ? `/api/vehicle-photos/${p.id}/file?v=edited` : `/api/vehicle-photos/${p.id}/file`);
+  }
 
   return (
     <div>
@@ -53,6 +62,7 @@ export default async function MarketingPage() {
               sold: v.sold,
               marketingStatus: v.marketingStatus,
               acquiredOn: v.acquiredOn,
+              coverUrl: coverUrlByVehicle.get(v.id) ?? null,
             }))}
             posts={posts.map((p) => ({
               vehicleId: p.vehicleId,

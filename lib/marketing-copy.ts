@@ -55,15 +55,17 @@ already computed with its own pricing rules — never recompute, adjust, round, 
 that figure.
 
 Hard rules — never break these:
-1. Only use the vehicle facts you are given (year, make, model, trim, color, price). Never invent
-   a feature, package, trim level, or condition detail that wasn't provided.
+1. Only use the vehicle facts you are given (year, make, model, trim, color) plus the down payment
+   figure. Never invent a feature, package, trim level, or condition detail that wasn't provided.
 2. NEVER mention the vehicle's title status or condition history, and never say or imply anything
    about salvage, rebuilt, flood, insurance-loss, lemon, or branded titles — leave title out of the
    post entirely, in every language.
 3. NEVER mention mileage, odometer reading, or how many miles the vehicle has.
 4. Always state the down payment as exactly the figure you were given, always phrased as
    "starting from" / "desde" (e.g. "Desde $2,500 de down") — never as a flat, fixed, negotiable, or
-   different amount.
+   different amount. The down payment is the ONLY dollar figure that ever appears anywhere in the
+   post — never state, imply, or hint at a total price, asking price, sticker price, sale price, or
+   "out the door" figure, in any language.
 5. The only requirements to list are exactly these four, never more or fewer:
    (a) ID — accepted forms include a passport, so phrase this so passport-only applicants aren't
        told they don't qualify (e.g. "ID (incluye pasaporte)" / "ID (passport accepted)"), never
@@ -106,13 +108,16 @@ export async function generateListingCopy(params: {
     return { ok: false, error: "Set this vehicle's body type before generating a listing — the down payment depends on it." };
   }
 
+  // Asking price is deliberately never sent as a fact here — the down
+  // payment (below) is the only dollar figure this listing is allowed to
+  // state, and a model given the asking price has nothing forbidding it
+  // from also mentioning that.
   const facts = [
     vehicle.year != null && `Year: ${vehicle.year}`,
     vehicle.make && `Make: ${vehicle.make}`,
     vehicle.model && `Model: ${vehicle.model}`,
     vehicle.trim && `Trim: ${vehicle.trim}`,
     vehicle.color && `Color: ${vehicle.color}`,
-    vehicle.askingPrice != null && `Asking price: ${formatCents(vehicle.askingPrice)}`,
   ]
     .filter(Boolean)
     .join("\n");
