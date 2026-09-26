@@ -5,22 +5,32 @@
 // ============================================================================
 // STATUS after the latest real attempt against the live page:
 //   - CONFIRMED WORKING: Photos, Price, Description.
-//   - CONFIRMED NOT WORKING (this round): Vehicle type, Year (and therefore
-//     Make/Model/Mileage never appeared, since Facebook only reveals those
-//     once Vehicle type + Year are both set), Location resolved to a raw
-//     typed zip instead of the matching city suggestion. Vehicle
-//     appearance/details (Body style, Exterior color, Vehicle condition,
-//     Fuel type, clean-title checkbox) and the marketplace-group selection
-//     step were never attempted at all — added this round.
-//   - Root cause for Vehicle type/Year: the original clickStaticDropdownOption
-//     opened the dropdown and checked for a matching option exactly once,
-//     600ms later. If Facebook's popup renders slower than that on a given
-//     attempt, the match is missed with no second try. selectStaticOption
-//     replaces it with a retry loop (~8 attempts, 300-350ms apart).
-//   - STILL UNVERIFIED LIVE: Make/Model typeahead matching, Mileage/Body
-//     style/Exterior color/Fuel type/clean-title selectors, and the group-
-//     selection step (selectHoustonGroups) — this is the least-tested part
-//     of this script since it's never been reached in a real run yet.
+//   - CONFIRMED BUG, FIXED: Vehicle type still wasn't getting set even
+//     after selectStaticOption added a retry loop — traced to
+//     findFieldTrigger returning the FIRST matching element in document
+//     order, which for a field with no aria-label/placeholder falls back
+//     to a div's whole .textContent. A big ancestor wrapping the real
+//     trigger (and everything after it) can ALSO start with the same
+//     label text and, being an ancestor, always sorts earlier in document
+//     order — so it got clicked instead of the actual small control, and
+//     every retry kept clicking the same wrong thing. Now picks the most
+//     specific (fewest-descendant) match instead, same fix already
+//     applied to option-matching. selectStaticOption now also verifies
+//     the trigger actually shows the chosen value before reporting
+//     success. Vehicle type is a hard stop if it fails — Year/Make/Model/
+//     Mileage don't exist in the DOM until it's set, and the operator
+//     going back to set it by hand can reset those fields, so nothing
+//     downstream should be attempted against a form that isn't ready.
+//   - CONFIRMED BUG, FIXED: Make and Model both ended up typed into the
+//     same field — findInputByLabel's plain substring match let "make"
+//     match Facebook's own top-nav search box (placeholder "Search
+//     Marketplace" contains "make" as a literal substring of
+//     "Marketplace"). Switched to word-boundary matching.
+//   - STILL UNVERIFIED LIVE: Model typeahead matching, Location/Mileage/
+//     Body style/Exterior color/Fuel type/clean-title selectors, and the
+//     group-selection step (selectHoustonGroups) — none of these have
+//     been reached in a real run yet since Vehicle type was blocking
+//     everything before it.
 // ============================================================================
 
 // This dealership's lot zip — Facebook otherwise defaults to whatever city
@@ -51,8 +61,15 @@ window.__dealerAgentFillListing = async function fillListing({ vehicle, body, ph
       }
     }
 
+    // Vehicle type gates everything below it — Year/Make/Model/Mileage
+    // don't even render until it's set, and going back to set it by hand
+    // later can reset those fields. So this one field is a hard stop, not
+    // a soft warning: if it's not confirmed selected, nothing else is
+    // attempted at all.
     const vehicleTypeResult = await selectStaticOption(["Vehicle type"], VEHICLE_TYPE_OPTION);
-    if (vehicleTypeResult !== true) warnings.push(`Could not set Vehicle type to "${VEHICLE_TYPE_OPTION}" (${vehicleTypeResult}).`);
+    if (vehicleTypeResult !== true) {
+      return { ok: false, error: `Could not set Vehicle type to "${VEHICLE_TYPE_OPTION}" (${vehicleTypeResult}) — stopped here so nothing downstream gets filled against a form that isn't ready for it.` };
+    }
 
     if (vehicle.year != null) {
       const r = await selectStaticOption(["Year"], String(vehicle.year));
@@ -237,8 +254,17 @@ function findInputByLabel(candidates, tag = "input") {
   const els = Array.from(document.querySelectorAll(tag));
   return els.find((el) => {
     const haystack = [el.getAttribute("aria-label"), el.getAttribute("placeholder"), labelTextFor(el)].filter(Boolean).join(" ").toLowerCase();
-    return candidates.some((c) => haystack.includes(c.toLowerCase()));
+    // Plain substring matching let "make" match Facebook's own top-nav
+    // search box (placeholder "Search Marketplace" — "make" is a literal
+    // substring of "Marketplace") — seen in testing swallowing both the
+    // Make and Model values into that one box instead of their own
+    // fields. Word-boundary matching only matches "make" as its own word.
+    return candidates.some((c) => wordBoundaryIncludes(haystack, c.toLowerCase()));
   });
+}
+
+function wordBoundaryIncludes(haystack, word) {
+  return new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(haystack);
 }
 
 function labelTextFor(el) {
@@ -265,11 +291,20 @@ function isVisible(el) {
 // and as the open-step of the typeahead fields.
 function findFieldTrigger(candidates) {
   const all = Array.from(document.querySelectorAll("div, input"));
-  return all.find((el) => {
+  const matches = all.filter((el) => {
     if (!isVisible(el)) return false;
     const text = (el.getAttribute("aria-label") || el.getAttribute("placeholder") || el.textContent || "").trim().toLowerCase();
     return candidates.some((c) => text === c.toLowerCase() || text.startsWith(c.toLowerCase()));
   });
+  if (matches.length === 0) return null;
+  // .textContent falls back to a div's whole subtree, so a big ancestor
+  // wrapping the real trigger (and everything after it) can ALSO start
+  // with the same label text and would otherwise be matched first, since
+  // document order puts ancestors before their descendants — clicking
+  // that ancestor instead of the actual small trigger looks like nothing
+  // happened. Picking the most specific (fewest descendants) match, same
+  // approach as findBestTextMatch, lands on the real control instead.
+  return matches.reduce((best, el) => (el.querySelectorAll("*").length < best.querySelectorAll("*").length ? el : best));
 }
 
 // A plain .click() only fires a synthetic MouseEvent — some React
@@ -327,14 +362,26 @@ async function selectStaticOption(triggerCandidates, optionText) {
     const match = findBestTextMatch(optionText);
     if (match) {
       simulateClick(match);
-      await sleep(300);
-      return true;
+      await sleep(400);
+      // A click on the right-looking option isn't proof it landed —
+      // confirm the trigger itself now displays the chosen value before
+      // calling this a success, since a mis-clicked or ignored click
+      // leaves the field looking untouched.
+      if (triggerShowsValue(trigger, optionText)) return true;
+      await sleep(400);
+      if (triggerShowsValue(trigger, optionText)) return true;
+      return `clicked "${optionText}" but the field still doesn't show it selected`;
     }
     const popup = findOpenListbox();
     if (popup) popup.scrollTop += popup.clientHeight;
     await sleep(350);
   }
   return `no option matched "${optionText}" — visible text was: ${visibleTextSample()}`;
+}
+
+function triggerShowsValue(trigger, optionText) {
+  const shown = (trigger.getAttribute("aria-label") || trigger.textContent || "").trim().toLowerCase();
+  return shown.includes(optionText.trim().toLowerCase());
 }
 
 // For Make/Model — fields tied to Facebook's own searchable catalog (not a
