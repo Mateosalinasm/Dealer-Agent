@@ -67,6 +67,26 @@ async function photoUrlToDataUrl(url) {
   });
 }
 
+// chrome.scripting.executeScript fails with "Frame with ID 0 is removed"
+// (or similar "no frame"/"no tab" errors) when the target tab navigates
+// again — e.g. a redirect — between grabbing the tab reference and the
+// injection actually running. That's a timing race, not a real failure,
+// so it's worth a couple of short retries before giving up for real.
+async function executeScriptWithRetry(details, attempts = 4, delayMs = 1200) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await chrome.scripting.executeScript(details);
+    } catch (err) {
+      lastErr = err;
+      const message = err instanceof Error ? err.message : String(err);
+      if (!/frame with id|no tab with id|no frame|cannot access/i.test(message)) throw err;
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  throw lastErr;
+}
+
 function waitForTabComplete(tabId) {
   return new Promise((resolve) => {
     function listener(id, info) {
@@ -98,13 +118,17 @@ async function runJob(job) {
   await waitForTabComplete(tab.id);
   // Give the SPA a moment to finish its own client-side render after the
   // browser's "complete" — Facebook's page is fully JS-rendered, so
-  // "complete" only means the initial HTML shell loaded.
-  await new Promise((r) => setTimeout(r, 3000));
+  // "complete" only means the initial HTML shell loaded. Facebook can also
+  // still be mid-redirect at this point (seen in testing as "Frame with ID
+  // 0 is removed" — the frame this tab started with gets replaced by a
+  // later redirect), so both injections below retry through that instead
+  // of failing on the first attempt.
+  await new Promise((r) => setTimeout(r, 4000));
 
-  await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content-script.js"] });
+  await executeScriptWithRetry({ target: { tabId: tab.id }, files: ["content-script.js"] });
 
   const photoDataUrls = await photoDataUrlsPromise;
-  const [{ result }] = await chrome.scripting.executeScript({
+  const [{ result }] = await executeScriptWithRetry({
     target: { tabId: tab.id },
     func: (payload) => window.__dealerAgentFillListing(payload),
     args: [{ vehicle: job.vehicle, body: job.body, photoDataUrls }],
