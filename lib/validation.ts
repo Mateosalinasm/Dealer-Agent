@@ -274,3 +274,32 @@ export const autoPostScheduleSchema = z.object({
   // "HH:mm" 24h times, one per line/entry from the form.
   autoPostTimes: z.array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24h HH:mm, e.g. 09:00")).min(1).max(10),
 });
+
+// Posted by the Messenger extension (or any future channel adapter) when a
+// new customer message comes in — see app/api/marketplace-agent/inbound/route.ts.
+// Exactly one of vehicleId/listingUrl must resolve to a real vehicle; both
+// are accepted since the extension may only have the listing URL Facebook
+// shows in the conversation header, not this app's own vehicle id.
+export const marketplaceInboundSchema = z.object({
+  externalThreadId: z.string().min(1).max(200),
+  vehicleId: z.string().uuid().optional(),
+  listingUrl: z.string().url().optional(),
+  contactName: z.string().max(200).optional(),
+  body: z.string().min(1).max(4000),
+});
+
+// Posted by the dashboard (or extension) to approve — optionally editing —
+// a Claude-drafted reply before it sends. See
+// app/api/marketplace-agent/approve/route.ts.
+export const marketplaceApproveSchema = z.object({
+  messageId: z.string().uuid(),
+  body: z.string().min(1).max(4000).optional(),
+});
+
+// Posted by the Messenger extension after it attempts to actually send an
+// approved reply — see app/api/marketplace-agent/report/route.ts.
+export const marketplaceReportSchema = z.object({
+  messageId: z.string().uuid(),
+  ok: z.boolean(),
+  providerMessageId: z.string().max(200).optional(),
+});
