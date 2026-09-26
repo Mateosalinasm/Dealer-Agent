@@ -47,10 +47,14 @@
 //     its own so nobody needs to touch it by hand.
 // ============================================================================
 
-// This dealership's lot zip — Facebook otherwise defaults to whatever city
-// it thinks the account is in, not necessarily where the vehicle actually
-// is. Change these two lines if the lot moves.
-const ZIP_CODE = "77076";
+// This dealership's lot location — Facebook otherwise defaults to whatever
+// city it thinks the account is in, not necessarily where the vehicle
+// actually is. Typing the bare zip (77076) stopped resolving reliably —
+// Facebook would leave it as raw unselected text and reject it ("Please
+// enter a valid location") instead of ever showing a matching suggestion;
+// the city name is a far more reliable autocomplete match. Change this if
+// the lot moves.
+const LOCATION_QUERY = "Houston";
 const VEHICLE_TYPE_OPTION = "Car/Truck";
 const VEHICLE_CONDITION = "Very good"; // fixed by the operator, not derived from vehicle data
 const INTERIOR_COLOR = "Black"; // fixed by the operator, not derived from vehicle data
@@ -739,16 +743,20 @@ async function fillLocation() {
 
   const activeInput = document.activeElement && document.activeElement.tagName === "INPUT" ? document.activeElement : await findInputByLabel(["Location"]);
   if (!activeInput) return "could not find a text input after opening the field";
-  setInputValue(activeInput, ZIP_CODE);
+  setInputValue(activeInput, LOCATION_QUERY);
 
   // Auction wifi is unreliable (see CLAUDE.md) — reported failing
-  // intermittently, with the raw zip left typed but never resolved into
-  // a real selected place, which is exactly what a slow suggestion
-  // fetch on a given attempt would look like. Longer retry budget (was
-  // 8×350ms, now 14×500ms — ~7s total) rather than assuming it's just a
-  // one-off glitch nothing can be done about.
+  // intermittently, with the typed text left unresolved (and, with the
+  // zip, Facebook outright rejecting it as "not a valid location") rather
+  // than ever showing a matching suggestion, which is exactly what a slow
+  // suggestion fetch on a given attempt would look like. Longer retry
+  // budget (was 8×350ms, now 14×500ms — ~7s total) rather than assuming
+  // it's just a one-off glitch nothing can be done about.
+  let sawAnySuggestion = false;
   for (let attempt = 0; attempt < 14; attempt++) {
-    const cityMatch = visibleOptionElements().find((el) => /houston/i.test(el.textContent || ""));
+    const options = visibleOptionElements();
+    if (options.length > 0) sawAnySuggestion = true;
+    const cityMatch = options.find((el) => /houston/i.test(el.textContent || ""));
     if (cityMatch) {
       simulateClick(cityMatch);
       await sleep(300);
@@ -757,18 +765,22 @@ async function fillLocation() {
     await sleep(500);
   }
 
-  // Click-based selection never confirmed — try the keyboard path
-  // instead (ArrowDown to highlight the first suggestion, Enter to pick
-  // it), the same combobox pattern already confirmed necessary for
-  // Year/Make. Worth trying before giving up entirely rather than
-  // leaving the operator to always finish this one field by hand.
-  dispatchKey(activeInput, "ArrowDown");
-  await sleep(300);
-  dispatchKey(activeInput, "Enter");
-  await sleep(500);
-  if (locationLooksResolved(activeInput)) return true;
+  // Only try the keyboard fallback (ArrowDown to highlight, Enter to
+  // pick) if a suggestion list was actually seen at some point — pressing
+  // Enter with nothing ever rendered just commits the raw typed text as
+  // free text instead of a real selected place, which is exactly what
+  // produced Facebook's "Please enter a valid location" rejection in
+  // testing. No suggestions ever showing up at all is a real failure to
+  // report, not something a blind Enter should paper over.
+  if (sawAnySuggestion) {
+    dispatchKey(activeInput, "ArrowDown");
+    await sleep(300);
+    dispatchKey(activeInput, "Enter");
+    await sleep(500);
+    if (locationLooksResolved(activeInput)) return true;
+  }
 
-  return `no "Houston" suggestion could be confirmed selected for zip ${ZIP_CODE} — visible text was: ${visibleTextSample()}`;
+  return `no "Houston" suggestion could be confirmed selected for "${LOCATION_QUERY}" — visible text was: ${visibleTextSample()}`;
 }
 
 // A resolved location replaces the raw typed zip with the real place
