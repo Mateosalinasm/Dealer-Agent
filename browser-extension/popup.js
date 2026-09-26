@@ -1,5 +1,6 @@
 const lastCheckEl = document.getElementById("lastCheck");
 const checkNowButton = document.getElementById("checkNow");
+const testNowButton = document.getElementById("testNow");
 
 async function render() {
   const { status, apiBaseUrl } = await chrome.storage.local.get(["status", "apiBaseUrl"]);
@@ -22,6 +23,15 @@ checkNowButton.addEventListener("click", async () => {
   await render();
   checkNowButton.disabled = false;
   checkNowButton.textContent = "Check now";
+});
+
+testNowButton.addEventListener("click", async () => {
+  testNowButton.disabled = true;
+  testNowButton.textContent = "Testing…";
+  await chrome.runtime.sendMessage({ type: "check-now", force: true });
+  await render();
+  testNowButton.disabled = false;
+  testNowButton.textContent = "Test now (ignore schedule)";
 });
 
 document.getElementById("openOptions").addEventListener("click", (e) => {

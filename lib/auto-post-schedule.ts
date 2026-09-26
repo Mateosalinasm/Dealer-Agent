@@ -3,7 +3,7 @@ import { and, asc, eq, isNotNull, isNull } from "drizzle-orm";
 import { db, schema } from "@/lib/db";
 import { clockTimeInTimezone, dateInTimezone, todayInTimezone } from "@/lib/dealership-time";
 import { getAppBaseUrl } from "@/lib/app-url";
-import { downPaymentCentsFor } from "@/lib/marketing-copy";
+import { downPaymentCentsFor, extractDownPaymentCentsFromBody } from "@/lib/marketing-copy";
 
 export interface AutoPostJob {
   postId: string;
@@ -16,11 +16,15 @@ export interface AutoPostJob {
     miles: number | null;
     askingPrice: number | null; // integer cents
     // What Facebook's Price field should actually show — the "starting
-    // from" down payment, same figure and same rule the listing text
-    // itself states, not the full asking price. Null only if bodyType
-    // somehow isn't set (shouldn't happen — generating the listing body
-    // already requires it), in which case the content script falls back
-    // to askingPrice rather than posting a blank price.
+    // from" down payment. Read from the listing body's own text first
+    // (whatever figure is actually printed in the ad — a body can be
+    // manually edited, or written before a tier-rule change, and drift
+    // from what downPaymentCentsFor() computes today; the Price field
+    // must always match what the ad itself says, never a different
+    // number), falling back to the deterministic tier rule only if the
+    // body has no dollar figure to read. Null only if bodyType somehow
+    // isn't set AND parsing failed, in which case the content script
+    // falls back to askingPrice rather than posting a blank price.
     downPaymentCents: number | null;
     stockNumber: string | null;
     vin: string | null;
@@ -41,26 +45,35 @@ export type DueResult = { due: true; job: AutoPostJob } | { due: false; reason: 
 // here is a handful of vehicles a month, so pulling today's auto-posted
 // rows and filtering in memory is simpler than a timezone-aware SQL date
 // truncation, and plenty fast at this scale.
-export async function getDueAutoPostJob(): Promise<DueResult> {
+//
+// `force` is the popup's "Test now" button — it skips the
+// enabled/schedule/max-per-day gates entirely (there's still nothing to
+// send if nothing_queued — force can't invent a job out of thin air), for
+// iterating on the content script without waiting on real scheduling.
+export async function getDueAutoPostJob(opts?: { force?: boolean }): Promise<DueResult> {
+  const force = opts?.force ?? false;
   const [settingsRow] = await db.select().from(schema.settings).limit(1);
-  if (!settingsRow?.autoPostEnabled) return { due: false, reason: "disabled" };
+  if (!force && !settingsRow?.autoPostEnabled) return { due: false, reason: "disabled" };
 
-  const timezone = settingsRow.timezone || "America/Chicago";
-  const now = new Date();
-  const nowClock = clockTimeInTimezone(timezone, now);
-  const today = todayInTimezone(timezone);
+  const timezone = settingsRow?.timezone || "America/Chicago";
 
-  const slotsOpenByNow = (settingsRow.autoPostTimes ?? []).filter((t) => t <= nowClock).length;
-  if (slotsOpenByNow === 0) return { due: false, reason: "not_time_yet" };
+  if (!force) {
+    const now = new Date();
+    const nowClock = clockTimeInTimezone(timezone, now);
+    const today = todayInTimezone(timezone);
 
-  const autoPostedToday = await db
-    .select({ postedAt: schema.marketingPosts.postedAt })
-    .from(schema.marketingPosts)
-    .where(and(eq(schema.marketingPosts.postedVia, "auto"), isNotNull(schema.marketingPosts.postedAt)));
-  const postedTodayCount = autoPostedToday.filter((p) => dateInTimezone(timezone, p.postedAt!) === today).length;
+    const slotsOpenByNow = (settingsRow.autoPostTimes ?? []).filter((t) => t <= nowClock).length;
+    if (slotsOpenByNow === 0) return { due: false, reason: "not_time_yet" };
 
-  if (postedTodayCount >= settingsRow.autoPostMaxPerDay) return { due: false, reason: "max_reached" };
-  if (postedTodayCount >= slotsOpenByNow) return { due: false, reason: "not_time_yet" };
+    const autoPostedToday = await db
+      .select({ postedAt: schema.marketingPosts.postedAt })
+      .from(schema.marketingPosts)
+      .where(and(eq(schema.marketingPosts.postedVia, "auto"), isNotNull(schema.marketingPosts.postedAt)));
+    const postedTodayCount = autoPostedToday.filter((p) => dateInTimezone(timezone, p.postedAt!) === today).length;
+
+    if (postedTodayCount >= settingsRow.autoPostMaxPerDay) return { due: false, reason: "max_reached" };
+    if (postedTodayCount >= slotsOpenByNow) return { due: false, reason: "not_time_yet" };
+  }
 
   const [nextPost] = await db
     .select()
@@ -94,7 +107,7 @@ export async function getDueAutoPostJob(): Promise<DueResult> {
         color: vehicle.color,
         miles: vehicle.miles,
         askingPrice: vehicle.askingPrice,
-        downPaymentCents: downPaymentCentsFor(vehicle),
+        downPaymentCents: extractDownPaymentCentsFromBody(nextPost.body) ?? downPaymentCentsFor(vehicle),
         stockNumber: vehicle.stockNumber,
         vin: vehicle.vin,
         bodyType: vehicle.bodyType,

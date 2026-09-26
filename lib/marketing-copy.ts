@@ -48,6 +48,26 @@ export function downPaymentCentsFor(v: VehicleForMarketing): number | null {
   return v.fuelType === "diesel" && year > 2020 ? 500_000 : 350_000;
 }
 
+/**
+ * Reads back the down payment figure actually printed in a generated (or
+ * since hand-edited) listing body — not a second, independent guess at the
+ * number the way downPaymentCentsFor's own doc comment warns against.
+ * Rule #3 in the system prompt below guarantees the down payment is the
+ * ONLY dollar figure a listing body ever states, so the first one found is
+ * it. This exists because the body can drift from what
+ * downPaymentCentsFor(vehicle) computes today — written before a tier-rule
+ * change, or edited by hand — and the auto-poster's Price field has to
+ * match what the ad itself actually says, never a different number from
+ * the same listing. Returns null if the body has no dollar figure at all.
+ */
+export function extractDownPaymentCentsFromBody(body: string): number | null {
+  const match = body.match(/\$\s?([\d,]+(?:\.\d{2})?)/);
+  if (!match) return null;
+  const dollars = parseFloat(match[1].replace(/,/g, ""));
+  if (!Number.isFinite(dollars)) return null;
+  return Math.round(dollars * 100);
+}
+
 const SYSTEM_PROMPT = `You write vehicle-for-sale marketing copy for a single "buy here, pay here"
 -style dealership's own social media and marketplace posts, focused on the Hispanic community.
 You are given real facts about one vehicle and a down payment figure that the dealership has

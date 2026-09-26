@@ -21,8 +21,9 @@ async function setStatus(patch) {
   await chrome.storage.local.set({ status: { ...(status || {}), ...patch, updatedAt: new Date().toISOString() } });
 }
 
-async function fetchNextJob(apiBaseUrl, apiToken) {
-  const res = await fetch(`${apiBaseUrl}/api/extension/next-job`, {
+async function fetchNextJob(apiBaseUrl, apiToken, force) {
+  const url = `${apiBaseUrl}/api/extension/next-job${force ? "?force=1" : ""}`;
+  const res = await fetch(url, {
     headers: { Authorization: `Bearer ${apiToken}` },
     cache: "no-store", // this must always reflect what's due right now, never a cached answer
   });
@@ -140,7 +141,7 @@ async function runJob(job) {
   return result; // { ok, error?, listingUrl? }
 }
 
-async function checkForJob() {
+async function checkForJob(force = false) {
   const { apiBaseUrl, apiToken } = await getConfig();
   if (!apiBaseUrl || !apiToken) {
     await setStatus({ lastCheck: "Not paired yet — set the app URL and token in Options." });
@@ -148,7 +149,7 @@ async function checkForJob() {
   }
 
   try {
-    const result = await fetchNextJob(apiBaseUrl, apiToken);
+    const result = await fetchNextJob(apiBaseUrl, apiToken, force);
     if (!result.due) {
       await setStatus({ lastCheck: `Checked — nothing due (${result.reason}).` });
       return;
@@ -174,10 +175,13 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM_NAME) checkForJob();
 });
 
-// Manual "Check now" from the popup.
+// Manual "Check now" / "Test now" from the popup. message.force is true
+// for "Test now" — bypasses the enabled/schedule/max-per-day gates (see
+// getDueAutoPostJob's force option) so testing doesn't have to wait on
+// real scheduling; still requires something actually queued.
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "check-now") {
-    checkForJob().then(() => sendResponse({ ok: true }));
+    checkForJob(!!message.force).then(() => sendResponse({ ok: true }));
     return true; // keep the message channel open for the async response
   }
 });

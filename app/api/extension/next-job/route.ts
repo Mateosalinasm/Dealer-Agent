@@ -13,7 +13,12 @@ export async function GET(req: NextRequest) {
   const token = await verifyExtensionToken(bearerTokenFrom(req));
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const result = await getDueAutoPostJob();
+  // ?force=1 is the popup's "Test now" button — skips the enabled/
+  // schedule/max-per-day gates so the operator can iterate on the content
+  // script without waiting on real scheduling (still requires something
+  // actually queued — this can't invent a job).
+  const force = req.nextUrl.searchParams.get("force") === "1";
+  const result = await getDueAutoPostJob({ force });
   // The exact same photo URLs kept showing up in testing across several
   // new deployments, which pointed to this response being cached
   // somewhere between the extension and this route (this endpoint's
