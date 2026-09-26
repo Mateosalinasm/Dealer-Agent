@@ -86,6 +86,13 @@ function waitForTabComplete(tabId) {
 // had the content script injected into it.
 async function runJob(job) {
   const photoDataUrlsPromise = Promise.all(job.photoUrls.map(photoUrlToDataUrl));
+  // A rejection here (e.g. the CORS/host-mismatch failure seen in
+  // testing) happens well before this promise is actually awaited below —
+  // Chrome's service worker flags that as an unhandled rejection (the
+  // "Errors" badge on the extension's card) even though it IS handled,
+  // just later. This empty catch only suppresses that false alarm; the
+  // real error is still caught for real at the `await` below.
+  photoDataUrlsPromise.catch(() => {});
 
   const tab = await chrome.tabs.create({ url: "https://www.facebook.com/marketplace/create/vehicle", active: true });
   await waitForTabComplete(tab.id);
