@@ -59,7 +59,7 @@ export function AutoPostSettingsForm({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <Label htmlFor="autoPostMaxPerDay">Max posts per day</Label>
-            <Input id="autoPostMaxPerDay" name="autoPostMaxPerDay" type="number" min={1} max={10} defaultValue={autoPostMaxPerDay} />
+            <Input id="autoPostMaxPerDay" name="autoPostMaxPerDay" type="number" min={1} max={20} defaultValue={autoPostMaxPerDay} />
           </div>
           <div>
             <Label htmlFor="autoPostTimes">Post times (24h, comma-separated)</Label>

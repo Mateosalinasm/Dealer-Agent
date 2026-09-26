@@ -270,7 +270,9 @@ export const autoPostReportSchema = z.object({
 // The Settings page's auto-post schedule form.
 export const autoPostScheduleSchema = z.object({
   autoPostEnabled: z.boolean(),
-  autoPostMaxPerDay: z.coerce.number().int().min(1).max(10),
+  // Raised from 10 to 20 temporarily for live testing — drop back to 10
+  // (or whatever's actually safe) once testing is done.
+  autoPostMaxPerDay: z.coerce.number().int().min(1).max(20),
   // "HH:mm" 24h times, one per line/entry from the form.
   autoPostTimes: z.array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24h HH:mm, e.g. 09:00")).min(1).max(10),
 });
